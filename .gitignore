@@ -1,0 +1,105 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+
+# Gradle files
+.gradle/
+**/build/
+!gradle/wrapper/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Android Studio
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/.name
+.idea/compiler.xml
+.idea/jarRepositories.xml
+.idea/gradle.xml
+.idea/AndroidProjectSystem.xml
+.idea/migrations.xml
+.idea/inspectionProfiles/
+.idea/codeStyles/
+.idea/runConfigurations.xml
+.idea/misc.xml
+.idea/deploymentTargetSelector.xml
+.idea/*.xml
+.idea/.gitignore
+captures/
+
+# External native build
+.externalNativeBuild/
+.cxx/
+
+# macOS
+.DS_Store
+
+# Firebase config (contains project IDs — not secret but best kept private)
+app/google-services.json
+
+# Firebase Cloud Functions (has own deploy pipeline)
+functions/
+
+# Secrets / API keys
+*.keystore
+*.jks
+signing.properties
+
+# Claude Code personal settings
+.claude/settings.local.json
+CLAUDE.local.md
+CLAUDE.md
+
+# Internal planning / brainstorming
+brainstorming.md
+
+# Emulator testing artifacts
+testing/
+test_*.png
+ui_dump.xml
+screenshot*.png
+shop*.png
+uidump.xml
+
+# Project planning / tracking files (not source code)
+FUTURE_IMPROVEMENTS.md
+COMPLETED_WORK.md
+Features.md
+bugreport.md
+themereview.md
+ui-audit.md
+memory/
+
+# Stray images / design files at root
+*.jpg
+*.jpeg
+*.JPG
+*.png
+*.heic
+*.zip
+*.txt
+!gradle.properties
+!settings.gradle.kts
+
+# Claude rules (project-specific, not needed in public repo)
+.claude/

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restokk — Privacy Policy</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 24px 16px;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: #fafafa;
+        }
+        h1 { font-size: 1.8em; margin-bottom: 4px; }
+        h2 { font-size: 1.3em; margin-top: 32px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+        h3 { font-size: 1.1em; margin-top: 20px; }
+        .subtitle { color: #666; font-size: 0.95em; margin-bottom: 24px; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 6px; }
+        table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 0.95em; }
+        th { background: #f0f0f0; }
+        .highlight { background: #e8f5e9; border-left: 4px solid #4caf50; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+        a { color: #2e7d32; }
+        footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; color: #888; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+
+<h1>Privacy Policy</h1>
+<p class="subtitle">Restokk — AI Kitchen &amp; Grocery Tracker<br>Effective date: February 20, 2026</p>
+
+<div class="highlight">
+    <strong>Summary:</strong> Restokk is a local-first app. Your inventory, shopping lists, and recipes stay on your device. We do not sell your data or show ads.
+</div>
+
+<h2>1. What Data We Collect</h2>
+
+<h3>1a. Data stored locally on your device</h3>
+<p>The following data is stored only in a local database on your phone and is never uploaded to our servers:</p>
+<ul>
+    <li>Inventory items (names, quantities, expiry dates, categories, locations)</li>
+    <li>Shopping list items and purchase history</li>
+    <li>Saved recipes and meal suggestions</li>
+    <li>App settings and preferences (theme, currency, notification toggles)</li>
+    <li>Pantry health scores and analytics</li>
+</ul>
+
+<h3>1b. Data collected by third-party services</h3>
+<table>
+    <tr>
+        <th>Service</th>
+        <th>Data Collected</th>
+        <th>Purpose</th>
+    </tr>
+    <tr>
+        <td>Firebase Authentication (Google)</td>
+        <td>Email, display name, profile photo (if you sign in with Google); anonymous user ID if you don't</td>
+        <td>Account management, AI usage tracking</td>
+    </tr>
+    <tr>
+        <td>Firebase Analytics (Google)</td>
+        <td>Device info (model, OS), app events (screen views, feature usage), approximate geographic region</td>
+        <td>Understand how features are used to improve the app</td>
+    </tr>
+</table>
+<p>Firebase data is processed by Google under their <a href="https://firebase.google.com/support/privacy">Firebase Privacy Policy</a>.</p>
+
+<h2>2. AI Features &amp; Data Handling</h2>
+<p>Restokk uses AI to power kitchen scanning, receipt parsing, and meal suggestions. Here's exactly what gets sent:</p>
+
+<table>
+    <tr>
+        <th>Feature</th>
+        <th>Data Sent</th>
+        <th>Provider</th>
+        <th>Used for Training?</th>
+    </tr>
+    <tr>
+        <td>Kitchen Scan (photo recognition)</td>
+        <td>Photo of your kitchen/food</td>
+        <td>OpenAI (GPT-4o) via our server</td>
+        <td>No</td>
+    </tr>
+    <tr>
+        <td>Receipt Scan</td>
+        <td>Photo of your receipt</td>
+        <td>OpenAI (GPT-4o) via our server</td>
+        <td>No</td>
+    </tr>
+    <tr>
+        <td>Meal Suggestions</td>
+        <td>Item names and categories from your inventory</td>
+        <td>Groq (Llama) via our server</td>
+        <td>No</td>
+    </tr>
+    <tr>
+        <td>Smart Tips</td>
+        <td>Item names and categories</td>
+        <td>Groq (Llama) via our server</td>
+        <td>No</td>
+    </tr>
+    <tr>
+        <td>Barcode Lookup</td>
+        <td>Barcode number only</td>
+        <td>Open Food Facts (public API)</td>
+        <td>N/A (public database)</td>
+    </tr>
+</table>
+
+<div class="highlight">
+    <strong>Important:</strong>
+    <ul style="margin-bottom:0">
+        <li>All AI requests are routed through our secure server (Firebase Cloud Functions). Your API keys are never stored in the app.</li>
+        <li>Photos are processed in real-time and <strong>not stored</strong> on any server after processing.</li>
+        <li>OpenAI does <strong>not</strong> use API data for model training (per their <a href="https://openai.com/enterprise-privacy/">data usage policy</a>).</li>
+        <li>Groq does <strong>not</strong> use API data for model training.</li>
+        <li>We do <strong>not</strong> send your full inventory or shopping list to AI providers — only the minimum data needed for each specific feature.</li>
+    </ul>
+</div>
+
+<h2>3. How We Use Your Data</h2>
+<ul>
+    <li><strong>To provide the app's features</strong> — inventory tracking, shopping lists, AI scanning, meal suggestions, reports</li>
+    <li><strong>To improve the app</strong> — anonymous analytics help us understand which features are used and where to focus development</li>
+    <li><strong>To manage AI usage</strong> — per-user quotas prevent abuse and keep the service running for everyone</li>
+</ul>
+<p>We do <strong>not</strong>:</p>
+<ul>
+    <li>Sell your data to third parties</li>
+    <li>Show advertisements</li>
+    <li>Build advertising profiles</li>
+    <li>Share your personal information with other users</li>
+</ul>
+
+<h2>4. Data Storage &amp; Security</h2>
+<ul>
+    <li><strong>Local data</strong> is stored in an encrypted SQLite database on your device</li>
+    <li><strong>API keys</strong> are stored server-side (never in the app) and encrypted at rest</li>
+    <li><strong>Authentication tokens</strong> are managed by Firebase Auth with industry-standard encryption</li>
+    <li><strong>AI requests</strong> use HTTPS encryption in transit</li>
+</ul>
+
+<h2>5. Your Rights &amp; Choices</h2>
+
+<h3>Access your data</h3>
+<p>All your inventory, shopping, and recipe data is visible directly in the app. You can export it as CSV or JSON at any time from Settings.</p>
+
+<h3>Delete your data</h3>
+<p>You can delete all local data by clearing the app's storage in your phone's Settings, or by uninstalling the app. To delete your Firebase account data, sign out from the app's Settings screen.</p>
+
+<h3>Control AI features</h3>
+<p>AI features (kitchen scan, receipt scan, meal suggestions) are only triggered when you explicitly use them. No data is sent to AI providers in the background.</p>
+
+<h3>Control analytics</h3>
+<p>Firebase Analytics collects anonymous usage data. You can limit this by disabling usage data sharing in your device's Google settings.</p>
+
+<h3>Control notifications</h3>
+<p>All notification types (expiry alerts, restock reminders, shopping reminders) can be individually toggled on/off in the app's Settings.</p>
+
+<h2>6. Children's Privacy</h2>
+<p>Restokk is not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will delete it.</p>
+
+<h2>7. Changes to This Policy</h2>
+<p>We may update this privacy policy from time to time. Changes will be posted on this page with an updated effective date. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+
+<h2>8. Contact</h2>
+<p>If you have questions about this privacy policy or your data, contact us at:</p>
+<p>
+    <strong>S Dey</strong><br>
+    Email: <a href="mailto:dhruvo012@gmail.com">dhruvo012@gmail.com</a>
+</p>
+
+<footer>
+    &copy; 2026 S Dey. All rights reserved.<br>
+    Restokk — AI Kitchen &amp; Grocery Tracker
+</footer>
+
+</body>
+</html>

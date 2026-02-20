@@ -1,0 +1,74 @@
+{
+  "locations": [
+    {
+      "name": "Refrigerator",
+      "description": "Main refrigerator for perishable items",
+      "icon": "bi-thermometer-snow",
+      "color": "#2196F3",
+      "temperature_zone": "refrigerated"
+    },
+    {
+      "name": "Freezer",
+      "description": "Freezer for frozen items",
+      "icon": "bi-snow2",
+      "color": "#00BCD4",
+      "temperature_zone": "frozen"
+    },
+    {
+      "name": "Pantry",
+      "description": "Main pantry for dry goods and non-perishables",
+      "icon": "bi-door-open",
+      "color": "#795548",
+      "temperature_zone": "room_temp"
+    },
+    {
+      "name": "Kitchen Cabinet",
+      "description": "Kitchen cabinets for everyday items",
+      "icon": "bi-box",
+      "color": "#FF9800",
+      "temperature_zone": "room_temp"
+    },
+    {
+      "name": "Spice Rack",
+      "description": "Dedicated storage for spices and seasonings",
+      "icon": "bi-grid-3x3-gap",
+      "color": "#9C27B0",
+      "temperature_zone": "room_temp"
+    },
+    {
+      "name": "Counter",
+      "description": "Kitchen counter for fruits and frequently used items",
+      "icon": "bi-columns-gap",
+      "color": "#4CAF50",
+      "temperature_zone": "room_temp"
+    },
+    {
+      "name": "Basement Storage",
+      "description": "Cool basement storage for bulk items",
+      "icon": "bi-house-down",
+      "color": "#607D8B",
+      "temperature_zone": "room_temp"
+    },
+    {
+      "name": "Garage",
+      "description": "Garage storage for overflow and bulk purchases",
+      "icon": "bi-house-door",
+      "color": "#9E9E9E",
+      "temperature_zone": "room_temp"
+    },
+    {
+      "name": "Wine Cooler",
+      "description": "Temperature controlled wine storage",
+      "icon": "bi-cup",
+      "color": "#8E24AA",
+      "temperature_zone": "refrigerated"
+    },
+    {
+      "name": "Mini Fridge",
+      "description": "Secondary small refrigerator",
+      "icon": "bi-box2",
+      "color": "#03A9F4",
+      "temperature_zone": "refrigerated"
+    }
+  ]
+}

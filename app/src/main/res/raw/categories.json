@@ -1,0 +1,137 @@
+{
+  "categories": [
+    {
+      "name": "Dairy & Eggs",
+      "description": "Milk, cheese, yogurt, eggs, and dairy products",
+      "icon": "bi-egg",
+      "color": "#FFC107",
+      "subcategories": ["Milk", "Cheese", "Yogurt", "Eggs", "Butter", "Cream", "Other Dairy"]
+    },
+    {
+      "name": "Meat & Poultry",
+      "description": "Fresh and frozen meats",
+      "icon": "bi-shop",
+      "color": "#DC3545",
+      "subcategories": ["Beef", "Pork", "Chicken", "Turkey", "Lamb", "Ground Meat", "Deli Meat", "Sausages", "Other Meat"]
+    },
+    {
+      "name": "Seafood",
+      "description": "Fish, shellfish, and seafood products",
+      "icon": "bi-water",
+      "color": "#17A2B8",
+      "subcategories": ["Fresh Fish", "Frozen Fish", "Shrimp", "Shellfish", "Canned Seafood", "Other Seafood"]
+    },
+    {
+      "name": "Fruits",
+      "description": "Fresh and frozen fruits",
+      "icon": "bi-apple",
+      "color": "#28A745",
+      "subcategories": ["Apples & Pears", "Citrus", "Berries", "Tropical", "Stone Fruit", "Melons", "Dried Fruit", "Frozen Fruit"]
+    },
+    {
+      "name": "Vegetables",
+      "description": "Fresh and frozen vegetables",
+      "icon": "bi-flower1",
+      "color": "#20C997",
+      "subcategories": ["Leafy Greens", "Root Vegetables", "Cruciferous", "Peppers", "Tomatoes", "Onions & Garlic", "Squash", "Frozen Vegetables", "Other Vegetables"]
+    },
+    {
+      "name": "Bread & Bakery",
+      "description": "Bread, rolls, pastries, and baked goods",
+      "icon": "bi-basket",
+      "color": "#795548",
+      "subcategories": ["Sliced Bread", "Rolls & Buns", "Bagels", "Tortillas", "Pastries", "Cakes", "Other Bakery"]
+    },
+    {
+      "name": "Grains & Pasta",
+      "description": "Rice, pasta, cereals, and grains",
+      "icon": "bi-archive",
+      "color": "#FF9800",
+      "subcategories": ["Rice", "Pasta", "Cereal", "Oatmeal", "Flour", "Quinoa", "Other Grains"]
+    },
+    {
+      "name": "Canned Goods",
+      "description": "Canned vegetables, fruits, soups, and more",
+      "icon": "bi-box-seam",
+      "color": "#607D8B",
+      "subcategories": ["Canned Vegetables", "Canned Fruit", "Canned Beans", "Soups", "Canned Tomatoes", "Canned Meat", "Other Canned"]
+    },
+    {
+      "name": "Condiments & Sauces",
+      "description": "Ketchup, mustard, sauces, and dressings",
+      "icon": "bi-droplet",
+      "color": "#E91E63",
+      "subcategories": ["Ketchup & Mustard", "Mayonnaise", "Hot Sauce", "Soy Sauce", "Salad Dressing", "Pasta Sauce", "BBQ Sauce", "Other Sauces"]
+    },
+    {
+      "name": "Spices & Seasonings",
+      "description": "Herbs, spices, and seasonings",
+      "icon": "bi-asterisk",
+      "color": "#9C27B0",
+      "subcategories": ["Salt & Pepper", "Dried Herbs", "Ground Spices", "Spice Blends", "Extracts", "Other Seasonings"]
+    },
+    {
+      "name": "Snacks",
+      "description": "Chips, crackers, nuts, and snack foods",
+      "icon": "bi-bag",
+      "color": "#FF5722",
+      "subcategories": ["Chips", "Crackers", "Nuts", "Popcorn", "Pretzels", "Cookies", "Candy", "Granola Bars", "Other Snacks"]
+    },
+    {
+      "name": "Beverages",
+      "description": "Drinks, juices, and beverage mixes",
+      "icon": "bi-cup-straw",
+      "color": "#2196F3",
+      "subcategories": ["Water", "Juice", "Soda", "Coffee", "Tea", "Sports Drinks", "Milk Alternatives", "Other Beverages"]
+    },
+    {
+      "name": "Frozen Foods",
+      "description": "Frozen meals, pizzas, and frozen items",
+      "icon": "bi-snow",
+      "color": "#00BCD4",
+      "subcategories": ["Frozen Meals", "Pizza", "Ice Cream", "Frozen Breakfast", "Frozen Appetizers", "Other Frozen"]
+    },
+    {
+      "name": "Baking Supplies",
+      "description": "Baking ingredients and supplies",
+      "icon": "bi-cake",
+      "color": "#8BC34A",
+      "subcategories": ["Sugar", "Flour", "Baking Powder", "Chocolate Chips", "Vanilla", "Yeast", "Other Baking"]
+    },
+    {
+      "name": "Oils & Vinegars",
+      "description": "Cooking oils and vinegars",
+      "icon": "bi-droplet-fill",
+      "color": "#CDDC39",
+      "subcategories": ["Olive Oil", "Vegetable Oil", "Coconut Oil", "Vinegars", "Cooking Spray", "Other Oils"]
+    },
+    {
+      "name": "International Foods",
+      "description": "Ethnic and international food items",
+      "icon": "bi-globe",
+      "color": "#673AB7",
+      "subcategories": ["Asian", "Mexican", "Italian", "Indian", "Mediterranean", "Other International"]
+    },
+    {
+      "name": "Baby Food",
+      "description": "Baby food and infant nutrition",
+      "icon": "bi-person-heart",
+      "color": "#F8BBD9",
+      "subcategories": ["Baby Formula", "Baby Food Jars", "Baby Snacks", "Baby Cereal"]
+    },
+    {
+      "name": "Pet Food",
+      "description": "Food and treats for pets",
+      "icon": "bi-heart",
+      "color": "#A1887F",
+      "subcategories": ["Dog Food", "Cat Food", "Pet Treats", "Other Pet Food"]
+    },
+    {
+      "name": "Other",
+      "description": "Miscellaneous food items",
+      "icon": "bi-three-dots",
+      "color": "#9E9E9E",
+      "subcategories": ["Miscellaneous"]
+    }
+  ]
+}

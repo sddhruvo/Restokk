@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read their own usage data (quota display in app)
+    match /users/{userId}/usage/{day} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Only Cloud Functions can write (admin SDK bypasses rules)
+      allow write: if false;
+    }
+
+    // Rate limit docs — Cloud Functions only (admin SDK)
+    match /ratelimit/{doc} {
+      allow read, write: if false;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
