@@ -47,6 +47,7 @@ fun LowStockReportScreen(
     viewModel: LowStockReportViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.error) {
@@ -119,7 +120,7 @@ fun LowStockReportScreen(
                         supportingContent = { Text("Target: ${effectiveMin.formatQty()}", color = ExpiryRed) },
                         trailingContent = {
                             IconButton(onClick = {
-                                navController.navigate(Screen.AddShoppingItem.createRoute(item.item.id))
+                                showShoppingSheet(item.item.id, null)
                             }) {
                                 Icon(Icons.Filled.AddShoppingCart, contentDescription = "Add to shopping list")
                             }
@@ -153,7 +154,7 @@ fun LowStockReportScreen(
                         },
                         trailingContent = {
                             IconButton(onClick = {
-                                navController.navigate(Screen.AddShoppingItem.createRoute(item.item.id))
+                                showShoppingSheet(item.item.id, null)
                             }) {
                                 Icon(Icons.Filled.AddShoppingCart, contentDescription = "Add to shopping list")
                             }

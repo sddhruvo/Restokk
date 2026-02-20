@@ -78,6 +78,30 @@ class AddShoppingItemViewModel @Inject constructor(
         }
     }
 
+    fun reset() {
+        suggestionJob?.cancel()
+        smartDefaultJob?.cancel()
+        userSetQuantity = false
+        userSetUnit = false
+        _uiState.update {
+            it.copy(
+                itemId = null,
+                itemName = "",
+                customName = "",
+                quantity = "1",
+                selectedUnitId = null,
+                priority = Priority.NORMAL,
+                notes = "",
+                isSaved = false,
+                nameSuggestions = emptyList(),
+                editingId = null,
+                isEditMode = false,
+                showWasteWarning = false,
+                wasteWarningMatches = emptyList()
+            )
+        }
+    }
+
     fun loadFromItem(id: Long) {
         userSetQuantity = true
         userSetUnit = true

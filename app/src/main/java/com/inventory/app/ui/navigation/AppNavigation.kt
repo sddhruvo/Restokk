@@ -40,7 +40,6 @@ import com.inventory.app.ui.screens.settings.SettingsScreen
 import com.inventory.app.ui.screens.cook.CookScreen
 import com.inventory.app.ui.screens.cook.SavedRecipesScreen
 import com.inventory.app.ui.screens.onboarding.OnboardingScreen
-import com.inventory.app.ui.screens.shopping.AddShoppingItemScreen
 import com.inventory.app.ui.screens.shopping.ShoppingListScreen
 
 // Bottom nav tab transitions (subtle fade)
@@ -126,10 +125,10 @@ fun AppNavigation(
 
         composable(
             Screen.BarcodeScan.route,
-            enterTransition = { tabEnterTransition() },
-            exitTransition = { tabExitTransition() },
-            popEnterTransition = { tabEnterTransition() },
-            popExitTransition = { tabExitTransition() }
+            enterTransition = { detailEnterTransition() },
+            exitTransition = { detailExitTransition() },
+            popEnterTransition = { detailPopEnterTransition() },
+            popExitTransition = { detailPopExitTransition() }
         ) {
             BarcodeScannerScreen(navController = navController)
         }
@@ -286,33 +285,6 @@ fun AppNavigation(
             popExitTransition = { detailPopExitTransition() }
         ) {
             LocationDetailScreen(navController = navController)
-        }
-
-        // Shopping screens
-        composable(
-            route = "shopping/add?itemId={itemId}",
-            arguments = listOf(
-                navArgument("itemId") { type = NavType.StringType; nullable = true; defaultValue = null }
-            ),
-            enterTransition = { detailEnterTransition() },
-            exitTransition = { detailExitTransition() },
-            popEnterTransition = { detailPopEnterTransition() },
-            popExitTransition = { detailPopExitTransition() }
-        ) { backStackEntry ->
-            val itemId = backStackEntry.arguments?.getString("itemId")?.toLongOrNull()
-            AddShoppingItemScreen(navController = navController, itemId = itemId)
-        }
-
-        composable(
-            route = "shopping/edit/{shoppingItemId}",
-            arguments = listOf(navArgument("shoppingItemId") { type = NavType.LongType }),
-            enterTransition = { detailEnterTransition() },
-            exitTransition = { detailExitTransition() },
-            popEnterTransition = { detailPopEnterTransition() },
-            popExitTransition = { detailPopExitTransition() }
-        ) { backStackEntry ->
-            val shoppingItemId = backStackEntry.arguments?.getLong("shoppingItemId") ?: 0L
-            AddShoppingItemScreen(navController = navController, shoppingItemId = shoppingItemId)
         }
 
         // Report screens

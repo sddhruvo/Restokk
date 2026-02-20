@@ -5,7 +5,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -129,8 +131,21 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard, "Home", Icons.Filled.Home),
-    BottomNavItem(Screen.ItemList, "Items", Icons.Filled.Inventory2),  // route includes optional categoryId param
-    BottomNavItem(Screen.BarcodeScan, "Scan", Icons.Filled.QrCodeScanner),
+    BottomNavItem(Screen.ItemList, "Items", Icons.Filled.Inventory2),
+    // Center slot is reserved for the Quick Add FAB (no nav item here)
     BottomNavItem(Screen.ShoppingList, "Shopping", Icons.Filled.ShoppingCart),
     BottomNavItem(Screen.More, "More", Icons.Filled.MoreHoriz)
+)
+
+data class QuickAddMenuItem(
+    val label: String,
+    val icon: ImageVector,
+    val route: String
+)
+
+val quickAddMenuItems = listOf(
+    QuickAddMenuItem("Add Item", Icons.Filled.ShoppingCart, Screen.AddShoppingItem.createRoute()),
+    QuickAddMenuItem("Scan Barcode", Icons.Filled.QrCodeScanner, Screen.BarcodeScan.route),
+    QuickAddMenuItem("Kitchen Scan", Icons.Filled.PhotoCamera, Screen.FridgeScan.route),
+    QuickAddMenuItem("Scan Receipt", Icons.Filled.Receipt, Screen.ReceiptScan.route)
 )

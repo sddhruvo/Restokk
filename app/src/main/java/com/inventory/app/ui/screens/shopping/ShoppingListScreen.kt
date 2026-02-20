@@ -172,6 +172,7 @@ fun ShoppingListScreen(
     viewModel: ShoppingListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val showShoppingSheet = LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     var showClearConfirmation by remember { mutableStateOf(false) }
@@ -361,7 +362,7 @@ fun ShoppingListScreen(
                     focusManager.clearFocus()
                 },
                 onFullFormClick = {
-                    navController.navigate(Screen.AddShoppingItem.createRoute())
+                    showShoppingSheet(null, null)
                 },
                 suggestions = uiState.quickAddSuggestions,
                 onSuggestionClick = { suggestion ->
@@ -652,7 +653,7 @@ fun ShoppingListScreen(
                                         item = item,
                                         onToggle = { viewModel.togglePurchased(item.shoppingItem.id) },
                                         onDelete = { viewModel.deleteItemWithUndo(item.shoppingItem.id) },
-                                        onEdit = { navController.navigate(Screen.EditShoppingItem.createRoute(item.shoppingItem.id)) },
+                                        onEdit = { showShoppingSheet(null, item.shoppingItem.id) },
                                         onQuantityChange = { delta -> viewModel.updateQuantity(item.shoppingItem.id, delta) },
                                         estimatedCost = uiState.itemPrices[item.shoppingItem.id],
                                         currencySymbol = uiState.currencySymbol,
@@ -682,7 +683,7 @@ fun ShoppingListScreen(
                                     item = item,
                                     onToggle = { viewModel.togglePurchased(item.shoppingItem.id) },
                                     onDelete = { viewModel.deleteItemWithUndo(item.shoppingItem.id) },
-                                    onEdit = { navController.navigate(Screen.EditShoppingItem.createRoute(item.shoppingItem.id)) },
+                                    onEdit = { showShoppingSheet(null, item.shoppingItem.id) },
                                     onQuantityChange = { delta -> viewModel.updateQuantity(item.shoppingItem.id, delta) },
                                     estimatedCost = uiState.itemPrices[item.shoppingItem.id],
                                     currencySymbol = uiState.currencySymbol,

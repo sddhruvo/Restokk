@@ -116,6 +116,7 @@ fun ItemListScreen(
     LaunchedEffect(initialCategoryId) {
         initialCategoryId?.let { viewModel.selectCategory(it) }
     }
+    val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -344,7 +345,7 @@ fun ItemListScreen(
                                                     }
                                                 },
                                                 onFavorite = { viewModel.toggleFavorite(item.id) },
-                                                onAddToShopping = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
+                                                onAddToShopping = { showShoppingSheet(item.id, null) },
                                                 modifier = Modifier.animateItemPlacement()
                                             )
                                         }
@@ -385,7 +386,7 @@ fun ItemListScreen(
                                                         }
                                                     },
                                                     onFavorite = { viewModel.toggleFavorite(item.id) },
-                                                    onAddToShopping = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
+                                                    onAddToShopping = { showShoppingSheet(item.id, null) },
                                                     modifier = Modifier.animateItemPlacement().graphicsLayer { alpha = 0.6f }
                                                 )
                                             }
@@ -416,7 +417,7 @@ fun ItemListScreen(
                                                     }
                                                 },
                                                 onFavorite = { viewModel.toggleFavorite(item.id) },
-                                                onAddToShopping = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
+                                                onAddToShopping = { showShoppingSheet(item.id, null) },
                                                 modifier = Modifier.animateItemPlacement()
                                             )
                                         }
@@ -457,7 +458,7 @@ fun ItemListScreen(
                                                         }
                                                     },
                                                     onFavorite = { viewModel.toggleFavorite(item.id) },
-                                                    onAddToShopping = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
+                                                    onAddToShopping = { showShoppingSheet(item.id, null) },
                                                     modifier = Modifier.animateItemPlacement().graphicsLayer { alpha = 0.6f }
                                                 )
                                             }

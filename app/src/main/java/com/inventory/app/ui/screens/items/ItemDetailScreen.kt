@@ -87,6 +87,7 @@ fun ItemDetailScreen(
     viewModel: ItemDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -338,7 +339,7 @@ fun ItemDetailScreen(
                             leadingIcon = { Icon(Icons.Filled.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp)) }
                         )
                         AssistChip(
-                            onClick = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
+                            onClick = { showShoppingSheet(item.id, null) },
                             label = { Text("Shopping") },
                             leadingIcon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to shopping", modifier = Modifier.size(18.dp)) }
                         )

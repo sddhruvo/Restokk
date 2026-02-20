@@ -107,6 +107,7 @@ fun DashboardScreen(
     windowWidthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -335,28 +336,41 @@ fun DashboardScreen(
                                         )
                                     },
                                     trailingContent = {
-                                        IconButton(
-                                            onClick = {
-                                                viewModel.pauseItem(item.item.id)
-                                                scope.launch {
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = "${item.item.name} paused",
-                                                        actionLabel = "Undo",
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.unpauseItem(item.item.id)
+                                        Row {
+                                            IconButton(
+                                                onClick = { showShoppingSheet(item.item.id, null) },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.ShoppingCart,
+                                                    contentDescription = "Add ${item.item.name} to shopping list",
+                                                    modifier = Modifier.size(18.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    viewModel.pauseItem(item.item.id)
+                                                    scope.launch {
+                                                        val result = snackbarHostState.showSnackbar(
+                                                            message = "${item.item.name} paused",
+                                                            actionLabel = "Undo",
+                                                            duration = SnackbarDuration.Short
+                                                        )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            viewModel.unpauseItem(item.item.id)
+                                                        }
                                                     }
-                                                }
-                                            },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Filled.PauseCircleOutline,
-                                                contentDescription = "Pause alerts for ${item.item.name}",
-                                                modifier = Modifier.size(20.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.PauseCircleOutline,
+                                                    contentDescription = "Pause alerts for ${item.item.name}",
+                                                    modifier = Modifier.size(20.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
                                     },
                                     modifier = Modifier.clickable {
@@ -415,28 +429,41 @@ fun DashboardScreen(
                                         }
                                     },
                                     trailingContent = {
-                                        IconButton(
-                                            onClick = {
-                                                viewModel.pauseItem(item.item.id)
-                                                scope.launch {
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = "${item.item.name} paused",
-                                                        actionLabel = "Undo",
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.unpauseItem(item.item.id)
+                                        Row {
+                                            IconButton(
+                                                onClick = { showShoppingSheet(item.item.id, null) },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.ShoppingCart,
+                                                    contentDescription = "Add ${item.item.name} to shopping list",
+                                                    modifier = Modifier.size(18.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    viewModel.pauseItem(item.item.id)
+                                                    scope.launch {
+                                                        val result = snackbarHostState.showSnackbar(
+                                                            message = "${item.item.name} paused",
+                                                            actionLabel = "Undo",
+                                                            duration = SnackbarDuration.Short
+                                                        )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            viewModel.unpauseItem(item.item.id)
+                                                        }
                                                     }
-                                                }
-                                            },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Filled.PauseCircleOutline,
-                                                contentDescription = "Pause alerts for ${item.item.name}",
-                                                modifier = Modifier.size(20.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.PauseCircleOutline,
+                                                    contentDescription = "Pause alerts for ${item.item.name}",
+                                                    modifier = Modifier.size(20.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
                                     },
                                     modifier = Modifier.clickable {

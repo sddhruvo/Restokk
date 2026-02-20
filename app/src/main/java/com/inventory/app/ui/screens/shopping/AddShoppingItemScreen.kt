@@ -196,7 +196,7 @@ fun AddShoppingItemScreen(
 }
 
 @Composable
-private fun WasteWarningDialog(
+internal fun WasteWarningDialog(
     matches: List<WasteWarningMatch>,
     onDismiss: () -> Unit,
     onAddAnyway: () -> Unit

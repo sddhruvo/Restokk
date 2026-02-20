@@ -24,10 +24,15 @@ import com.inventory.app.data.repository.CategoryRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.ShoppingListRepository
+import androidx.compose.runtime.CompositionLocalProvider
 import com.inventory.app.ui.navigation.AppNavigation
 import com.inventory.app.ui.navigation.BottomNavBar
+import com.inventory.app.ui.navigation.QuickAddMenuOverlay
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
+import com.inventory.app.ui.screens.shopping.AddShoppingItemSheet
+import com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet
+import com.inventory.app.ui.screens.shopping.SheetRequest
 import com.inventory.app.ui.theme.AppTheme
 import com.inventory.app.ui.theme.HomeInventoryTheme
 import com.inventory.app.worker.SmartNotificationWorker
@@ -146,24 +151,65 @@ class MainActivity : ComponentActivity() {
                         val startDest = if (onboardingCompleted == true)
                             Screen.Dashboard.route else Screen.Onboarding.route
 
-                        Scaffold(
-                            modifier = Modifier.fillMaxSize(),
-                            bottomBar = {
-                                if (currentRoute != Screen.Onboarding.route) {
-                                    BottomNavBar(
-                                        navController,
-                                        shoppingBadgeCount = shoppingBadgeCount,
-                                        expiringBadgeCount = expiringBadgeCount
+                        // Quick Add menu state
+                        var isQuickAddOpen by remember { mutableStateOf(false) }
+
+                        // Shopping sheet state
+                        var sheetRequest by remember { mutableStateOf<SheetRequest?>(null) }
+
+                        CompositionLocalProvider(
+                            LocalShowAddShoppingSheet provides { itemId, shoppingItemId ->
+                                sheetRequest = SheetRequest(itemId, shoppingItemId)
+                            }
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Scaffold(
+                                    modifier = Modifier.fillMaxSize(),
+                                    bottomBar = {
+                                        if (currentRoute != Screen.Onboarding.route) {
+                                            BottomNavBar(
+                                                navController,
+                                                shoppingBadgeCount = shoppingBadgeCount,
+                                                expiringBadgeCount = expiringBadgeCount,
+                                                isQuickAddOpen = isQuickAddOpen,
+                                                onQuickAddToggle = { isQuickAddOpen = !isQuickAddOpen }
+                                            )
+                                        }
+                                    }
+                                ) { innerPadding ->
+                                    AppNavigation(
+                                        navController = navController,
+                                        modifier = Modifier.padding(innerPadding),
+                                        startDestination = startDest,
+                                        windowWidthSizeClass = windowSizeClass.widthSizeClass
                                     )
                                 }
+
+                                // Quick Add overlay (renders above everything)
+                                QuickAddMenuOverlay(
+                                    isVisible = isQuickAddOpen,
+                                    onDismiss = { isQuickAddOpen = false },
+                                    onItemClick = { menuItem ->
+                                        isQuickAddOpen = false
+                                        if (menuItem.route == Screen.AddShoppingItem.createRoute()) {
+                                            // Open bottom sheet instead of navigating
+                                            sheetRequest = SheetRequest()
+                                        } else {
+                                            navController.navigate(menuItem.route) {
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    }
+                                )
                             }
-                        ) { innerPadding ->
-                            AppNavigation(
-                                navController = navController,
-                                modifier = Modifier.padding(innerPadding),
-                                startDestination = startDest,
-                                windowWidthSizeClass = windowSizeClass.widthSizeClass
-                            )
+
+                            // Shopping bottom sheet
+                            sheetRequest?.let { request ->
+                                AddShoppingItemSheet(
+                                    request = request,
+                                    onDismiss = { sheetRequest = null }
+                                )
+                            }
                         }
                     }
                 }
