@@ -113,6 +113,17 @@ class ItemDetailViewModel @Inject constructor(
         }
     }
 
+    fun togglePause() {
+        viewModelScope.launch {
+            val item = _uiState.value.item?.item ?: return@launch
+            if (item.isPaused) {
+                itemRepository.unpauseItem(itemId)
+            } else {
+                itemRepository.pauseItem(itemId)
+            }
+        }
+    }
+
     fun deleteItem() {
         viewModelScope.launch {
             itemRepository.softDelete(itemId)

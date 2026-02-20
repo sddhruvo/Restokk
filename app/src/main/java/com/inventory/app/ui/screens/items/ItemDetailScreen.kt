@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -40,6 +42,11 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -61,6 +68,7 @@ import com.inventory.app.ui.components.SpendingLineChart
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.components.ConfirmDialog
 import com.inventory.app.ui.components.DropdownField
+import com.inventory.app.ui.components.ExpandableSection
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.util.FormatUtils
@@ -154,6 +162,7 @@ fun ItemDetailScreen(
 
                     // Status badges
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (item.isPaused) StatusChip("Paused", MaterialTheme.colorScheme.outline)
                         item.expiryDate?.let { expiry ->
                             val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
                             when {
@@ -208,22 +217,76 @@ fun ItemDetailScreen(
                         }
                     }
 
-                    // Details grid
-                    AppCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            DetailRow("Category", details.category?.name ?: "None")
-                            details.subcategory?.let { DetailRow("Subcategory", it.name) }
-                            DetailRow("Location", details.storageLocation?.name ?: "None")
-                            item.brand?.let { DetailRow("Brand", it) }
-                            item.barcode?.let { DetailRow("Barcode", it) }
-                            item.expiryDate?.let {
-                                val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), it)
-                                DetailRow("Expiry Date", "$it ($daysUntil days)")
+                    // Key facts grid
+                    val hasCategoryOrLocation = details.category != null || details.storageLocation != null
+                    val hasExpiryOrPrice = item.expiryDate != null || item.purchasePrice != null
+
+                    if (hasCategoryOrLocation || hasExpiryOrPrice) {
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (hasCategoryOrLocation) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        details.category?.let {
+                                            InfoMiniCard(
+                                                label = "Category",
+                                                value = it.name,
+                                                icon = Icons.Filled.Category,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                        details.storageLocation?.let {
+                                            InfoMiniCard(
+                                                label = "Location",
+                                                value = it.name,
+                                                icon = Icons.Filled.Place,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                }
+                                if (hasExpiryOrPrice) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        item.expiryDate?.let { expiry ->
+                                            val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
+                                            val expiryColor = when {
+                                                daysUntil < 0 -> ExpiryRed
+                                                daysUntil <= item.expiryWarningDays -> ExpiryOrange
+                                                else -> StockGreen
+                                            }
+                                            val expiryText = when {
+                                                daysUntil < 0 -> "$expiry (expired)"
+                                                daysUntil == 0L -> "Today"
+                                                daysUntil == 1L -> "Tomorrow"
+                                                else -> "$expiry ($daysUntil days)"
+                                            }
+                                            InfoMiniCard(
+                                                label = "Expiry",
+                                                value = expiryText,
+                                                icon = Icons.Filled.Schedule,
+                                                valueColor = expiryColor,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                        item.purchasePrice?.let {
+                                            InfoMiniCard(
+                                                label = "Price",
+                                                value = "${uiState.currencySymbol}${String.format("%.2f", it)}",
+                                                icon = Icons.Filled.Payments,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                }
                             }
-                            item.purchaseDate?.let { DetailRow("Purchase Date", it.toString()) }
-                            item.purchasePrice?.let { DetailRow("Total Price", "${uiState.currencySymbol}${String.format("%.2f", it)}") }
-                            item.openedDate?.let { DetailRow("Opened", it.toString()) }
-                            item.daysAfterOpening?.let { DetailRow("Good After Opening", "$it days") }
                         }
                     }
 
@@ -233,6 +296,28 @@ fun ItemDetailScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 Text(notes, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                            }
+                        }
+                    }
+
+                    // More details (expandable, only if secondary details exist)
+                    val hasSecondaryDetails = item.brand != null || item.barcode != null ||
+                        item.openedDate != null || item.daysAfterOpening != null ||
+                        details.subcategory != null || item.purchaseDate != null
+
+                    if (hasSecondaryDetails) {
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                ExpandableSection(title = "More Details", initiallyExpanded = false) {
+                                    Column(modifier = Modifier.padding(bottom = 12.dp)) {
+                                        item.brand?.let { DetailRow("Brand", it) }
+                                        item.barcode?.let { DetailRow("Barcode", it) }
+                                        details.subcategory?.let { DetailRow("Subcategory", it.name) }
+                                        item.purchaseDate?.let { DetailRow("Purchase Date", it.toString()) }
+                                        item.openedDate?.let { DetailRow("Opened", it.toString()) }
+                                        item.daysAfterOpening?.let { DetailRow("Good After Opening", "$it days") }
+                                    }
+                                }
                             }
                         }
                     }
@@ -258,156 +343,166 @@ fun ItemDetailScreen(
                             leadingIcon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to shopping", modifier = Modifier.size(18.dp)) }
                         )
                     }
-
-                    // Usage history
-                    Text("Usage History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    if (uiState.usageLogs.isEmpty()) {
-                        AppCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Text(
-                                "No usage recorded yet. Tap 'Record Usage' above.",
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                uiState.usageLogs.take(10).forEach { log ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column {
-                                            Text(
-                                                "${log.usageType.replaceFirstChar { it.uppercase() }} - ${log.quantity.formatQty()}",
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                            log.notes?.let {
-                                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            }
-                                        }
-                                        Text(log.usageDate.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    HorizontalDivider()
-                                }
-                            }
-                        }
-                    }
-
-                    // Unit price trend chart
-                    if (uiState.priceTrendData.size >= 2) {
-                        Text(
-                            "Unit Price Trend",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            SpendingLineChart(
-                                entries = uiState.priceTrendData.map { point ->
-                                    DailyChartEntry(
-                                        label = FormatUtils.formatMonthDay(point.date),
-                                        value = point.unitPrice.toFloat()
-                                    )
-                                },
-                                currencySymbol = uiState.currencySymbol,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-                    }
-
-                    // Purchase history
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Purchase History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        if (uiState.purchaseHistory.isNotEmpty()) {
-                            TextButton(onClick = {
-                                navController.navigate(Screen.PurchaseHistory.createRoute(details.item.id))
-                            }) {
-                                Text("View All")
+                        AssistChip(
+                            onClick = {
+                                viewModel.togglePause()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (item.isPaused) "Alerts resumed" else "Alerts paused — no expiry or low stock warnings"
+                                    )
+                                }
+                            },
+                            label = { Text(if (item.isPaused) "Resume Alerts" else "Pause Alerts") },
+                            leadingIcon = {
+                                Icon(
+                                    if (item.isPaused) Icons.Filled.PlayCircle else Icons.Filled.PauseCircle,
+                                    contentDescription = if (item.isPaused) "Resume" else "Pause",
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
-                        }
+                        )
                     }
-                    if (uiState.purchaseHistory.isEmpty()) {
-                        AppCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Text(
-                                "No purchases recorded yet. Tap 'Add Purchase' above.",
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                uiState.purchaseHistory.take(5).forEach { purchase ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                    // History sections — conditional
+                    val hasAnyHistory = uiState.usageLogs.isNotEmpty() || uiState.purchaseHistory.isNotEmpty()
+
+                    if (hasAnyHistory) {
+                        // Usage history
+                        if (uiState.usageLogs.isNotEmpty()) {
+                            Text("Usage History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    uiState.usageLogs.take(10).forEach { log ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column {
                                                 Text(
-                                                    "Qty: ${purchase.quantity.formatQty()}",
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Medium
+                                                    "${log.usageType.replaceFirstChar { it.uppercase() }} - ${log.quantity.formatQty()}",
+                                                    style = MaterialTheme.typography.bodyMedium
                                                 )
-                                                purchase.totalPrice?.let {
-                                                    Text(
-                                                        "${uiState.currencySymbol}${String.format("%.2f", it)}",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.primary
-                                                    )
+                                                log.notes?.let {
+                                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                 }
                                             }
-                                            purchase.unitPrice?.let {
-                                                Text(
-                                                    "${uiState.currencySymbol}${String.format("%.2f", it)}/unit",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            purchase.expiryDate?.let { expiry ->
-                                                val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
-                                                val expiryColor = when {
-                                                    daysUntil < 0 -> MaterialTheme.colorScheme.error
-                                                    daysUntil <= 7 -> ExpiryOrange
-                                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                }
-                                                Text(
-                                                    "Expires: $expiry",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = expiryColor
-                                                )
-                                            }
-                                            purchase.notes?.let {
-                                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            }
+                                            Text(log.usageDate.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
-                                        Text(
-                                            purchase.purchaseDate.toString(),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        HorizontalDivider()
                                     }
-                                    HorizontalDivider()
                                 }
                             }
                         }
+
+                        // Unit price trend chart
+                        if (uiState.priceTrendData.size >= 2) {
+                            Text(
+                                "Unit Price Trend",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
+                                SpendingLineChart(
+                                    entries = uiState.priceTrendData.map { point ->
+                                        DailyChartEntry(
+                                            label = FormatUtils.formatMonthDay(point.date),
+                                            value = point.unitPrice.toFloat()
+                                        )
+                                    },
+                                    currencySymbol = uiState.currencySymbol,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        }
+
+                        // Purchase history
+                        if (uiState.purchaseHistory.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Purchase History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                TextButton(onClick = {
+                                    navController.navigate(Screen.PurchaseHistory.createRoute(details.item.id))
+                                }) {
+                                    Text("View All")
+                                }
+                            }
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    uiState.purchaseHistory.take(5).forEach { purchase ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    Text(
+                                                        "Qty: ${purchase.quantity.formatQty()}",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    purchase.totalPrice?.let {
+                                                        Text(
+                                                            "${uiState.currencySymbol}${String.format("%.2f", it)}",
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    }
+                                                }
+                                                purchase.unitPrice?.let {
+                                                    Text(
+                                                        "${uiState.currencySymbol}${String.format("%.2f", it)}/unit",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                purchase.expiryDate?.let { expiry ->
+                                                    val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
+                                                    val expiryColor = when {
+                                                        daysUntil < 0 -> MaterialTheme.colorScheme.error
+                                                        daysUntil <= 7 -> ExpiryOrange
+                                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                    }
+                                                    Text(
+                                                        "Expires: $expiry",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = expiryColor
+                                                    )
+                                                }
+                                                purchase.notes?.let {
+                                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                            }
+                                            Text(
+                                                purchase.purchaseDate.toString(),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        HorizontalDivider()
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Single subtle hint for fresh items
+                        Text(
+                            "Stats will appear as you track usage and purchases",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
                     }
                 }
             }
@@ -569,6 +664,48 @@ private fun AddPurchaseDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+@Composable
+private fun InfoMiniCard(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = valueColor
+            )
+        }
+    }
 }
 
 @Composable

@@ -160,6 +160,11 @@ class FridgeScanViewModel @Inject constructor(
 
     private var nameMatchJob: Job? = null
 
+    override fun onCleared() {
+        _uiState.value.capturedBitmap?.recycle()
+        super.onCleared()
+    }
+
     init {
         viewModelScope.launch {
             unitRepository.getAllActive().collect { units ->

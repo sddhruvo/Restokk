@@ -29,42 +29,44 @@ interface ItemDao {
     @Query("SELECT * FROM items WHERE barcode = :barcode AND is_active = 1 LIMIT 1")
     suspend fun findByBarcode(barcode: String): ItemEntity?
 
-    // Dashboard queries
-    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1")
+    // Dashboard queries (exclude paused items from all alert/score counts)
+    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0")
     fun getTotalItemCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND expiry_date IS NOT NULL AND expiry_date <= :futureDate AND expiry_date >= :today")
+    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL AND expiry_date <= :futureDate AND expiry_date >= :today")
     fun getExpiringSoonCount(today: Long, futureDate: Long): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND expiry_date IS NOT NULL AND expiry_date < :today")
+    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL AND expiry_date < :today")
     fun getExpiredCount(today: Long): Flow<Int>
 
     @Query("""
-        SELECT COUNT(*) FROM items WHERE is_active = 1
+        SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
         AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
     """)
     fun getLowStockCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND quantity <= 0")
+    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0 AND quantity <= 0")
     fun getOutOfStockCount(): Flow<Int>
 
-    // Completeness queries for Home Score engagement
-    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND category_id IS NOT NULL")
+    // Completeness queries for Home Score engagement (exclude paused)
+    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0 AND category_id IS NOT NULL")
     fun getItemsWithCategoryCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND storage_location_id IS NOT NULL")
+    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0 AND storage_location_id IS NOT NULL")
     fun getItemsWithLocationCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND expiry_date IS NOT NULL")
+    @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL")
     fun getItemsWithExpiryCount(): Flow<Int>
 
     @Query("""
-        SELECT COALESCE(SUM(i.quantity * COALESCE(
-            (SELECT ph.unit_price FROM purchase_history ph WHERE ph.item_id = i.id ORDER BY ph.purchase_date DESC LIMIT 1),
-            i.purchase_price,
-            0
-        )), 0) FROM items i WHERE i.is_active = 1
+        SELECT COALESCE(SUM(
+            COALESCE(
+                i.quantity * (SELECT ph.unit_price FROM purchase_history ph WHERE ph.item_id = i.id ORDER BY ph.purchase_date DESC LIMIT 1),
+                i.purchase_price,
+                0
+            )
+        ), 0) FROM items i WHERE i.is_active = 1
     """)
     fun getTotalValue(): Flow<Double>
 
@@ -115,15 +117,54 @@ interface ItemDao {
     """)
     fun getItemCountByLocation(limit: Int = 10): Flow<List<ChartDataRow>>
 
-    // Expiring items
+    // Value by category for inventory report
+    // purchase_price = total price paid (not per-unit), so don't multiply by quantity
+    // unit_price from purchase_history IS per-unit, so multiply by quantity
+    @Query("""
+        SELECT c.name as label,
+            COALESCE(SUM(
+                COALESCE(
+                    i.quantity * (SELECT ph.unit_price FROM purchase_history ph WHERE ph.item_id = i.id ORDER BY ph.purchase_date DESC LIMIT 1),
+                    i.purchase_price,
+                    0
+                )
+            ), 0) as totalValue
+        FROM categories c
+        JOIN items i ON c.id = i.category_id AND i.is_active = 1
+        WHERE c.is_active = 1
+        GROUP BY c.id
+        HAVING totalValue > 0
+        ORDER BY totalValue DESC
+        LIMIT :limit
+    """)
+    fun getValueByCategory(limit: Int = 10): Flow<List<CategoryValueRow>>
+
+    // Top most valuable items for inventory report
+    @Query("""
+        SELECT i.id, i.name,
+            COALESCE(
+                i.quantity * (SELECT ph.unit_price FROM purchase_history ph WHERE ph.item_id = i.id ORDER BY ph.purchase_date DESC LIMIT 1),
+                i.purchase_price,
+                0
+            ) as totalValue
+        FROM items i
+        WHERE i.is_active = 1
+            AND (i.purchase_price IS NOT NULL
+                OR EXISTS (SELECT 1 FROM purchase_history ph WHERE ph.item_id = i.id))
+        ORDER BY totalValue DESC
+        LIMIT :limit
+    """)
+    fun getTopValueItems(limit: Int = 5): Flow<List<TopValueItemRow>>
+
+    // Expiring items (exclude paused)
     @Transaction
-    @Query("SELECT * FROM items WHERE is_active = 1 AND expiry_date IS NOT NULL AND expiry_date <= :futureDate ORDER BY expiry_date ASC LIMIT :limit")
+    @Query("SELECT * FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL AND expiry_date <= :futureDate ORDER BY expiry_date ASC LIMIT :limit")
     fun getExpiringSoon(futureDate: Long, limit: Int = 5): Flow<List<ItemWithDetails>>
 
-    // Low stock items
+    // Low stock items (exclude paused)
     @Transaction
     @Query("""
-        SELECT * FROM items WHERE is_active = 1
+        SELECT * FROM items WHERE is_active = 1 AND is_paused = 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
         AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
         ORDER BY (quantity / (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)) ASC
@@ -185,9 +226,9 @@ interface ItemDao {
     """)
     suspend fun getItemsMissingPurchaseHistory(): List<ItemEntity>
 
-    // Low stock items for shopping list generation
+    // Low stock items for shopping list generation (exclude paused)
     @Query("""
-        SELECT * FROM items WHERE is_active = 1
+        SELECT * FROM items WHERE is_active = 1 AND is_paused = 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
         AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
     """)
@@ -232,25 +273,31 @@ interface ItemDao {
     @Query("UPDATE items SET is_favorite = CASE WHEN is_favorite = 1 THEN 0 ELSE 1 END, updated_at = :now WHERE id = :id")
     suspend fun toggleFavorite(id: Long, now: Long)
 
+    @Query("UPDATE items SET is_paused = 1, updated_at = :now WHERE id = :id")
+    suspend fun pauseItem(id: Long, now: Long)
+
+    @Query("UPDATE items SET is_paused = 0, updated_at = :now WHERE id = :id")
+    suspend fun unpauseItem(id: Long, now: Long)
+
     // Favorite items filter
     @Transaction
     @Query("SELECT * FROM items WHERE is_active = 1 AND is_favorite = 1 ORDER BY name ASC")
     fun getFavorites(): Flow<List<ItemWithDetails>>
 
-    // Expired items
+    // Expired items (exclude paused)
     @Transaction
-    @Query("SELECT * FROM items WHERE is_active = 1 AND expiry_date IS NOT NULL AND expiry_date < :today ORDER BY expiry_date ASC")
+    @Query("SELECT * FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL AND expiry_date < :today ORDER BY expiry_date ASC")
     fun getExpiredItems(today: Long): Flow<List<ItemWithDetails>>
 
-    // All expiring (for reports)
+    // All expiring (for reports, exclude paused)
     @Transaction
-    @Query("SELECT * FROM items WHERE is_active = 1 AND expiry_date IS NOT NULL AND expiry_date <= :futureDate AND expiry_date >= :today ORDER BY expiry_date ASC")
+    @Query("SELECT * FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL AND expiry_date <= :futureDate AND expiry_date >= :today ORDER BY expiry_date ASC")
     fun getExpiringItemsReport(today: Long, futureDate: Long): Flow<List<ItemWithDetails>>
 
-    // All low stock (for reports) — excludes out-of-stock items (quantity <= 0) to avoid overlap
+    // All low stock (for reports, exclude paused) — excludes out-of-stock items (quantity <= 0) to avoid overlap
     @Transaction
     @Query("""
-        SELECT * FROM items WHERE is_active = 1
+        SELECT * FROM items WHERE is_active = 1 AND is_paused = 0
         AND quantity > 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
         AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
@@ -258,9 +305,9 @@ interface ItemDao {
     """)
     fun getLowStockItemsReport(): Flow<List<ItemWithDetails>>
 
-    // All out of stock (for reports)
+    // All out of stock (for reports, exclude paused)
     @Transaction
-    @Query("SELECT * FROM items WHERE is_active = 1 AND quantity <= 0 ORDER BY name ASC")
+    @Query("SELECT * FROM items WHERE is_active = 1 AND is_paused = 0 AND quantity <= 0 ORDER BY name ASC")
     fun getOutOfStockItemsReport(): Flow<List<ItemWithDetails>>
 
     // Count items added recently
@@ -303,4 +350,15 @@ data class InventoryMatchCandidate(
 data class InventoryNameId(
     val id: Long,
     val name: String
+)
+
+data class CategoryValueRow(
+    val label: String,
+    val totalValue: Double
+)
+
+data class TopValueItemRow(
+    val id: Long,
+    val name: String,
+    val totalValue: Double
 )

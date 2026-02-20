@@ -1163,7 +1163,9 @@ private fun ShoppingListRow(
                 Text(
                     text = itemName,
                     textDecoration = if (isPurchased) TextDecoration.LineThrough else TextDecoration.None,
-                    color = if (isPurchased) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                    color = if (isPurchased) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (isAnimatingInk) {
                     InkStrikethrough(

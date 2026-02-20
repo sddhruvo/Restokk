@@ -78,8 +78,10 @@ class ItemListViewModel @Inject constructor(
             Extra(a, b, c, units.associate { it.id to it.abbreviation })
         }
     ) { items, categories, locations, viewMode, extra ->
+        // Partition: active items first (preserving sort), paused items at bottom
+        val sorted = items.partition { !it.isPaused }.let { (active, paused) -> active + paused }
         ItemListUiState(
-            items = items,
+            items = sorted,
             isLoading = false,
             searchQuery = extra.searchQuery,
             selectedCategoryId = _filterState.value.categoryId,

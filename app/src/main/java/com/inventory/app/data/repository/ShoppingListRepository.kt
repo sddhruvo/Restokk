@@ -68,8 +68,16 @@ class ShoppingListRepository @Inject constructor(
                     if (!shoppingItem.isPurchased) {
                         // Marking as purchased → create purchase history + increase inventory qty + update purchase date
                         val item = itemRepository.getById(itemId)
-                        val totalPrice = item?.purchasePrice?.let { it * shoppingItem.quantity }
-                        val unitPrice = item?.purchasePrice
+                        // Get unit price from latest purchase history (most reliable)
+                        // purchase_price in items table is TOTAL price, not per-unit
+                        val latestPrices = purchaseHistoryDao.getLatestPricesForItems(listOf(itemId))
+                        val latestPrice = latestPrices.firstOrNull()
+                        val unitPrice = latestPrice?.unitPrice
+                            ?: latestPrice?.let { if (it.totalPrice != null && it.quantity > 0) it.totalPrice / it.quantity else null }
+                            ?: item?.purchasePrice?.let { price ->
+                                if (item.quantity > 0) price / item.quantity else null
+                            }
+                        val totalPrice = unitPrice?.let { it * shoppingItem.quantity }
 
                         purchaseHistoryDao.insert(
                             PurchaseHistoryEntity(

@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -316,13 +318,14 @@ fun ItemListScreen(
                         ) { viewMode ->
                             when (viewMode) {
                                 ViewMode.GRID -> {
+                                    val (activeItems, pausedItems) = uiState.items.partition { !it.isPaused }
                                     LazyVerticalGrid(
                                         columns = GridCells.Fixed(2),
                                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        items(uiState.items, key = { it.id }) { item ->
+                                        items(activeItems, key = { it.id }) { item ->
                                             ItemGridCard(
                                                 item = item,
                                                 unitAbbr = item.unitId?.let { uiState.unitMap[it] },
@@ -345,13 +348,56 @@ fun ItemListScreen(
                                                 modifier = Modifier.animateItemPlacement()
                                             )
                                         }
+                                        if (pausedItems.isNotEmpty()) {
+                                            item(span = { GridItemSpan(maxLineSpan) }, key = "paused_header") {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 8.dp, bottom = 4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                    Text(
+                                                        "Paused (${pausedItems.size})",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                            items(pausedItems, key = { it.id }) { item ->
+                                                ItemGridCard(
+                                                    item = item,
+                                                    unitAbbr = item.unitId?.let { uiState.unitMap[it] },
+                                                    isSelected = item.id in uiState.selectedIds,
+                                                    selectionMode = uiState.selectionMode,
+                                                    onClick = {
+                                                        if (uiState.selectionMode) {
+                                                            viewModel.toggleSelection(item.id)
+                                                        } else {
+                                                            navController.navigate(Screen.ItemDetail.createRoute(item.id))
+                                                        }
+                                                    },
+                                                    onLongClick = {
+                                                        if (!uiState.selectionMode) {
+                                                            viewModel.enterSelectionMode(item.id)
+                                                        }
+                                                    },
+                                                    onFavorite = { viewModel.toggleFavorite(item.id) },
+                                                    onAddToShopping = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
+                                                    modifier = Modifier.animateItemPlacement().graphicsLayer { alpha = 0.6f }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                                 ViewMode.LIST -> {
+                                    val (activeItems, pausedItems) = uiState.items.partition { !it.isPaused }
                                     LazyColumn(
                                         contentPadding = PaddingValues(bottom = 80.dp)
                                     ) {
-                                        items(uiState.items, key = { it.id }) { item ->
+                                        items(activeItems, key = { it.id }) { item ->
                                             ItemListRow(
                                                 item = item,
                                                 unitAbbr = item.unitId?.let { uiState.unitMap[it] },
@@ -373,6 +419,48 @@ fun ItemListScreen(
                                                 onAddToShopping = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
                                                 modifier = Modifier.animateItemPlacement()
                                             )
+                                        }
+                                        if (pausedItems.isNotEmpty()) {
+                                            item(key = "paused_header") {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                    Text(
+                                                        "Paused (${pausedItems.size})",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                            items(pausedItems, key = { it.id }) { item ->
+                                                ItemListRow(
+                                                    item = item,
+                                                    unitAbbr = item.unitId?.let { uiState.unitMap[it] },
+                                                    isSelected = item.id in uiState.selectedIds,
+                                                    selectionMode = uiState.selectionMode,
+                                                    onClick = {
+                                                        if (uiState.selectionMode) {
+                                                            viewModel.toggleSelection(item.id)
+                                                        } else {
+                                                            navController.navigate(Screen.ItemDetail.createRoute(item.id))
+                                                        }
+                                                    },
+                                                    onLongClick = {
+                                                        if (!uiState.selectionMode) {
+                                                            viewModel.enterSelectionMode(item.id)
+                                                        }
+                                                    },
+                                                    onFavorite = { viewModel.toggleFavorite(item.id) },
+                                                    onAddToShopping = { navController.navigate(Screen.AddShoppingItem.createRoute(item.id)) },
+                                                    modifier = Modifier.animateItemPlacement().graphicsLayer { alpha = 0.6f }
+                                                )
+                                            }
                                         }
                                     }
                                 }

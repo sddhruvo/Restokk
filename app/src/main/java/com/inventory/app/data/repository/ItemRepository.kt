@@ -1,8 +1,10 @@
 package com.inventory.app.data.repository
 
+import com.inventory.app.data.local.dao.CategoryValueRow
 import com.inventory.app.data.local.dao.ChartDataRow
 import com.inventory.app.data.local.dao.ItemDao
 import com.inventory.app.data.local.dao.InventoryMatchCandidate
+import com.inventory.app.data.local.dao.TopValueItemRow
 import com.inventory.app.data.local.dao.WasteCheckItemRow
 import com.inventory.app.data.local.dao.ItemImageDao
 import com.inventory.app.data.local.entity.ItemEntity
@@ -75,6 +77,12 @@ class ItemRepository @Inject constructor(
     fun getItemCountByLocation(limit: Int = 10): Flow<List<ChartDataRow>> =
         itemDao.getItemCountByLocation(limit)
 
+    fun getValueByCategory(limit: Int = 10): Flow<List<CategoryValueRow>> =
+        itemDao.getValueByCategory(limit)
+
+    fun getTopValueItems(limit: Int = 5): Flow<List<TopValueItemRow>> =
+        itemDao.getTopValueItems(limit)
+
     fun getByLocation(locationId: Long): Flow<List<ItemWithDetails>> =
         itemDao.getByLocation(locationId)
 
@@ -140,6 +148,9 @@ class ItemRepository @Inject constructor(
     }
 
     suspend fun toggleFavorite(id: Long) = itemDao.toggleFavorite(id, now())
+
+    suspend fun pauseItem(id: Long) = itemDao.pauseItem(id, now())
+    suspend fun unpauseItem(id: Long) = itemDao.unpauseItem(id, now())
 
     // Image operations
     fun getImages(itemId: Long): Flow<List<ItemImageEntity>> = itemImageDao.getByItemId(itemId)

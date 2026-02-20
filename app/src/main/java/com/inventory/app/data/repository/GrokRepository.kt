@@ -159,7 +159,7 @@ class GrokRepository @Inject constructor(
                 val content = message?.get("content") as? String
                     ?: throw Exception("No content in Cloud Function response")
 
-                Log.d(TAG, "Cloud Function response OK (${content.length} chars)")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Cloud Function response OK (${content.length} chars)")
                 return content
             } catch (e: Exception) {
                 val errorMsg = e.message ?: ""
@@ -262,7 +262,7 @@ class GrokRepository @Inject constructor(
 
                 val prompt = RECEIPT_VISION_PROMPT + categorySection + shoppingListSection + inventorySection
                 val provider = resolveVisionProvider()
-                Log.d(TAG, "Receipt scan using ${provider.name} (${provider.model})")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Receipt scan using ${provider.name} (${provider.model})")
 
                 retryVision(provider, "You are an expert receipt parser. You only respond with valid JSON arrays. No markdown, no explanation.", prompt, imageBase64, temperature = 0.1) { text ->
                     parseResponse(text)
@@ -316,7 +316,7 @@ class GrokRepository @Inject constructor(
                 val prompt = basePrompt + categorySection + previousItemsSection
 
                 val provider = resolveVisionProvider()
-                Log.d(TAG, "Kitchen scan using ${provider.name} (${provider.model})")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Kitchen scan using ${provider.name} (${provider.model})")
 
                 retryVision(provider, FRIDGE_SYSTEM_PROMPT, prompt, imageBase64, temperature = 0.2, maxTokens = 8192) { text ->
                     val items = parseFridgeResponse(text)
@@ -401,7 +401,7 @@ class GrokRepository @Inject constructor(
 
     private fun parseResponse(responseText: String): List<ReceiptItem> {
         val jsonStr = responseText.replace("```json", "").replace("```", "").trim()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Parsing response (${jsonStr.length} chars): ${jsonStr.take(300)}")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Parsing receipt response (${jsonStr.length} chars): ${jsonStr.take(300)}")
         val arrayStr = extractJsonArray(jsonStr) ?: jsonStr
         return try {
             val type = object : TypeToken<List<ReceiptItem>>() {}.type
@@ -432,7 +432,7 @@ class GrokRepository @Inject constructor(
 
         client.newCall(request).execute().use { response ->
             val responseBody = response.body?.string()
-            Log.d(TAG, "Response code: ${response.code}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Response code: ${response.code}")
             if (!response.isSuccessful) {
                 val errorMsg = parseApiError(responseBody)
                 throw Exception(errorMsg ?: "API error: ${response.code}")

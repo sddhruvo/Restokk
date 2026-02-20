@@ -86,6 +86,10 @@ class ExportImportViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(isExporting = false, message = "Exported ${items.size} items", exportedCount = items.size)
                 }
+            } catch (e: OutOfMemoryError) {
+                _uiState.update {
+                    it.copy(isExporting = false, message = "Export failed: too many items to export at once. Try freeing memory by closing other apps.")
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(isExporting = false, message = "Export failed: ${e.message}")
@@ -186,6 +190,10 @@ class ExportImportViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(isImporting = false, message = msg, importedCount = count)
                 }
+            } catch (e: OutOfMemoryError) {
+                _uiState.update {
+                    it.copy(isImporting = false, message = "Import failed: file too large. Try splitting into smaller files.")
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(isImporting = false, message = "Import failed: ${e.message}")
@@ -277,6 +285,10 @@ class ExportImportViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(isImporting = false, message = msg, importedCount = count)
                 }
+            } catch (e: OutOfMemoryError) {
+                _uiState.update {
+                    it.copy(isImporting = false, message = "JSON import failed: file too large. Try splitting into smaller files.")
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(isImporting = false, message = "JSON import failed: ${e.message}")
@@ -320,6 +332,10 @@ class ExportImportViewModel @Inject constructor(
 
                 _uiState.update {
                     it.copy(isExporting = false, message = "Exported ${items.size} items as JSON", exportedCount = items.size)
+                }
+            } catch (e: OutOfMemoryError) {
+                _uiState.update {
+                    it.copy(isExporting = false, message = "Export failed: too many items to export at once. Try freeing memory by closing other apps.")
                 }
             } catch (e: Exception) {
                 _uiState.update {

@@ -8,6 +8,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.inventory.app.data.local.dao.*
 import com.inventory.app.data.local.entity.*
 
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `items` ADD COLUMN `is_paused` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_is_paused` ON `items` (`is_paused`)")
+    }
+}
+
 val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("""
@@ -161,7 +168,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         PantryHealthLogEntity::class,
         SavedRecipeEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

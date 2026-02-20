@@ -33,7 +33,7 @@ object AppModule {
             InventoryDatabase::class.java,
             "inventory.db"
         )
-            .addMigrations(com.inventory.app.data.local.db.MIGRATION_1_2, com.inventory.app.data.local.db.MIGRATION_2_3, com.inventory.app.data.local.db.MIGRATION_3_4, com.inventory.app.data.local.db.MIGRATION_4_5, com.inventory.app.data.local.db.MIGRATION_5_6)
+            .addMigrations(com.inventory.app.data.local.db.MIGRATION_1_2, com.inventory.app.data.local.db.MIGRATION_2_3, com.inventory.app.data.local.db.MIGRATION_3_4, com.inventory.app.data.local.db.MIGRATION_4_5, com.inventory.app.data.local.db.MIGRATION_5_6, com.inventory.app.data.local.db.MIGRATION_6_7)
             .addCallback(DatabaseCallback(context, scope))
             .build()
     }

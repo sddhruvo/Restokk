@@ -26,6 +26,8 @@ data class SettingsUiState(
     val expiryWarningDaysError: String? = null,
     val currencyError: String? = null,
     val defaultQuantityError: String? = null,
+    val shoppingBudgetError: String? = null,
+    val autoClearDaysError: String? = null,
     // Auth state
     val userEmail: String? = null,
     val userName: String? = null,
@@ -143,8 +145,8 @@ class SettingsViewModel @Inject constructor(
     fun updateExpiryWarningDays(v: String) { _uiState.update { it.copy(expiryWarningDays = v, isSaved = false, expiryWarningDaysError = null) } }
     fun updateCurrencySymbol(v: String) { _uiState.update { it.copy(currencySymbol = v, isSaved = false, currencyError = null) } }
     fun updateDefaultQuantity(v: String) { _uiState.update { it.copy(defaultQuantity = v, isSaved = false, defaultQuantityError = null) } }
-    fun updateShoppingBudget(v: String) { _uiState.update { it.copy(shoppingBudget = v, isSaved = false) } }
-    fun updateAutoClearDays(v: String) { _uiState.update { it.copy(autoClearDays = v, isSaved = false) } }
+    fun updateShoppingBudget(v: String) { _uiState.update { it.copy(shoppingBudget = v, isSaved = false, shoppingBudgetError = null) } }
+    fun updateAutoClearDays(v: String) { _uiState.update { it.copy(autoClearDays = v, isSaved = false, autoClearDaysError = null) } }
 
     fun toggleNotificationsEnabled(enabled: Boolean) {
         _uiState.update { it.copy(notificationsEnabled = enabled) }
@@ -194,6 +196,21 @@ class SettingsViewModel @Inject constructor(
         if (defaultQty == null || defaultQty <= 0) {
             _uiState.update { it.copy(defaultQuantityError = "Enter a positive number") }
             hasError = true
+        }
+
+        if (state.shoppingBudget.isNotBlank()) {
+            val budget = state.shoppingBudget.toDoubleOrNull()
+            if (budget == null || budget < 0) {
+                _uiState.update { it.copy(shoppingBudgetError = "Enter a positive number") }
+                hasError = true
+            }
+        }
+        if (state.autoClearDays.isNotBlank()) {
+            val days = state.autoClearDays.toIntOrNull()
+            if (days == null || days < 1) {
+                _uiState.update { it.copy(autoClearDaysError = "Enter a number of 1 or more") }
+                hasError = true
+            }
         }
 
         if (hasError) return

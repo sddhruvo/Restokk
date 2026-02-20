@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
@@ -86,6 +88,10 @@ class ShoppingListViewModel @Inject constructor(
 
     // Track previous active count for "all done" celebration detection
     private var previousActiveCount = -1 // -1 = not yet loaded
+    // Cache the celebration type so re-emissions of combine() don't randomize it
+    private var celebrationTypeCache: CelebrationType? = null
+    // Mutex to prevent race condition on rapid add (check-then-insert)
+    private val addMutex = Mutex()
 
     init {
         viewModelScope.launch {
@@ -155,10 +161,14 @@ class ShoppingListViewModel @Inject constructor(
                         val unitPrice = if (itemId != null) {
                             priceMap[itemId]
                         } else {
-                            // Try to find price for custom-name items via inventory lookup
+                            // Try to find price for custom-name items via purchase history
                             val customName = item.shoppingItem.customName ?: continue
-                            val matchedItem = itemRepository.findByName(customName)
-                            matchedItem?.purchasePrice
+                            val matchedItem = itemRepository.findByName(customName) ?: continue
+                            // Check purchase history for a real unit price first
+                            val lp = purchaseHistoryDao.getLatestPricesForItems(listOf(matchedItem.id)).firstOrNull()
+                            lp?.unitPrice
+                                ?: lp?.let { if (it.totalPrice != null && it.quantity > 0) it.totalPrice / it.quantity else null }
+                                ?: matchedItem.purchasePrice?.let { if (matchedItem.quantity > 0) it / matchedItem.quantity else null }
                         }
                         if (unitPrice == null) continue
                         val cost = unitPrice * item.shoppingItem.quantity
@@ -185,12 +195,17 @@ class ShoppingListViewModel @Inject constructor(
                         purchased.isNotEmpty()
                     ) {
                         previousActiveCount = 0 // prevent re-trigger
-                        CelebrationType.entries.random()
+                        val cached = CelebrationType.entries.random()
+                        celebrationTypeCache = cached
+                        cached
                     } else if (active.isNotEmpty()) {
                         previousActiveCount = active.size
+                        celebrationTypeCache = null
                         null // reset celebration when items are added back
+                    } else if (celebrationTypeCache != null) {
+                        // Re-emission while celebrating — keep the same type
+                        celebrationTypeCache
                     } else {
-                        // Transient empty or already celebrating — don't preserve old celebration
                         null
                     }
 
@@ -274,6 +289,7 @@ class ShoppingListViewModel @Inject constructor(
     }
 
     fun dismissCelebration() {
+        celebrationTypeCache = null
         _uiState.update { it.copy(celebrationType = null) }
     }
 
@@ -281,6 +297,7 @@ class ShoppingListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 shoppingListRepository.clearPurchased()
+                celebrationTypeCache = null
                 _uiState.update { it.copy(celebrationType = null) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Failed to clear items: ${e.message}") }
@@ -581,36 +598,38 @@ class ShoppingListViewModel @Inject constructor(
                     }
                     if (name.isBlank()) continue
 
-                    val existingItem = itemRepository.findByName(name)
+                    addMutex.withLock {
+                        val existingItem = itemRepository.findByName(name)
 
-                    // Check if already on list — increment qty instead of duplicating
-                    val onList = if (existingItem != null) {
-                        shoppingListRepository.findActiveByItemId(existingItem.id)
-                    } else {
-                        shoppingListRepository.findActiveByCustomName(name)
-                    }
+                        // Check if already on list — increment qty instead of duplicating
+                        val onList = if (existingItem != null) {
+                            shoppingListRepository.findActiveByItemId(existingItem.id)
+                        } else {
+                            shoppingListRepository.findActiveByCustomName(name)
+                        }
 
-                    if (onList != null) {
-                        val newQty = onList.quantity + qty
-                        shoppingListRepository.updateQuantity(onList.id, newQty)
-                        updated++
-                        names.add(name)
-                    } else {
-                        shoppingListRepository.addItem(
-                            if (existingItem != null) {
-                                ShoppingListItemEntity(
-                                    itemId = existingItem.id,
-                                    quantity = qty
-                                )
-                            } else {
-                                ShoppingListItemEntity(
-                                    customName = name,
-                                    quantity = qty
-                                )
-                            }
-                        )
-                        added++
-                        names.add(name)
+                        if (onList != null) {
+                            val newQty = onList.quantity + qty
+                            shoppingListRepository.updateQuantity(onList.id, newQty)
+                            updated++
+                            names.add(name)
+                        } else {
+                            shoppingListRepository.addItem(
+                                if (existingItem != null) {
+                                    ShoppingListItemEntity(
+                                        itemId = existingItem.id,
+                                        quantity = qty
+                                    )
+                                } else {
+                                    ShoppingListItemEntity(
+                                        customName = name,
+                                        quantity = qty
+                                    )
+                                }
+                            )
+                            added++
+                            names.add(name)
+                        }
                     }
                 }
 
@@ -638,50 +657,52 @@ class ShoppingListViewModel @Inject constructor(
     fun quickAddSuggestionItem(suggestion: QuickAddSuggestion) {
         viewModelScope.launch {
             try {
-                val qty = suggestion.defaultQuantity
-                if (suggestion.itemId != 0L) {
-                    // Inventory or frequent item — add by item ID
-                    val activeIds = shoppingListRepository.getActiveItemIds()
-                    if (suggestion.itemId in activeIds) {
-                        _uiState.update { it.copy(message = "${suggestion.name} already on list") }
-                        return@launch
-                    }
-                    shoppingListRepository.addItem(
-                        ShoppingListItemEntity(
-                            itemId = suggestion.itemId,
-                            quantity = qty
-                        )
-                    )
-                } else {
-                    // SmartDefaults common item — add as custom name
-                    // First check if there's an inventory match by name
-                    val existingItem = itemRepository.findByName(suggestion.name)
-                    if (existingItem != null) {
+                addMutex.withLock {
+                    val qty = suggestion.defaultQuantity
+                    if (suggestion.itemId != 0L) {
+                        // Inventory or frequent item — add by item ID
                         val activeIds = shoppingListRepository.getActiveItemIds()
-                        if (existingItem.id in activeIds) {
+                        if (suggestion.itemId in activeIds) {
                             _uiState.update { it.copy(message = "${suggestion.name} already on list") }
-                            return@launch
+                            return@withLock
                         }
                         shoppingListRepository.addItem(
                             ShoppingListItemEntity(
-                                itemId = existingItem.id,
+                                itemId = suggestion.itemId,
                                 quantity = qty
                             )
                         )
                     } else {
-                        shoppingListRepository.addItem(
-                            ShoppingListItemEntity(
-                                customName = suggestion.name,
-                                quantity = qty
+                        // SmartDefaults common item — add as custom name
+                        // First check if there's an inventory match by name
+                        val existingItem = itemRepository.findByName(suggestion.name)
+                        if (existingItem != null) {
+                            val activeIds = shoppingListRepository.getActiveItemIds()
+                            if (existingItem.id in activeIds) {
+                                _uiState.update { it.copy(message = "${suggestion.name} already on list") }
+                                return@withLock
+                            }
+                            shoppingListRepository.addItem(
+                                ShoppingListItemEntity(
+                                    itemId = existingItem.id,
+                                    quantity = qty
+                                )
                             )
+                        } else {
+                            shoppingListRepository.addItem(
+                                ShoppingListItemEntity(
+                                    customName = suggestion.name,
+                                    quantity = qty
+                                )
+                            )
+                        }
+                    }
+                    _uiState.update {
+                        it.copy(
+                            quickAddSuggestions = emptyList(),
+                            message = "${suggestion.name} added"
                         )
                     }
-                }
-                _uiState.update {
-                    it.copy(
-                        quickAddSuggestions = emptyList(),
-                        message = "${suggestion.name} added"
-                    )
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Failed to add: ${e.message}") }

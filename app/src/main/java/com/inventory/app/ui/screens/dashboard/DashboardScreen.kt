@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -48,7 +49,9 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,6 +62,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,6 +93,7 @@ import com.inventory.app.ui.theme.ExpiryRed
 import com.inventory.app.ui.theme.StockGreen
 import com.inventory.app.ui.theme.StockYellow
 import com.inventory.app.ui.theme.scoreToColor
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -103,6 +108,7 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val gridColumns = when (windowWidthSizeClass) {
         WindowWidthSizeClass.Expanded -> 4
@@ -269,6 +275,7 @@ fun DashboardScreen(
             }
 
             // Expiring soon list
+            if (uiState.expiringItems.isNotEmpty()) {
             AnimateOnce(index = 3, hasAnimated = hasAnimated) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
@@ -302,13 +309,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    if (uiState.expiringItems.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Filled.Warning,
-                            title = "No Items Expiring Soon",
-                            message = "All your items are fresh"
-                        )
-                    } else {
+                    run {
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             uiState.expiringItems.take(5).forEach { item ->
                                 val daysUntil = item.item.expiryDate?.let {
@@ -333,6 +334,31 @@ fun DashboardScreen(
                                             color = color
                                         )
                                     },
+                                    trailingContent = {
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.pauseItem(item.item.id)
+                                                scope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = "${item.item.name} paused",
+                                                        actionLabel = "Undo",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.unpauseItem(item.item.id)
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.PauseCircleOutline,
+                                                contentDescription = "Pause alerts for ${item.item.name}",
+                                                modifier = Modifier.size(20.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
                                     modifier = Modifier.clickable {
                                         navController.navigate(Screen.ItemDetail.createRoute(item.item.id))
                                     }
@@ -342,8 +368,10 @@ fun DashboardScreen(
                     }
                 }
             }
+            }
 
             // Low stock list
+            if (uiState.lowStockItems.isNotEmpty()) {
             AnimateOnce(index = 4, hasAnimated = hasAnimated) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
@@ -359,13 +387,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    if (uiState.lowStockItems.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Filled.TrendingDown,
-                            title = "Stock Levels Good",
-                            message = "No items are running low"
-                        )
-                    } else {
+                    run {
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             uiState.lowStockItems.take(5).forEach { item ->
                                 val effectiveMin = if (item.item.minQuantity > 0) item.item.minQuantity else item.item.smartMinQuantity
@@ -392,6 +414,31 @@ fun DashboardScreen(
                                             )
                                         }
                                     },
+                                    trailingContent = {
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.pauseItem(item.item.id)
+                                                scope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = "${item.item.name} paused",
+                                                        actionLabel = "Undo",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.unpauseItem(item.item.id)
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.PauseCircleOutline,
+                                                contentDescription = "Pause alerts for ${item.item.name}",
+                                                modifier = Modifier.size(20.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
                                     modifier = Modifier.clickable {
                                         navController.navigate(Screen.ItemDetail.createRoute(item.item.id))
                                     }
@@ -401,13 +448,14 @@ fun DashboardScreen(
                     }
                 }
             }
+            }
 
             // Items by category summary
             if (uiState.itemsByCategory.isNotEmpty()) {
                 AnimateOnce(index = 5, hasAnimated = hasAnimated) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Items by Category", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        val maxCategoryCount = uiState.itemsByCategory.maxOf { it.count }
+                        val maxCategoryCount = uiState.itemsByCategory.maxOfOrNull { it.count } ?: 1
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 uiState.itemsByCategory.forEach { data ->
@@ -449,7 +497,7 @@ fun DashboardScreen(
                 AnimateOnce(index = 6, hasAnimated = hasAnimated) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Items by Location", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        val maxLocationCount = uiState.itemsByLocation.maxOf { it.count }
+                        val maxLocationCount = uiState.itemsByLocation.maxOfOrNull { it.count } ?: 1
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 uiState.itemsByLocation.forEach { data ->

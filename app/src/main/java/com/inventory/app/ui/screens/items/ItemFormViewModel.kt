@@ -10,6 +10,10 @@ import com.inventory.app.data.local.entity.StorageLocationEntity
 import com.inventory.app.data.local.entity.SubcategoryEntity
 import com.inventory.app.data.local.entity.UnitEntity
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.util.Base64
 import android.util.Log
 import com.inventory.app.data.repository.CategoryRepository
@@ -25,7 +29,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -51,6 +59,7 @@ data class ItemFormUiState(
     val purchaseDate: String = LocalDate.now().toString(),
     val purchasePrice: String = "",
     val isFavorite: Boolean = false,
+    val isPaused: Boolean = false,
     val notes: String = "",
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
@@ -71,7 +80,6 @@ data class ItemFormUiState(
     val savedItemId: Long? = null,
     val smartDefaultsApplied: Boolean = false,
     val nameSuggestions: List<String> = emptyList(),
-    val hasUnsavedChanges: Boolean = false,
     val autoStrikedItems: List<String> = emptyList(),
     val pendingMatches: List<ShoppingMatch> = emptyList(),
     val currencySymbol: String = "",
@@ -94,6 +102,58 @@ class ItemFormViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ItemFormUiState())
     val uiState = _uiState.asStateFlow()
+
+    private data class FormSnapshot(
+        val name: String = "",
+        val description: String = "",
+        val barcode: String = "",
+        val brand: String = "",
+        val selectedCategoryId: Long? = null,
+        val selectedSubcategoryId: Long? = null,
+        val selectedLocationId: Long? = null,
+        val selectedUnitId: Long? = null,
+        val quantity: String = "1",
+        val minQuantity: String = "",
+        val maxQuantity: String = "",
+        val expiryDate: String = "",
+        val expiryWarningDays: String = "7",
+        val openedDate: String = "",
+        val daysAfterOpening: String = "",
+        val purchaseDate: String = LocalDate.now().toString(),
+        val purchasePrice: String = "",
+        val isFavorite: Boolean = false,
+        val isPaused: Boolean = false,
+        val notes: String = ""
+    )
+
+    private fun ItemFormUiState.toFormSnapshot() = FormSnapshot(
+        name = name,
+        description = description,
+        barcode = barcode,
+        brand = brand,
+        selectedCategoryId = selectedCategoryId,
+        selectedSubcategoryId = selectedSubcategoryId,
+        selectedLocationId = selectedLocationId,
+        selectedUnitId = selectedUnitId,
+        quantity = quantity,
+        minQuantity = minQuantity,
+        maxQuantity = maxQuantity,
+        expiryDate = expiryDate,
+        expiryWarningDays = expiryWarningDays,
+        openedDate = openedDate,
+        daysAfterOpening = daysAfterOpening,
+        purchaseDate = purchaseDate,
+        purchasePrice = purchasePrice,
+        isFavorite = isFavorite,
+        isPaused = isPaused,
+        notes = notes
+    )
+
+    private var savedSnapshot = FormSnapshot()
+
+    val isDirty: StateFlow<Boolean> = _uiState
+        .map { it.toFormSnapshot() != savedSnapshot }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     // Track which fields user has manually changed (don't override them with smart defaults)
     private var userSetCategory = false
@@ -162,12 +222,14 @@ class ItemFormViewModel @Inject constructor(
                         purchaseDate = item.purchaseDate?.toString() ?: "",
                         purchasePrice = item.purchasePrice?.let { "%.2f".format(it) } ?: "",
                         isFavorite = item.isFavorite,
+                        isPaused = item.isPaused,
                         notes = item.notes ?: "",
                         isEditing = true,
                         editingId = item.id,
                         createdAt = item.createdAt
                     )
                 }
+                savedSnapshot = _uiState.value.toFormSnapshot()
                 item.categoryId?.let { loadSubcategories(it) }
             }
         }
@@ -195,10 +257,8 @@ class ItemFormViewModel @Inject constructor(
         }
     }
 
-    private fun markDirty() { _uiState.update { it.copy(hasUnsavedChanges = true) } }
-
     fun updateName(v: String) {
-        _uiState.update { it.copy(name = v, nameError = null, hasUnsavedChanges = true) }
+        _uiState.update { it.copy(name = v, nameError = null) }
 
         // Fetch name suggestions
         suggestionJob?.cancel()
@@ -235,27 +295,28 @@ class ItemFormViewModel @Inject constructor(
         }
     }
 
-    fun updateDescription(v: String) { _uiState.update { it.copy(description = v, hasUnsavedChanges = true) } }
-    fun updateBarcode(v: String) { _uiState.update { it.copy(barcode = v, hasUnsavedChanges = true) } }
-    fun updateBrand(v: String) { _uiState.update { it.copy(brand = v, hasUnsavedChanges = true) } }
-    fun updateQuantity(v: String) { userSetQuantity = true; _uiState.update { it.copy(quantity = v, quantityError = null, hasUnsavedChanges = true) } }
-    fun updateMinQuantity(v: String) { _uiState.update { it.copy(minQuantity = v, minQuantityError = null, hasUnsavedChanges = true) } }
-    fun updateMaxQuantity(v: String) { _uiState.update { it.copy(maxQuantity = v, maxQuantityError = null, hasUnsavedChanges = true) } }
-    fun updateExpiryDate(v: String) { userSetExpiry = true; _uiState.update { it.copy(expiryDate = v, expiryDateError = null, hasUnsavedChanges = true) } }
-    fun updateExpiryWarningDays(v: String) { _uiState.update { it.copy(expiryWarningDays = v, hasUnsavedChanges = true) } }
-    fun updateOpenedDate(v: String) { _uiState.update { it.copy(openedDate = v, openedDateError = null, hasUnsavedChanges = true) } }
-    fun updateDaysAfterOpening(v: String) { _uiState.update { it.copy(daysAfterOpening = v, hasUnsavedChanges = true) } }
-    fun updatePurchaseDate(v: String) { _uiState.update { it.copy(purchaseDate = v, hasUnsavedChanges = true) } }
-    fun updatePurchasePrice(v: String) { userSetPrice = true; _uiState.update { it.copy(purchasePrice = v, priceError = null, hasUnsavedChanges = true) } }
-    fun updateFavorite(v: Boolean) { _uiState.update { it.copy(isFavorite = v, hasUnsavedChanges = true) } }
-    fun updateNotes(v: String) { _uiState.update { it.copy(notes = v, hasUnsavedChanges = true) } }
+    fun updateDescription(v: String) { _uiState.update { it.copy(description = v) } }
+    fun updateBarcode(v: String) { _uiState.update { it.copy(barcode = v) } }
+    fun updateBrand(v: String) { _uiState.update { it.copy(brand = v) } }
+    fun updateQuantity(v: String) { userSetQuantity = true; _uiState.update { it.copy(quantity = v, quantityError = null) } }
+    fun updateMinQuantity(v: String) { _uiState.update { it.copy(minQuantity = v, minQuantityError = null) } }
+    fun updateMaxQuantity(v: String) { _uiState.update { it.copy(maxQuantity = v, maxQuantityError = null) } }
+    fun updateExpiryDate(v: String) { userSetExpiry = true; _uiState.update { it.copy(expiryDate = v, expiryDateError = null) } }
+    fun updateExpiryWarningDays(v: String) { _uiState.update { it.copy(expiryWarningDays = v) } }
+    fun updateOpenedDate(v: String) { _uiState.update { it.copy(openedDate = v, openedDateError = null) } }
+    fun updateDaysAfterOpening(v: String) { _uiState.update { it.copy(daysAfterOpening = v) } }
+    fun updatePurchaseDate(v: String) { _uiState.update { it.copy(purchaseDate = v) } }
+    fun updatePurchasePrice(v: String) { userSetPrice = true; _uiState.update { it.copy(purchasePrice = v, priceError = null) } }
+    fun updateFavorite(v: Boolean) { _uiState.update { it.copy(isFavorite = v) } }
+    fun updatePaused(v: Boolean) { _uiState.update { it.copy(isPaused = v) } }
+    fun updateNotes(v: String) { _uiState.update { it.copy(notes = v) } }
 
     fun scanExpiryDate(bitmap: Bitmap) {
         viewModelScope.launch {
             _uiState.update { it.copy(isScanningExpiry = true, expiryScanError = null) }
             try {
-                // Compress to small JPEG (expiry labels don't need high res)
-                val maxDim = 800
+                // Step 1: Scale to readable resolution (higher than before for small label text)
+                val maxDim = 1200
                 val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
                     val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
                     Bitmap.createScaledBitmap(
@@ -266,19 +327,44 @@ class ItemFormViewModel @Inject constructor(
                     ).also { if (it !== bitmap) bitmap.recycle() }
                 } else bitmap
 
-                val stream = java.io.ByteArrayOutputStream()
-                scaled.compress(Bitmap.CompressFormat.JPEG, 70, stream)
-                val base64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                // Step 2: Document-style preprocessing — grayscale + high contrast
+                // Makes text pop against background, like a flatbed scanner
+                val enhanced = Bitmap.createBitmap(scaled.width, scaled.height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(enhanced)
+                val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                val contrast = 1.8f
+                val translate = (-0.5f * contrast + 0.5f) * 255f
+                // Grayscale + contrast boost in a single ColorMatrix
+                paint.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
+                    0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
+                    0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
+                    0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
+                    0f, 0f, 0f, 1f, 0f
+                )))
+                canvas.drawBitmap(scaled, 0f, 0f, paint)
                 if (scaled !== bitmap) scaled.recycle()
 
-                if (base64.length > 1_500_000) {
+                // Step 3: Compress with higher quality for text readability
+                val stream = java.io.ByteArrayOutputStream()
+                enhanced.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                val base64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                enhanced.recycle()
+
+                if (base64.length > 2_000_000) {
                     _uiState.update { it.copy(isScanningExpiry = false, expiryScanError = "Image too large — try holding the camera closer to the label") }
                     return@launch
                 }
 
                 val result = grokRepository.visionAnalysis(
-                    systemPrompt = "You extract expiry dates from product labels. Return ONLY the date in YYYY-MM-DD format. If you see multiple dates, return the expiry/best-before/use-by date, not the manufacture date. If no date is found, return NONE.",
-                    userPrompt = "Extract the expiry date from this product label photo.",
+                    systemPrompt = """You extract expiry dates from product labels. The image has been preprocessed for clarity.
+
+Rules:
+1. Look for keywords: "EXP", "USE BY", "BEST BEFORE", "BB", "BEST BY", "SELL BY", "EXPIRY", or date printed near these words.
+2. Do NOT return a manufacture date ("MFG", "MFD", "PROD", "PACKED") — only the expiry/use-by date.
+3. If you see a format like DD/MM/YYYY or DD-MM-YYYY, convert it to YYYY-MM-DD. If you see MM/YYYY, use the last day of that month.
+4. Return ONLY the date in YYYY-MM-DD format. Nothing else.
+5. If no expiry date is found, return NONE.""",
+                    userPrompt = "Extract the expiry date from this product label. The image is grayscale-enhanced for readability.",
                     imageBase64 = base64,
                     maxTokens = 50
                 )
@@ -286,7 +372,6 @@ class ItemFormViewModel @Inject constructor(
                 result.fold(
                     onSuccess = { response ->
                         val cleaned = response.trim()
-                        // Try to parse as date
                         val datePattern = Regex("""\d{4}-\d{2}-\d{2}""")
                         val match = datePattern.find(cleaned)
                         if (match != null) {
@@ -496,6 +581,12 @@ class ItemFormViewModel @Inject constructor(
             _uiState.update { it.copy(maxQuantityError = "Invalid number") }
             hasError = true
         }
+        val minQty = state.minQuantity.toDoubleOrNull()
+        val maxQty = state.maxQuantity.toDoubleOrNull()
+        if (minQty != null && maxQty != null && minQty > maxQty) {
+            _uiState.update { it.copy(maxQuantityError = "Must be greater than min quantity") }
+            hasError = true
+        }
         if (state.purchasePrice.isNotBlank() && state.purchasePrice.toDoubleOrNull() == null) {
             _uiState.update { it.copy(priceError = "Invalid price") }
             hasError = true
@@ -553,6 +644,7 @@ class ItemFormViewModel @Inject constructor(
                     purchaseDate = state.purchaseDate.parseDate(),
                     purchasePrice = state.purchasePrice.toDoubleOrNull(),
                     isFavorite = state.isFavorite,
+                    isPaused = state.isPaused,
                     notes = state.notes.ifBlank { null },
                     createdAt = if (state.isEditing) state.createdAt ?: java.time.LocalDateTime.now() else java.time.LocalDateTime.now()
                 )
@@ -575,8 +667,9 @@ class ItemFormViewModel @Inject constructor(
                             smartMinQuantity = mergedSmartMin,
                             purchaseDate = state.purchaseDate.parseDate() ?: duplicate.purchaseDate,
                             purchasePrice = price ?: duplicate.purchasePrice,
-                            // M-27: Only overwrite expiry if user explicitly set it, not if AI-estimated
-                            expiryDate = if (userSetExpiry) (state.expiryDate.parseDate() ?: duplicate.expiryDate) else duplicate.expiryDate,
+                            // Use form's expiry if present (covers both user-set and smart-default),
+                            // otherwise keep the existing item's expiry
+                            expiryDate = state.expiryDate.parseDate() ?: duplicate.expiryDate,
                             notes = state.notes.ifBlank { null } ?: duplicate.notes,
                             // M-39: Also merge category, location, unit, barcode, brand from user's form
                             categoryId = if (state.selectedCategoryId != null) state.selectedCategoryId else duplicate.categoryId,

@@ -220,6 +220,18 @@ class DashboardViewModel @Inject constructor(
         loadData()
     }
 
+    fun pauseItem(itemId: Long) {
+        viewModelScope.launch {
+            itemRepository.pauseItem(itemId)
+        }
+    }
+
+    fun unpauseItem(itemId: Long) {
+        viewModelScope.launch {
+            itemRepository.unpauseItem(itemId)
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }

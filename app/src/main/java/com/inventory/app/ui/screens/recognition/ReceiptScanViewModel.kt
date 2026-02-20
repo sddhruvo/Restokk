@@ -5,6 +5,7 @@ import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.inventory.app.BuildConfig
 import com.inventory.app.data.local.entity.CategoryEntity
 import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.data.repository.CategoryRepository
@@ -209,12 +210,16 @@ class ReceiptScanViewModel @Inject constructor(
                         }
 
                         // Detect unit conflict with matched inventory item
-                        val unitConflict = if (aiMatchedItem?.unitAbbreviation != null && resolvedUnit.isNotBlank()) {
-                            val invUnit = aiMatchedItem.unitAbbreviation
-                            if (!invUnit.equals(resolvedUnit, ignoreCase = true)) {
-                                "Inventory uses $invUnit"
-                            } else null
-                        } else null
+                        val unitConflict = when {
+                            aiMatchedItem?.unitAbbreviation != null && resolvedUnit.isNotBlank() -> {
+                                if (!aiMatchedItem.unitAbbreviation.equals(resolvedUnit, ignoreCase = true))
+                                    "Inventory uses ${aiMatchedItem.unitAbbreviation}"
+                                else null
+                            }
+                            aiMatchedItem != null && aiMatchedItem.unitAbbreviation == null && resolvedUnit.isNotBlank() ->
+                                "Inventory has no unit set"
+                            else -> null
+                        }
 
                         // Expiry date: AI estimate → SmartDefaults fallback → null
                         val expiryDays = item.estimatedExpiryDays
@@ -253,7 +258,7 @@ class ReceiptScanViewModel @Inject constructor(
 
     private fun compressAndEncode(bitmap: Bitmap, config: com.inventory.app.data.repository.ImageConfig): String? {
         return try {
-            Log.d("ReceiptScan", "Original image: ${bitmap.width}x${bitmap.height}, maxDim=${config.maxDimension}")
+            if (BuildConfig.DEBUG) Log.d("ReceiptScan", "Original image: ${bitmap.width}x${bitmap.height}, maxDim=${config.maxDimension}")
 
             var scaled = if (bitmap.width > config.maxDimension || bitmap.height > config.maxDimension) {
                 val scale = config.maxDimension.toFloat() / maxOf(bitmap.width, bitmap.height)
@@ -264,14 +269,14 @@ class ReceiptScanViewModel @Inject constructor(
             var stream = ByteArrayOutputStream()
             scaled.compress(Bitmap.CompressFormat.JPEG, quality, stream)
             var bytes = stream.toByteArray()
-            Log.d("ReceiptScan", "After scale to ${scaled.width}x${scaled.height}, q=$quality: ${bytes.size / 1024}KB")
+            if (BuildConfig.DEBUG) Log.d("ReceiptScan", "After scale to ${scaled.width}x${scaled.height}, q=$quality: ${bytes.size / 1024}KB")
 
             while (bytes.size > config.maxBytes && quality > config.minQuality) {
                 quality -= 10
                 stream = ByteArrayOutputStream()
                 scaled.compress(Bitmap.CompressFormat.JPEG, quality, stream)
                 bytes = stream.toByteArray()
-                Log.d("ReceiptScan", "Re-compressed q=$quality: ${bytes.size / 1024}KB")
+                if (BuildConfig.DEBUG) Log.d("ReceiptScan", "Re-compressed q=$quality: ${bytes.size / 1024}KB")
             }
 
             if (bytes.size > config.maxBytes) {
@@ -281,11 +286,11 @@ class ReceiptScanViewModel @Inject constructor(
                 stream = ByteArrayOutputStream()
                 scaled.compress(Bitmap.CompressFormat.JPEG, 70, stream)
                 bytes = stream.toByteArray()
-                Log.d("ReceiptScan", "Final resize to ${scaled.width}x${scaled.height}: ${bytes.size / 1024}KB")
+                if (BuildConfig.DEBUG) Log.d("ReceiptScan", "Final resize to ${scaled.width}x${scaled.height}: ${bytes.size / 1024}KB")
             }
 
             val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-            Log.d("ReceiptScan", "Base64 encoded: ${base64.length} chars (~${base64.length * 3 / 4 / 1024}KB)")
+            if (BuildConfig.DEBUG) Log.d("ReceiptScan", "Base64 encoded: ${base64.length} chars (~${base64.length * 3 / 4 / 1024}KB)")
 
             if (scaled !== bitmap) scaled.recycle()
             base64
@@ -324,7 +329,12 @@ class ReceiptScanViewModel @Inject constructor(
 
         val currentItem = currentState.items[index]
 
-        val matchedEntity = itemRepository.findByName(name)
+        val matchedEntity = try {
+            itemRepository.findByName(name)
+        } catch (e: Exception) {
+            Log.w("ReceiptScan", "Failed to find item by name: ${e.message}")
+            null
+        }
         if (matchedEntity != null) {
             // Found a match — look up unit abbreviation
             val allUnits = try { unitRepository.getAllActive().first() } catch (_: Exception) { emptyList<UnitEntity>() }
@@ -372,6 +382,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated[index] = updated[index].copy(quantity = quantity)
             _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
         }
@@ -381,6 +392,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated[index] = updated[index].copy(price = price)
             _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
         }
@@ -390,6 +402,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated[index] = updated[index].copy(categoryName = categoryName)
             _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
         }
@@ -399,6 +412,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated[index] = updated[index].copy(unit = unit, unitConflict = null)
             _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
         }
@@ -408,6 +422,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated.removeAt(index)
             if (updated.isEmpty()) {
                 _uiState.update { it.copy(state = ReceiptScanState.Error("All items removed. Try scanning again.")) }
@@ -421,6 +436,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated[index] = updated[index].copy(expiryDate = date, isAiEstimatedExpiry = false)
             _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
         }
@@ -430,6 +446,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated[index] = updated[index].copy(barcode = barcode)
             _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
         }
@@ -458,6 +475,7 @@ class ReceiptScanViewModel @Inject constructor(
         val state = _uiState.value.state
         if (state is ReceiptScanState.Review) {
             val updated = state.items.toMutableList()
+            if (index !in updated.indices) return
             updated[index] = updated[index].copy(
                 matchType = matchType,
                 matchedInventoryItemId = if (matchType == ReceiptMatchType.UPDATE_EXISTING) selectedItemId else null

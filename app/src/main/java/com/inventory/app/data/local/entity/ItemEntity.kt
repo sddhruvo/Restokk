@@ -43,7 +43,8 @@ import java.time.LocalDateTime
         Index("unit_id"),
         Index("barcode"),
         Index("expiry_date"),
-        Index("is_active")
+        Index("is_active"),
+        Index("is_paused")
     ]
 )
 data class ItemEntity(
@@ -67,6 +68,7 @@ data class ItemEntity(
     @ColumnInfo(name = "purchase_date") val purchaseDate: LocalDate? = null,
     @ColumnInfo(name = "purchase_price") val purchasePrice: Double? = null,
     @ColumnInfo(name = "is_favorite") val isFavorite: Boolean = false,
+    @ColumnInfo(name = "is_paused") val isPaused: Boolean = false,
     @ColumnInfo(name = "is_active") val isActive: Boolean = true,
     val notes: String? = null,
     @ColumnInfo(name = "created_at") val createdAt: LocalDateTime = LocalDateTime.now(),

@@ -227,6 +227,12 @@ class CookViewModel @Inject constructor(
         }
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        // Clear static holder to prevent leaking between navigations
+        pendingCookAgainSettings = null
+    }
+
     private fun loadInventory() {
         viewModelScope.launch {
             try {
@@ -353,6 +359,9 @@ class CookViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load settings: ${e.message}")
+            _uiState.update { it.copy(
+                currentTip = CookTip(CookTipId.FIRST_COOK, "Settings couldn't be loaded — using defaults. Pick a mood to get started!")
+            )}
         }
     }
 
@@ -538,6 +547,7 @@ class CookViewModel @Inject constructor(
                         val recipes = parseRecipes(response, state.inventoryItems)
                         if (recipes.isEmpty()) {
                             _uiState.update { it.copy(
+                                recipes = emptyList(),
                                 isLoading = false,
                                 error = "Couldn't generate recipes. Try different settings or check your inventory."
                             )}
@@ -755,8 +765,9 @@ Suggest exactly 3 recipes.
 
         /** Word-boundary ingredient matching — prevents "salt" matching "basalt" */
         fun ingredientMatch(inventoryName: String, ingredientName: String): Boolean {
-            val invWords = inventoryName.lowercase().split(" ")
-            val ingWords = ingredientName.lowercase().split(" ")
+            val invWords = inventoryName.lowercase().split(" ").filter { it.isNotBlank() }
+            val ingWords = ingredientName.lowercase().split(" ").filter { it.isNotBlank() }
+            if (invWords.isEmpty() || ingWords.isEmpty()) return false
             return invWords.any { it in ingWords } || ingWords.any { it in invWords }
         }
 
