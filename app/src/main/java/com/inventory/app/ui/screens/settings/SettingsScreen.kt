@@ -31,7 +31,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,7 +53,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
@@ -85,6 +89,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // Google Sign-In launcher
     val googleSignInLauncher = rememberLauncherForActivityResult(
@@ -126,6 +131,47 @@ fun SettingsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
+        // Delete account confirmation dialog
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                icon = {
+                    Icon(
+                        Icons.Filled.DeleteForever,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
+                },
+                title = { Text("Delete Account?") },
+                text = {
+                    Text("This will permanently delete your account and erase all app data (inventory, shopping lists, recipes, settings). This cannot be undone.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirm = false
+                            viewModel.deleteAccount {
+                                navController.navigate(Screen.Onboarding.route) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        },
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Delete Everything")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -186,6 +232,19 @@ fun SettingsScreen(
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
+                        }
+                        TextButton(
+                            onClick = { showDeleteConfirm = true },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Icon(
+                                Icons.Filled.DeleteForever,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Delete Account", color = MaterialTheme.colorScheme.error)
                         }
                     } else {
                         // Not signed in or anonymous

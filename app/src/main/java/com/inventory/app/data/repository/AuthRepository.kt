@@ -90,6 +90,21 @@ class AuthRepository @Inject constructor(
         auth.signOut()
     }
 
+    /** Delete the Firebase Auth account permanently. */
+    suspend fun deleteAccount(): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("No user signed in"))
+            analyticsRepository.logSignOut()
+            analyticsRepository.setUserId(null)
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+            GoogleSignIn.getClient(context, gso).revokeAccess().await()
+            user.delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     /** Ensure user has a UID — sign in anonymously if not already signed in. */
     suspend fun ensureAuthenticated(): FirebaseUser {
         auth.currentUser?.let { return it }

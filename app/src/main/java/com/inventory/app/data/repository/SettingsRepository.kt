@@ -123,4 +123,9 @@ class SettingsRepository @Inject constructor(
         val recent = (existing + now).takeLast(10)
         set(KEY_NOTIF_SENT_TIMESTAMPS, recent.joinToString(","))
     }
+
+    /** Clear encrypted preferences (API keys). Room tables are cleared separately via clearAllTables(). */
+    fun clearEncryptedPrefs() {
+        encryptedPrefs.edit().clear().apply()
+    }
 }

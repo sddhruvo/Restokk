@@ -2,6 +2,7 @@ package com.inventory.app.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.inventory.app.data.local.db.InventoryDatabase
 import com.inventory.app.data.repository.AuthRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.ui.theme.AppTheme
@@ -46,7 +47,8 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val database: InventoryDatabase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -99,6 +101,24 @@ class SettingsViewModel @Inject constructor(
 
     fun signOut() {
         authRepository.signOut()
+    }
+
+    fun deleteAccount(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(authLoading = true, authError = null) }
+            val result = authRepository.deleteAccount()
+            if (result.isSuccess) {
+                database.clearAllTables()
+                settingsRepository.clearEncryptedPrefs()
+                _uiState.update { it.copy(authLoading = false) }
+                onComplete()
+            } else {
+                _uiState.update { it.copy(
+                    authLoading = false,
+                    authError = result.exceptionOrNull()?.message ?: "Failed to delete account"
+                ) }
+            }
+        }
     }
 
     private fun loadSettings() {
