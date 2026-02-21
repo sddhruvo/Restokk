@@ -1,5 +1,9 @@
 package com.inventory.app.ui.screens.more
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.MenuBook
@@ -44,9 +49,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.inventory.app.BuildConfig
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.StaggeredAnimatedItem
 import com.inventory.app.ui.navigation.Screen
@@ -64,6 +71,7 @@ fun MoreScreen(navController: NavController) {
             TopAppBar(title = { Text("More") })
         }
     ) { padding ->
+        val context = LocalContext.current
         // Only animate on first entry; skip on back-navigation to preserve scroll
         var hasAnimated by rememberSaveable { mutableStateOf(false) }
         LaunchedEffect(Unit) {
@@ -212,6 +220,24 @@ fun MoreScreen(navController: NavController) {
                 }
             }
 
+            // Feedback section
+            AnimateOnce(index = 5, hasAnimated = hasAnimated) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MoreSectionHeader(title = "Feedback")
+                    AdaptiveGrid(
+                        columns = 2,
+                        spacing = 12.dp,
+                        items = listOf<@Composable (Modifier) -> Unit>(
+                            { mod ->
+                                MoreActionCard(mod, "Send Feedback", Icons.Filled.Feedback, CardPurple, "Report bugs & ideas") {
+                                    launchFeedbackEmail(context)
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
@@ -284,6 +310,37 @@ private fun AnimateOnce(
         StaggeredAnimatedItem(index = index, slideOffsetDivisor = 6) {
             content()
         }
+    }
+}
+
+internal fun launchFeedbackEmail(context: android.content.Context) {
+    val deviceInfo = """
+        |---
+        |Device: ${Build.MANUFACTURER} ${Build.MODEL}
+        |Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})
+        |App version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})
+        |---
+        |
+        |What happened:
+        |
+        |
+        |What I expected:
+        |
+        |
+        |Steps to reproduce:
+        |
+    """.trimMargin()
+
+    val intent = Intent(Intent.ACTION_SENDTO).apply {
+        data = Uri.parse("mailto:")
+        putExtra(Intent.EXTRA_EMAIL, arrayOf("dhruvo012@gmail.com"))
+        putExtra(Intent.EXTRA_SUBJECT, "Restokk Beta Feedback — v${BuildConfig.VERSION_NAME}")
+        putExtra(Intent.EXTRA_TEXT, deviceInfo)
+    }
+    try {
+        context.startActivity(intent)
+    } catch (_: android.content.ActivityNotFoundException) {
+        Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
     }
 }
 

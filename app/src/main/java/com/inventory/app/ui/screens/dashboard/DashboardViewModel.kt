@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.dao.ChartDataRow
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
+import com.inventory.app.data.repository.AuthRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.PantryHealthRepository
 import com.inventory.app.data.repository.SavedRecipeRepository
@@ -40,7 +41,10 @@ data class DashboardUiState(
     val lastScanAreaCount: Int = 0,
     val shoppingActive: Int = 0,
     val shoppingPurchased: Int = 0,
-    val savedRecipeCount: Int = 0
+    val savedRecipeCount: Int = 0,
+    val showBetaWelcome: Boolean = false,
+    val betaSignInLoading: Boolean = false,
+    val betaSignInError: String? = null
 )
 
 @HiltViewModel
@@ -49,7 +53,8 @@ class DashboardViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val shoppingListRepository: ShoppingListRepository,
     private val pantryHealthRepository: PantryHealthRepository,
-    private val savedRecipeRepository: SavedRecipeRepository
+    private val savedRecipeRepository: SavedRecipeRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -58,6 +63,45 @@ class DashboardViewModel @Inject constructor(
 
     init {
         loadData()
+        checkBetaWelcome()
+    }
+
+    private fun checkBetaWelcome() {
+        viewModelScope.launch {
+            val shown = settingsRepository.getBoolean("beta_welcome_shown", false)
+            if (shown) return@launch
+
+            // If user already signed in via Settings, silently set flag
+            val user = authRepository.currentUser
+            if (user != null && !user.isAnonymous) {
+                settingsRepository.setBoolean("beta_welcome_shown", true)
+                return@launch
+            }
+
+            _uiState.update { it.copy(showBetaWelcome = true) }
+        }
+    }
+
+    /** Dismiss for this session only — dialog will reappear next launch */
+    fun dismissBetaWelcomeForSession() {
+        _uiState.update { it.copy(showBetaWelcome = false, betaSignInError = null) }
+    }
+
+    /** Sign in with Google from beta dialog — sets flag permanently on success */
+    fun onBetaGoogleSignIn(idToken: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(betaSignInLoading = true, betaSignInError = null) }
+            val result = authRepository.signInWithGoogle(idToken)
+            if (result.isSuccess) {
+                settingsRepository.setBoolean("beta_welcome_shown", true)
+                _uiState.update { it.copy(showBetaWelcome = false, betaSignInLoading = false, betaSignInError = null) }
+            } else {
+                _uiState.update { it.copy(
+                    betaSignInLoading = false,
+                    betaSignInError = result.exceptionOrNull()?.message ?: "Sign-in failed"
+                ) }
+            }
+        }
     }
 
     private fun loadData() {

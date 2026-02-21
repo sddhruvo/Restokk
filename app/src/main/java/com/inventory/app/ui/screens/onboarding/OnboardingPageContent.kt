@@ -4,18 +4,25 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,10 +39,13 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.inventory.app.R
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
@@ -88,66 +98,40 @@ fun OnboardingPageContent(
 @Composable
 private fun WelcomePage(onGetStarted: () -> Unit) {
     // Orchestrated reveal phases
-    var iconLanded by remember { mutableStateOf(false) }
-    var headlineWritten by remember { mutableStateOf(false) }
-    var taglineUp by remember { mutableStateOf(false) }
+    var bannerLanded by remember { mutableStateOf(false) }
     var propsReady by remember { mutableStateOf(false) }
     var buttonReady by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(150)
-        iconLanded = true
-        delay(300)
-        headlineWritten = true
-        delay(200)
-        taglineUp = true
-        delay(250)
+        bannerLanded = true
+        delay(500)
         propsReady = true
         delay(350) // after props stagger completes
         buttonReady = true
     }
 
-    // ── Icon: "Land" (scale from small + drop from above) then breathe ──
-    val iconScale by animateFloatAsState(
-        targetValue = if (iconLanded) 1f else 0.3f,
-        animationSpec = BouncySpring, label = "iconScale"
+    // ── Banner: "Land" (scale from small + drop from above) then breathe ──
+    val bannerScale by animateFloatAsState(
+        targetValue = if (bannerLanded) 1f else 0.3f,
+        animationSpec = BouncySpring, label = "bannerScale"
     )
-    val iconOffsetY by animateFloatAsState(
-        targetValue = if (iconLanded) 0f else -30f,
-        animationSpec = BouncySpring, label = "iconDrop"
+    val bannerOffsetY by animateFloatAsState(
+        targetValue = if (bannerLanded) 0f else -30f,
+        animationSpec = BouncySpring, label = "bannerDrop"
     )
-    val iconAlpha by animateFloatAsState(
-        targetValue = if (iconLanded) 1f else 0f,
-        animationSpec = tween(200), label = "iconAlpha"
+    val bannerAlpha by animateFloatAsState(
+        targetValue = if (bannerLanded) 1f else 0f,
+        animationSpec = tween(300), label = "bannerAlpha"
     )
 
     // Breathing at rest
-    val breathe = rememberInfiniteTransition(label = "iconBreathe")
+    val breathe = rememberInfiniteTransition(label = "bannerBreathe")
     val breatheScale by breathe.animateFloat(
         initialValue = 1f, targetValue = 1.02f,
         animationSpec = infiniteRepeatable(
             tween(2500, easing = EaseInOutSine), RepeatMode.Reverse
         ), label = "breatheScale"
-    )
-
-    // ── Headline: "Write In" from left ──
-    val headlineX by animateFloatAsState(
-        targetValue = if (headlineWritten) 0f else -60f,
-        animationSpec = BouncySpring, label = "headX"
-    )
-    val headlineAlpha by animateFloatAsState(
-        targetValue = if (headlineWritten) 1f else 0f,
-        animationSpec = tween(300), label = "headAlpha"
-    )
-
-    // ── Tagline: "Fade Up" ──
-    val taglineY by animateFloatAsState(
-        targetValue = if (taglineUp) 0f else 12f,
-        animationSpec = GentleSpring, label = "tagY"
-    )
-    val taglineAlpha by animateFloatAsState(
-        targetValue = if (taglineUp) 1f else 0f,
-        animationSpec = tween(250), label = "tagAlpha"
     )
 
     // ── Button: "Fade Up" ──
@@ -163,66 +147,36 @@ private fun WelcomePage(onGetStarted: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // App icon — lands then breathes
-        Box(
+        // Brand banner — lands then breathes, constrained for tablets
+        Image(
+            painter = painterResource(id = R.drawable.restokk_banner),
+            contentDescription = "Restokk — AI-powered kitchen tracker",
+            contentScale = ContentScale.FillWidth,
             modifier = Modifier
-                .size(80.dp)
+                .widthIn(max = 360.dp)
                 .graphicsLayer {
-                    scaleX = iconScale * (if (iconLanded) breatheScale else 1f)
-                    scaleY = iconScale * (if (iconLanded) breatheScale else 1f)
-                    translationY = iconOffsetY
-                    alpha = iconAlpha
+                    scaleX = bannerScale * (if (bannerLanded) breatheScale else 1f)
+                    scaleY = bannerScale * (if (bannerLanded) breatheScale else 1f)
+                    translationY = bannerOffsetY
+                    alpha = bannerAlpha
                 }
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "H",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Headline — writes in from left
-        Text(
-            text = "Restokk",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.graphicsLayer {
-                translationX = headlineX; alpha = headlineAlpha
-            }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Tagline — fades up gently
-        Text(
-            text = "Your Kitchen, Organized",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.graphicsLayer {
-                translationY = taglineY; alpha = taglineAlpha
-            }
         )
 
         Spacer(modifier = Modifier.height(48.dp))
 
         // Value props — "Write In" stagger cascade
         val valueProps = listOf(
-            Triple(Icons.Filled.CameraAlt, "Scan Your Kitchen", "AI identifies items from a photo"),
-            Triple(Icons.Filled.ShoppingCart, "Smart Shopping Lists", "Never forget what you need"),
-            Triple(Icons.Filled.Eco, "Never Waste Food", "Track expiry dates & use what you have"),
+            Triple(Icons.Filled.CameraAlt, "Scan Your Kitchen", "AI identifies items from photos"),
+            Triple(Icons.Filled.ShoppingCart, "Smart Shopping Lists", "Budget tracking & auto-categorize"),
+            Triple(Icons.Filled.Restaurant, "Meal Suggestions", "Recipes from what you already have"),
+            Triple(Icons.Filled.QrCodeScanner, "Barcode & Receipt Scan", "Add items in seconds"),
+            Triple(Icons.Filled.Eco, "Expiry & Stock Alerts", "Never waste food again"),
+            Triple(Icons.Filled.Notifications, "Smart Reminders", "Restock nudges & shopping alerts"),
         )
 
         valueProps.forEachIndexed { index, (icon, title, subtitle) ->
@@ -234,11 +188,29 @@ private fun WelcomePage(onGetStarted: () -> Unit) {
                 ValuePropRow(icon = icon, title = title, subtitle = subtitle, index = index, visible = propsReady)
             }
             if (index < valueProps.lastIndex) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // "...and more" hint
+        WriteInItem(
+            index = valueProps.size,
+            visible = propsReady,
+            staggerMs = 70L
+        ) {
+            Text(
+                text = "...and much more inside",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
 
         // CTA — fades up last
         Button(
@@ -275,9 +247,9 @@ private fun ValuePropRow(icon: ImageVector, title: String, subtitle: String, ind
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(40.dp)
                 .graphicsLayer { scaleX = iconScale; scaleY = iconScale }
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
@@ -285,10 +257,10 @@ private fun ValuePropRow(icon: ImageVector, title: String, subtitle: String, ind
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
                 text = title,

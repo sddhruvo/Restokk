@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,18 +23,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.activity.compose.BackHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.domain.model.CuisineData
 import com.inventory.app.domain.model.RegionalCuisine
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.StaggeredAnimatedItem
 import com.inventory.app.ui.navigation.Screen
 
 private val CardShape = RoundedCornerShape(16.dp)
@@ -139,204 +142,284 @@ fun CookScreen(
 
 @Composable
 private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, navController: NavController) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Smart tip
-        if (uiState.currentTip != null && !uiState.showResults) {
-            item(key = "tip_card") {
-                CookTipCard(
-                    tip = uiState.currentTip,
-                    onDismiss = { viewModel.dismissTip() },
-                    onCtaClick = uiState.currentTip.ctaRoute?.let { route ->
-                        { navController.navigate(route) }
-                    }
-                )
-            }
-        }
+    val listState = rememberLazyListState()
 
-        // Section 1: Mood Cards
-        item(key = "mood_header") {
-            StaggeredAnimatedItem(index = 0) {
-                SectionLabel("What's the vibe?")
+    // Section index: O(1) read from firstVisibleItemIndex
+    val tipOffset = if (uiState.currentTip != null) 1 else 0
+    val currentSection by remember(tipOffset) {
+        derivedStateOf {
+            val idx = listState.firstVisibleItemIndex - tipOffset
+            when {
+                idx <= 1  -> 0  // mood_header, mood_cards
+                idx <= 3  -> 1  // hero_header, hero_chips/hint
+                idx <= 5  -> 2  // cuisine_header, cuisine_chips
+                idx <= 7  -> 3  // taste_header, taste_controls
+                idx <= 8  -> 4  // meal_row
+                idx <= 10 -> 5  // dietary_header, dietary_chips
+                else      -> 6  // more_options, cook_button, inventory_summary
             }
         }
-        item(key = "mood_cards") {
-            StaggeredAnimatedItem(index = 1) {
-                MoodCardsRow(uiState.selectedMood) { viewModel.selectMood(it) }
-            }
-        }
+    }
 
-        // Section 2: Hero Ingredient
-        item(key = "hero_header") {
-            StaggeredAnimatedItem(index = 2) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SectionLabel("Build around...")
-                    TextButton(onClick = { viewModel.showHeroPicker() }) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Pick items")
-                    }
+    // Hide guide dots/tips on big screens where everything fits
+    val showGuide by remember {
+        derivedStateOf {
+            listState.canScrollForward || listState.canScrollBackward
+        }
+    }
+
+    // Track all sections currently visible on screen
+    val visibleSections by remember {
+        derivedStateOf {
+            val sections = mutableSetOf<Int>()
+            for (item in listState.layoutInfo.visibleItemsInfo) {
+                when (item.key as? String) {
+                    "mood_header", "mood_cards" -> sections.add(0)
+                    "hero_header", "hero_chips", "hero_hint" -> sections.add(1)
+                    "cuisine_header", "cuisine_chips" -> sections.add(2)
+                    "taste_header", "taste_controls" -> sections.add(3)
+                    "meal_row" -> sections.add(4)
+                    "dietary_header", "dietary_chips" -> sections.add(5)
+                    "more_options", "cook_button", "inventory_summary" -> sections.add(6)
                 }
             }
+            sections.toSet()
         }
-        if (uiState.heroIngredients.isNotEmpty()) {
-            item(key = "hero_chips") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(uiState.heroIngredients, key = { it.id }) { item ->
-                        val isExpiring = (item.daysUntilExpiry ?: Long.MAX_VALUE) <= 3
-                        InputChip(
-                            selected = true,
-                            onClick = { viewModel.toggleHeroIngredient(item) },
-                            label = { Text(item.name) },
-                            trailingIcon = { Icon(Icons.Filled.Close, "Remove", modifier = Modifier.size(16.dp)) },
-                            colors = InputChipDefaults.inputChipColors(
-                                selectedContainerColor = if (isExpiring)
-                                    MaterialTheme.colorScheme.errorContainer
-                                else MaterialTheme.colorScheme.secondaryContainer
-                            )
-                        )
-                    }
-                }
-            }
-        } else {
-            item(key = "hero_hint") {
-                Text(
-                    "Optional — select up to 3 items from your inventory to feature",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+    }
 
-        // Section 3: Cuisine
-        item(key = "cuisine_header") {
-            StaggeredAnimatedItem(index = 3) {
-                SectionLabel("Cuisine")
+    // Haptic tick on section changes
+    val haptic = LocalHapticFeedback.current
+    LaunchedEffect(Unit) {
+        snapshotFlow { currentSection }
+            .distinctUntilChanged()
+            .collect {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             }
-        }
-        item(key = "cuisine_chips") {
-            StaggeredAnimatedItem(index = 4) {
-                CuisineSelector(uiState.selectedCuisine, viewModel)
-            }
-        }
+    }
 
-        // Section 4: Taste & Style
-        item(key = "taste_header") {
-            StaggeredAnimatedItem(index = 5) {
-                SectionLabel("Taste & Style")
-            }
-        }
-        item(key = "taste_controls") {
-            StaggeredAnimatedItem(index = 6) {
-                TasteControls(uiState, viewModel)
-            }
-        }
-
-        // Section 5: Meal Type & Servings
-        item(key = "meal_row") {
-            StaggeredAnimatedItem(index = 7) {
-                MealAndServingsRow(uiState, viewModel)
-            }
-        }
-
-        // Section 6: Dietary
-        item(key = "dietary_header") {
-            StaggeredAnimatedItem(index = 8) {
-                SectionLabel("Dietary")
-            }
-        }
-        item(key = "dietary_chips") {
-            StaggeredAnimatedItem(index = 9) {
-                DietaryChips(uiState.dietaryFilters) { viewModel.toggleDietary(it) }
-            }
-        }
-
-        // Section 7: More Options (collapsible)
-        item(key = "more_options") {
-            Column {
-                TextButton(
-                    onClick = { viewModel.toggleMoreOptions() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (uiState.showMoreOptions) "Less options" else "More options")
-                    Icon(
-                        if (uiState.showMoreOptions) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Smart tip
+            if (uiState.currentTip != null && !uiState.showResults) {
+                item(key = "tip_card") {
+                    CookTipCard(
+                        tip = uiState.currentTip,
+                        onDismiss = { viewModel.dismissTip() },
+                        onCtaClick = uiState.currentTip.ctaRoute?.let { route ->
+                            { navController.navigate(route) }
+                        }
                     )
                 }
-                AnimatedVisibility(visible = uiState.showMoreOptions) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        SectionLabel("Equipment")
-                        EquipmentChips(uiState.equipment) { viewModel.toggleEquipment(it) }
+            }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .toggleable(
-                                    value = uiState.flexibleIngredients,
-                                    onValueChange = { viewModel.setFlexibleIngredients(it) },
-                                    role = Role.Switch
-                                ),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("Suggest extra ingredients?", style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    "Allow recipes needing 1-2 items to buy",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = uiState.flexibleIngredients,
-                                onCheckedChange = null
-                            )
+            // Section 1: Mood Cards
+            item(key = "mood_header") {
+                SectionWithDot(0, currentSection, "Pick a mood \u2014 or skip, I'll surprise you", showGuide, visibleSections) {
+                    SectionLabel("What's the vibe?")
+                }
+            }
+            item(key = "mood_cards") {
+                MoodCardsRow(uiState.selectedMood) { viewModel.selectMood(it) }
+            }
+
+            // Section 2: Hero Ingredient
+            item(key = "hero_header") {
+                SectionWithDot(1, currentSection, "Got something expiring? Build around it", showGuide, visibleSections) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SectionLabel("Build around...")
+                        TextButton(onClick = { viewModel.showHeroPicker() }) {
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Pick items")
                         }
                     }
                 }
             }
-        }
-
-        // Cook button
-        item(key = "cook_button") {
-            Spacer(Modifier.height(8.dp))
-            Button(
-                onClick = { viewModel.cook() },
-                enabled = uiState.canCook,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CookAccent)
-            ) {
-                Icon(Icons.Filled.Restaurant, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Cook!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (uiState.heroIngredients.isNotEmpty()) {
+                item(key = "hero_chips") {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(uiState.heroIngredients, key = { it.id }) { item ->
+                            val isExpiring = (item.daysUntilExpiry ?: Long.MAX_VALUE) <= 3
+                            InputChip(
+                                selected = true,
+                                onClick = { viewModel.toggleHeroIngredient(item) },
+                                label = { Text(item.name) },
+                                trailingIcon = { Icon(Icons.Filled.Close, "Remove", modifier = Modifier.size(16.dp)) },
+                                colors = InputChipDefaults.inputChipColors(
+                                    selectedContainerColor = if (isExpiring)
+                                        MaterialTheme.colorScheme.errorContainer
+                                    else MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            )
+                        }
+                    }
+                }
+            } else {
+                item(key = "hero_hint") {
+                    Text(
+                        "Optional — select up to 3 items from your inventory to feature",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            Spacer(Modifier.height(16.dp))
-        }
 
-        // Inventory summary
-        item(key = "inventory_summary") {
-            Text(
-                "${uiState.inventoryItems.size} items in your inventory",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(24.dp))
+            // Section 3: Cuisine
+            item(key = "cuisine_header") {
+                SectionWithDot(2, currentSection, "Any cuisine works \u2014 or explore 280+", showGuide, visibleSections) {
+                    SectionLabel("Cuisine")
+                }
+            }
+            item(key = "cuisine_chips") {
+                CuisineSelector(uiState.selectedCuisine, viewModel)
+            }
+
+            // Section 4: Taste & Style
+            item(key = "taste_header") {
+                SectionWithDot(3, currentSection, "Set your spice, effort & style", showGuide, visibleSections) {
+                    SectionLabel("Taste & Style")
+                }
+            }
+            item(key = "taste_controls") {
+                TasteControls(uiState, viewModel)
+            }
+
+            // Section 5: Meal Type & Servings
+            item(key = "meal_row") {
+                if (showGuide) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        InlineSectionDot(
+                            section = 4,
+                            currentSection = currentSection,
+                            isVisible = 4 in visibleSections,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset(x = (-20).dp, y = 4.dp)
+                        )
+                        Column {
+                            SectionTip("Choose meal type & servings", 4 in visibleSections)
+                            Spacer(Modifier.height(4.dp))
+                            MealAndServingsRow(uiState, viewModel)
+                        }
+                    }
+                } else {
+                    MealAndServingsRow(uiState, viewModel)
+                }
+            }
+
+            // Section 6: Dietary
+            item(key = "dietary_header") {
+                SectionWithDot(5, currentSection, "Any dietary needs? Skip if none", showGuide, visibleSections) {
+                    SectionLabel("Dietary")
+                }
+            }
+            item(key = "dietary_chips") {
+                DietaryChips(uiState.dietaryFilters) { viewModel.toggleDietary(it) }
+            }
+
+            // Section 7: More Options (collapsible)
+            item(key = "more_options") {
+                Column {
+                    TextButton(
+                        onClick = { viewModel.toggleMoreOptions() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (uiState.showMoreOptions) "Less options" else "More options")
+                        Icon(
+                            if (uiState.showMoreOptions) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    AnimatedVisibility(visible = uiState.showMoreOptions) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SectionLabel("Equipment")
+                            EquipmentChips(uiState.equipment) { viewModel.toggleEquipment(it) }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = uiState.flexibleIngredients,
+                                        onValueChange = { viewModel.setFlexibleIngredients(it) },
+                                        role = Role.Switch
+                                    ),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Suggest extra ingredients?", style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        "Allow recipes needing 1-2 items to buy",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = uiState.flexibleIngredients,
+                                    onCheckedChange = null
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Cook button
+            item(key = "cook_button") {
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        if (showGuide) {
+                            InlineSectionDot(
+                                section = 6,
+                                currentSection = currentSection,
+                                isVisible = 6 in visibleSections,
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .offset(x = (-20).dp)
+                            )
+                        }
+                        Button(
+                            onClick = { viewModel.cook() },
+                            enabled = uiState.canCook,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = CookAccent)
+                        ) {
+                            Icon(Icons.Filled.Restaurant, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Cook!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
+
+            // Inventory summary
+            item(key = "inventory_summary") {
+                Text(
+                    "${uiState.inventoryItems.size} items in your inventory",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(24.dp))
+            }
         }
-    }
+    } // end Box
 }
 
 // ── Mood Cards Row ─────────────────────────────────────────────────────
@@ -848,15 +931,15 @@ private fun RecipeCard(
                     Text("Steps", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     recipe.steps.forEachIndexed { idx, step ->
-                        Row(modifier = Modifier.padding(vertical = 3.dp)) {
+                        Row(modifier = Modifier.padding(vertical = 4.dp)) {
                             Text(
                                 "${idx + 1}.",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = CookAccent,
-                                modifier = Modifier.width(20.dp)
+                                modifier = Modifier.width(24.dp)
                             )
-                            Text(step, style = MaterialTheme.typography.bodySmall)
+                            Text(step, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
 

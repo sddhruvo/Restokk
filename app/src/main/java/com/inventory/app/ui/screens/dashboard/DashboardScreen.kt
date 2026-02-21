@@ -1,5 +1,8 @@
 package com.inventory.app.ui.screens.dashboard
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -24,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MenuBook
@@ -41,10 +45,13 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +82,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.ui.components.AppCard
@@ -94,6 +102,10 @@ import com.inventory.app.ui.theme.ExpiryRed
 import com.inventory.app.ui.theme.StockGreen
 import com.inventory.app.ui.theme.StockYellow
 import com.inventory.app.ui.theme.scoreToColor
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.inventory.app.R
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -111,6 +123,22 @@ fun DashboardScreen(
     val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // Google Sign-In launcher for beta dialog
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            try {
+                val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                    .getResult(ApiException::class.java)
+                account.idToken?.let { token ->
+                    viewModel.onBetaGoogleSignIn(token)
+                }
+            } catch (_: ApiException) { }
+        }
+    }
 
     val gridColumns = when (windowWidthSizeClass) {
         WindowWidthSizeClass.Expanded -> 4
@@ -159,6 +187,85 @@ fun DashboardScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
+        // Beta sign-in dialog — appears every launch until user signs in
+        if (uiState.showBetaWelcome) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (!uiState.betaSignInLoading) viewModel.dismissBetaWelcomeForSession()
+                },
+                icon = {
+                    Icon(
+                        Icons.Filled.AutoAwesome,
+                        contentDescription = null,
+                        tint = CardGold,
+                        modifier = Modifier.size(32.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        "Welcome to the Restokk Beta!",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "Thank you for being an early tester! Please sign in with Google so we can identify beta testers and reach you if needed.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Your data stays on this device.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (uiState.betaSignInLoading) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Text("Signing in...", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        uiState.betaSignInError?.let { error ->
+                            Text(
+                                error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            try {
+                                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                    .requestIdToken(context.getString(R.string.default_web_client_id))
+                                    .requestEmail()
+                                    .build()
+                                val client = GoogleSignIn.getClient(context, gso)
+                                googleSignInLauncher.launch(client.signInIntent)
+                            } catch (_: Exception) { }
+                        },
+                        enabled = !uiState.betaSignInLoading
+                    ) {
+                        Text("Sign in with Google")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.dismissBetaWelcomeForSession() },
+                        enabled = !uiState.betaSignInLoading
+                    ) {
+                        Text("Maybe Later")
+                    }
+                }
+            )
+        }
+
         // Only animate on first entry; skip on back-navigation to preserve scroll
         var hasAnimated by rememberSaveable { mutableStateOf(false) }
         LaunchedEffect(Unit) {

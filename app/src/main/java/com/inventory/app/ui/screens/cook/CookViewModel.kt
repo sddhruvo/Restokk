@@ -18,7 +18,9 @@ import com.inventory.app.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -262,12 +264,15 @@ class CookViewModel @Inject constructor(
 
     private fun loadSavedRecipeState() {
         viewModelScope.launch {
-            savedRecipeRepository.getAllActive().collect { recipes ->
-                _uiState.update { it.copy(
-                    savedRecipeNames = recipes.map { r -> r.name }.toSet(),
-                    savedRecipeCount = recipes.size
-                )}
-            }
+            savedRecipeRepository.getAllActive()
+                .map { recipes -> recipes.map { it.name }.toSet() }
+                .distinctUntilChanged()
+                .collect { names ->
+                    _uiState.update { it.copy(
+                        savedRecipeNames = names,
+                        savedRecipeCount = names.size
+                    )}
+                }
         }
     }
 
@@ -733,9 +738,10 @@ Suggest exactly 3 recipes.
             val recipes: List<SuggestedRecipe> = gson.fromJson(jsonStr, type) ?: emptyList()
 
             // Post-process: match ingredients against actual inventory (word-boundary matching)
+            // OVERRIDE AI's have_it — only trust actual inventory matching
             recipes.map { recipe ->
                 val matchedIngredients = recipe.ingredients.map { ing ->
-                    val haveIt = ing.have_it || inventory.any { inv ->
+                    val haveIt = inventory.any { inv ->
                         ingredientMatch(inv.name, ing.name)
                     }
                     ing.copy(have_it = haveIt)
@@ -763,12 +769,33 @@ Suggest exactly 3 recipes.
         /** Temporary holder for "Cook Again" settings passed between SavedRecipes → Cook screens */
         var pendingCookAgainSettings: String? = null
 
-        /** Word-boundary ingredient matching — prevents "salt" matching "basalt" */
+        /** Strict ingredient matching — all words of shorter name must appear in longer,
+         *  and extra words must not change the ingredient's nature
+         *  (e.g. "rice" ≠ "rice vinegar", "tomato" ≠ "tomato paste") */
         fun ingredientMatch(inventoryName: String, ingredientName: String): Boolean {
-            val invWords = inventoryName.lowercase().split(" ").filter { it.isNotBlank() }
-            val ingWords = ingredientName.lowercase().split(" ").filter { it.isNotBlank() }
+            val inv = inventoryName.lowercase().trim()
+            val ing = ingredientName.lowercase().trim()
+            if (inv == ing) return true
+
+            val invWords = inv.split(Regex("\\s+")).filter { it.isNotBlank() }
+            val ingWords = ing.split(Regex("\\s+")).filter { it.isNotBlank() }
             if (invWords.isEmpty() || ingWords.isEmpty()) return false
-            return invWords.any { it in ingWords } || ingWords.any { it in invWords }
+
+            // All words of the shorter name must appear in the longer name
+            val (shorter, longer) = if (invWords.size <= ingWords.size) invWords to ingWords else ingWords to invWords
+            if (!shorter.all { word -> longer.any { it == word } }) return false
+
+            // If the longer name has a nature-changing word not in the shorter name,
+            // it's a fundamentally different ingredient
+            val natureChangers = setOf(
+                "vinegar", "paste", "sauce", "powder", "flour", "noodles", "paper",
+                "extract", "essence", "wine", "stock", "broth", "cheese", "butter",
+                "milk", "oil", "cream", "syrup", "juice", "water", "starch", "flakes"
+            )
+            val extraWords = longer.toSet() - shorter.toSet()
+            if (extraWords.any { it in natureChangers }) return false
+
+            return true
         }
 
         private val SYSTEM_PROMPT = """

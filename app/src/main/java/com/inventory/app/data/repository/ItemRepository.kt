@@ -159,10 +159,13 @@ class ItemRepository @Inject constructor(
 
     suspend fun deleteImage(id: Long) {
         val image = itemImageDao.getById(id) ?: return
-        // Delete physical file from disk
+        // Delete physical file from disk — only delete DB record if file is gone
         try {
             val file = File(image.filename)
-            if (file.exists()) file.delete()
+            if (file.exists() && !file.delete()) {
+                // File couldn't be deleted (locked?) — skip DB deletion to avoid orphan
+                return
+            }
         } catch (_: Exception) { }
         itemImageDao.delete(id)
         // If deleted image was primary, promote the next remaining image

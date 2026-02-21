@@ -3,6 +3,8 @@ package com.inventory.app.ui.screens.settings
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -427,6 +429,17 @@ fun SettingsScreen(
                     .clickable {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sddhruvo.github.io/Restokk/privacy-policy.html"))
                         context.startActivity(intent)
+                    }
+            )
+            Text(
+                text = "Send Feedback",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        com.inventory.app.ui.screens.more.launchFeedbackEmail(context)
                     }
             )
         }
