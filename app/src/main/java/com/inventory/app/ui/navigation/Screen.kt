@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -75,10 +76,6 @@ sealed class Screen(val route: String) {
         fun createRoute(itemId: Long? = null) =
             if (itemId != null) "shopping/add?itemId=$itemId" else "shopping/add"
     }
-    data object EditShoppingItem : Screen("shopping/edit/{shoppingItemId}") {
-        fun createRoute(shoppingItemId: Long) = "shopping/edit/$shoppingItemId"
-    }
-
     // Report screens
     data object Reports : Screen("reports")
     data object ExpiringReport : Screen("reports/expiring")
@@ -144,7 +141,7 @@ data class QuickAddMenuItem(
 )
 
 val quickAddMenuItems = listOf(
-    QuickAddMenuItem("Add Item", Icons.Filled.ShoppingCart, Screen.AddShoppingItem.createRoute()),
+    QuickAddMenuItem("Add Item", Icons.Filled.AddShoppingCart, Screen.AddShoppingItem.createRoute()),
     QuickAddMenuItem("Scan Barcode", Icons.Filled.QrCodeScanner, Screen.BarcodeScan.route),
     QuickAddMenuItem("Kitchen Scan", Icons.Filled.PhotoCamera, Screen.FridgeScan.route),
     QuickAddMenuItem("Scan Receipt", Icons.Filled.Receipt, Screen.ReceiptScan.route)

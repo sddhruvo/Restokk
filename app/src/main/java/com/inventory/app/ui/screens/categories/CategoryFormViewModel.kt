@@ -84,10 +84,23 @@ class CategoryFormViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            if (state.isEditing && state.editingId != null) {
-                categoryRepository.getById(state.editingId)?.let { existing ->
-                    categoryRepository.updateCategory(
-                        existing.copy(
+            try {
+                if (state.isEditing && state.editingId != null) {
+                    categoryRepository.getById(state.editingId)?.let { existing ->
+                        categoryRepository.updateCategory(
+                            existing.copy(
+                                name = state.name.trim(),
+                                description = state.description.ifBlank { null },
+                                icon = state.icon,
+                                color = state.color.ifBlank { null },
+                                sortOrder = state.sortOrder,
+                                isActive = state.isActive
+                            )
+                        )
+                    }
+                } else {
+                    categoryRepository.insertCategory(
+                        CategoryEntity(
                             name = state.name.trim(),
                             description = state.description.ifBlank { null },
                             icon = state.icon,
@@ -97,19 +110,10 @@ class CategoryFormViewModel @Inject constructor(
                         )
                     )
                 }
-            } else {
-                categoryRepository.insertCategory(
-                    CategoryEntity(
-                        name = state.name.trim(),
-                        description = state.description.ifBlank { null },
-                        icon = state.icon,
-                        color = state.color.ifBlank { null },
-                        sortOrder = state.sortOrder,
-                        isActive = state.isActive
-                    )
-                )
+                _uiState.update { it.copy(isSaved = true) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(nameError = "Failed to save: ${e.message}") }
             }
-            _uiState.update { it.copy(isSaved = true) }
         }
     }
 }

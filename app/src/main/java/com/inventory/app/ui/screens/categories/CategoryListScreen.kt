@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -100,7 +101,8 @@ fun CategoryListScreen(
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(padding),
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 itemsIndexed(uiState.categories, key = { _, it -> it.id }) { index, category ->
                     ListItem(
@@ -118,23 +120,23 @@ fun CategoryListScreen(
                                     IconButton(
                                         onClick = { viewModel.moveCategory(index, index - 1) },
                                         enabled = index > 0,
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
                                             Icons.Filled.KeyboardArrowUp,
                                             contentDescription = "Move up",
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                     IconButton(
                                         onClick = { viewModel.moveCategory(index, index + 1) },
                                         enabled = index < uiState.categories.size - 1,
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
                                             Icons.Filled.KeyboardArrowDown,
                                             contentDescription = "Move down",
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }

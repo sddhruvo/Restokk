@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,6 +48,8 @@ import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.data.local.dao.LocationWithItemCountRow
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import com.inventory.app.ui.components.ConfirmDialog
 import com.inventory.app.ui.components.EmptyState
 import com.inventory.app.ui.components.LoadingState
@@ -96,7 +99,8 @@ fun LocationListScreen(
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(padding),
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 itemsIndexed(uiState.locations, key = { _, it -> it.id }) { index, location ->
                     ListItem(
@@ -114,12 +118,12 @@ fun LocationListScreen(
                                     IconButton(
                                         onClick = { viewModel.moveLocation(index, index - 1) },
                                         enabled = index > 0,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
                                             Icons.Filled.KeyboardArrowUp,
                                             contentDescription = "Move up",
-                                            modifier = Modifier.size(16.dp),
+                                            modifier = Modifier.size(20.dp),
                                             tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant
                                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                                         )
@@ -127,12 +131,12 @@ fun LocationListScreen(
                                     IconButton(
                                         onClick = { viewModel.moveLocation(index, index + 1) },
                                         enabled = index < uiState.locations.size - 1,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
                                             Icons.Filled.KeyboardArrowDown,
                                             contentDescription = "Move down",
-                                            modifier = Modifier.size(16.dp),
+                                            modifier = Modifier.size(20.dp),
                                             tint = if (index < uiState.locations.size - 1) MaterialTheme.colorScheme.onSurfaceVariant
                                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                                         )
@@ -183,9 +187,20 @@ fun LocationListScreen(
             title = "Delete Location",
             message = "Are you sure you want to delete \"${location.name}\"?",
             onConfirm = {
-                viewModel.deleteLocation(location.id)
+                val deletedId = location.id
+                val deletedName = location.name
+                viewModel.deleteLocation(deletedId)
                 deleteTarget = null
-                scope.launch { snackbarHostState.showSnackbar("Location deleted") }
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "\"$deletedName\" deleted",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.restoreLocation(deletedId)
+                    }
+                }
             },
             onDismiss = { deleteTarget = null }
         )

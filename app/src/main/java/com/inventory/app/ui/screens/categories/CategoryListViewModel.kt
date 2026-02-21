@@ -15,7 +15,8 @@ import javax.inject.Inject
 
 data class CategoryListUiState(
     val categories: List<CategoryWithItemCountRow> = emptyList(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val error: String? = null
 )
 
 @HiltViewModel
@@ -40,14 +41,26 @@ class CategoryListViewModel @Inject constructor(
 
     fun deleteCategory(id: Long) {
         viewModelScope.launch {
-            categoryRepository.deleteCategory(id)
+            try {
+                categoryRepository.deleteCategory(id)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to delete category: ${e.message}") }
+            }
         }
     }
 
     fun restoreCategory(id: Long) {
         viewModelScope.launch {
-            categoryRepository.restoreCategory(id)
+            try {
+                categoryRepository.restoreCategory(id)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to restore category: ${e.message}") }
+            }
         }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 
     fun moveCategory(fromIndex: Int, toIndex: Int) {

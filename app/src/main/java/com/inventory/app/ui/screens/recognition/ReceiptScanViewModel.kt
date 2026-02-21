@@ -501,7 +501,7 @@ class ReceiptScanViewModel @Inject constructor(
             var addedCount = 0
             for ((index, item) in items.withIndex()) {
                 _uiState.update { it.copy(state = ReceiptScanState.Saving(index + 1, total)) }
-
+                try {
                 val qty = item.quantity.toDoubleOrNull() ?: 1.0
                 val price = item.price.toDoubleOrNull()?.takeIf { it >= 0 }
 
@@ -591,6 +591,9 @@ class ReceiptScanViewModel @Inject constructor(
                 }
 
                 addedCount++
+                } catch (e: Exception) {
+                    Log.w("ReceiptScan", "Failed to save item: ${item.name}", e)
+                }
             }
 
             _uiState.update { it.copy(state = ReceiptScanState.Success(addedCount)) }

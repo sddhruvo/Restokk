@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -53,13 +54,16 @@ class DashboardViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
         loadData()
     }
 
     private fun loadData() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+        launch {
             val currency = settingsRepository.getCurrencySymbol()
             val lastItems = settingsRepository.getInt("last_scan_item_count", 0)
             val lastAreas = settingsRepository.getInt("last_scan_area_count", 0)
@@ -70,7 +74,7 @@ class DashboardViewModel @Inject constructor(
             ) }
         }
         @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-        viewModelScope.launch {
+        launch {
             try {
                 settingsRepository.getIntFlow(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 7)
                     .flatMapLatest { warningDays ->
@@ -83,56 +87,58 @@ class DashboardViewModel @Inject constructor(
                         _uiState.update { it.copy(expiringSoon = count, expiringItems = items, isLoading = false) }
                     }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _uiState.update { it.copy(error = "Failed to load expiry data: ${e.message}", isLoading = false) }
             }
         }
 
-        viewModelScope.launch {
+        launch {
             try {
                 itemRepository.getTotalItemCount().collect { count ->
                     _uiState.update { it.copy(totalItems = count, isLoading = false) }
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _uiState.update { it.copy(error = "Failed to load dashboard: ${e.message}", isLoading = false) }
             }
         }
-        viewModelScope.launch {
+        launch {
             try {
                 itemRepository.getLowStockCount().collect { count ->
                     _uiState.update { it.copy(lowStock = count, isLoading = false) }
                 }
-            } catch (e: Exception) { /* non-critical */ }
+            } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
-        viewModelScope.launch {
+        launch {
             try {
                 itemRepository.getTotalValue().collect { value ->
                     _uiState.update { it.copy(totalValue = value, isLoading = false) }
                 }
-            } catch (e: Exception) { /* non-critical */ }
+            } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
-        viewModelScope.launch {
+        launch {
             try {
                 itemRepository.getLowStockItems().collect { items ->
                     _uiState.update { it.copy(lowStockItems = items, isLoading = false) }
                 }
-            } catch (e: Exception) { /* non-critical */ }
+            } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
-        viewModelScope.launch {
+        launch {
             try {
                 itemRepository.getItemCountByCategory().collect { data ->
                     _uiState.update { it.copy(itemsByCategory = data, isLoading = false) }
                 }
-            } catch (e: Exception) { /* non-critical */ }
+            } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
-        viewModelScope.launch {
+        launch {
             try {
                 itemRepository.getItemCountByLocation().collect { data ->
                     _uiState.update { it.copy(itemsByLocation = data, isLoading = false) }
                 }
-            } catch (e: Exception) { /* non-critical */ }
+            } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
         // Home Score
-        viewModelScope.launch {
+        launch {
             try {
                 combine(
                     itemRepository.getTotalItemCount(),
@@ -201,18 +207,19 @@ class DashboardViewModel @Inject constructor(
                             engagementScore = data.engagementScore,
                             conditionScore = data.conditionScore
                         )
-                    } catch (_: Exception) { /* snapshot recording is non-critical */ }
+                    } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
                 }
-            } catch (_: Exception) { /* non-critical */ }
+            } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
         // Saved recipe count
-        viewModelScope.launch {
+        launch {
             try {
                 savedRecipeRepository.getCount().collect { count ->
                     _uiState.update { it.copy(savedRecipeCount = count) }
                 }
-            } catch (_: Exception) { /* non-critical */ }
+            } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
+        } // end loadJob
     }
 
     fun refresh() {

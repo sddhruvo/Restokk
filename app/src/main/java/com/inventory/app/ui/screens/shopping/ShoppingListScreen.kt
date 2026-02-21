@@ -1247,15 +1247,15 @@ private fun ShoppingListRow(
         trailingContent = if (showQuantityButtons && !isPurchased && onQuantityChange != null) {
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { onQuantityChange(-1.0) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.Remove, contentDescription = "Decrease", modifier = Modifier.size(18.dp))
+                    IconButton(onClick = { onQuantityChange(-1.0) }, modifier = Modifier.size(40.dp)) {
+                        Icon(Icons.Filled.Remove, contentDescription = "Decrease", modifier = Modifier.size(20.dp))
                     }
                     AnimatedQuantityDisplay(
                         quantity = item.shoppingItem.quantity,
                         categoryColor = inkColor
                     )
-                    IconButton(onClick = { onQuantityChange(1.0) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp))
+                    IconButton(onClick = { onQuantityChange(1.0) }, modifier = Modifier.size(40.dp)) {
+                        Icon(Icons.Filled.Add, contentDescription = "Increase", modifier = Modifier.size(20.dp))
                     }
                 }
             }

@@ -305,6 +305,9 @@ class AddShoppingItemViewModel @Inject constructor(
                 resolvedItemId = itemDao.findByName(state.customName)?.id
             }
 
+            // Guard: don't save orphaned items with no name and no linked item
+            if (resolvedItemId == null && state.customName.isBlank()) return@launch
+
             shoppingListRepository.addItem(
                 ShoppingListItemEntity(
                     id = state.editingId ?: 0,

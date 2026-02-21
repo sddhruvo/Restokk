@@ -30,6 +30,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import com.inventory.app.ui.components.AppCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -517,7 +518,10 @@ fun ItemDetailScreen(
             onConfirm = {
                 viewModel.deleteItem()
                 showDeleteDialog = false
-                navController.navigateUp()
+                scope.launch {
+                    snackbarHostState.showSnackbar("Item deleted")
+                    navController.navigateUp()
+                }
             },
             onDismiss = { showDeleteDialog = false }
         )
@@ -675,11 +679,9 @@ private fun InfoMiniCard(
     modifier: Modifier = Modifier,
     valueColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    Card(
+    AppCard(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -711,8 +713,8 @@ private fun InfoMiniCard(
 
 @Composable
 private fun StatusChip(text: String, color: Color) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f))
+    AppCard(
+        containerColor = color.copy(alpha = 0.15f)
     ) {
         Text(
             text = text,

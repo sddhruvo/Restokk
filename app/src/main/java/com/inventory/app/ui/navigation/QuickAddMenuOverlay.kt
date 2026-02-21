@@ -113,7 +113,7 @@ fun QuickAddMenuOverlay(
                             .clickable {
                                 onItemClick(item)
                             },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 4.dp,
                         tonalElevation = 2.dp

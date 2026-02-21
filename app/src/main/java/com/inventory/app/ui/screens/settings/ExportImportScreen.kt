@@ -107,7 +107,7 @@ fun ExportImportScreen(
                 ) {
                     Text("Export your inventory data to a file for backup or sharing.", style = MaterialTheme.typography.bodyMedium)
 
-                    Button(
+                    OutlinedButton(
                         onClick = { csvExportLauncher.launch("inventory_export.csv") },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isExporting
@@ -155,7 +155,7 @@ fun ExportImportScreen(
                         style = MaterialTheme.typography.bodyMedium
                     )
 
-                    Button(
+                    OutlinedButton(
                         onClick = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*")) },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isImporting

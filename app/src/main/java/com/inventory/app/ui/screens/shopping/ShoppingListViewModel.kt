@@ -160,6 +160,7 @@ class ShoppingListViewModel @Inject constructor(
                         val itemId = item.shoppingItem.itemId
                         val unitPrice = if (itemId != null) {
                             priceMap[itemId]
+                                ?: item.item?.purchasePrice
                         } else {
                             // Try to find price for custom-name items via purchase history
                             val customName = item.shoppingItem.customName ?: continue
@@ -168,7 +169,7 @@ class ShoppingListViewModel @Inject constructor(
                             val lp = purchaseHistoryDao.getLatestPricesForItems(listOf(matchedItem.id)).firstOrNull()
                             lp?.unitPrice
                                 ?: lp?.let { if (it.totalPrice != null && it.quantity > 0) it.totalPrice / it.quantity else null }
-                                ?: matchedItem.purchasePrice?.let { if (matchedItem.quantity > 0) it / matchedItem.quantity else null }
+                                ?: matchedItem.purchasePrice
                         }
                         if (unitPrice == null) continue
                         val cost = unitPrice * item.shoppingItem.quantity
@@ -339,9 +340,9 @@ class ShoppingListViewModel @Inject constructor(
     fun batchAddItems(text: String) {
         viewModelScope.launch {
             var added = 0
-            val lines = text.lines().filter { it.isNotBlank() }
+            val lines = text.lines().filter { it.isNotBlank() }.take(50)
             for (line in lines) {
-                val trimmed = line.trim()
+                val trimmed = line.trim().take(100)
                 // Parse optional leading quantity: "2 Milk", "3x Bread", "Eggs"
                 val match = Regex("""^(\d+(?:\.\d+)?)\s*[xX]?\s+(.+)$""").find(trimmed)
                 val qty: Double

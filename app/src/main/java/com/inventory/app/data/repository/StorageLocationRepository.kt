@@ -27,6 +27,8 @@ class StorageLocationRepository @Inject constructor(
 
     suspend fun delete(id: Long) = locationDao.softDelete(id)
 
+    suspend fun restore(id: Long) = locationDao.restore(id)
+
     suspend fun findByName(name: String): StorageLocationEntity? = locationDao.findByName(name)
 
     suspend fun search(query: String): List<StorageLocationEntity> = locationDao.search(query)

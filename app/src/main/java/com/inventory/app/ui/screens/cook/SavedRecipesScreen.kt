@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -284,7 +286,7 @@ private fun SavedRecipeCard(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Filled.Schedule,
-                                    contentDescription = null,
+                                    contentDescription = "Time",
                                     modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -309,7 +311,7 @@ private fun SavedRecipeCard(
                         // Favorite toggle
                         IconButton(
                             onClick = onToggleFavorite,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 if (recipe.entity.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -365,7 +367,9 @@ private fun SavedRecipeCard(
                 // Rating (if any)
                 if (recipe.entity.rating > 0) {
                     Spacer(Modifier.height(6.dp))
-                    Row {
+                    Row(modifier = Modifier.semantics {
+                        contentDescription = "${recipe.entity.rating} out of 5 stars"
+                    }) {
                         (1..5).forEach { star ->
                             Icon(
                                 if (star <= recipe.entity.rating) Icons.Filled.Star else Icons.Filled.StarBorder,

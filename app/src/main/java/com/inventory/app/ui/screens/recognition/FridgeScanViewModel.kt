@@ -540,7 +540,7 @@ class FridgeScanViewModel @Inject constructor(
 
             for ((index, item) in items.withIndex()) {
                 _uiState.update { it.copy(state = FridgeScanState.Saving(index + 1, items.size)) }
-
+                try {
                 val qty = item.quantity.toDoubleOrNull() ?: 1.0
 
                 when (item.matchType) {
@@ -598,6 +598,9 @@ class FridgeScanViewModel @Inject constructor(
                     FridgeMatchType.SKIP -> { /* filtered out */ }
                 }
                 addedCount++
+                } catch (e: Exception) {
+                    Log.w("FridgeScan", "Failed to save item: ${item.name}", e)
+                }
             }
 
             // Record items in tour tracking

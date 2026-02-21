@@ -1230,7 +1230,7 @@ private fun PagerItemCard(
                     ) {
                         Icon(
                             Icons.Filled.Error,
-                            contentDescription = null,
+                            contentDescription = "Warning",
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                         )

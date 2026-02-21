@@ -1,6 +1,7 @@
 package com.inventory.app.ui.screens.locations
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,7 +52,10 @@ fun LocationFormScreen(
     }
 
     LaunchedEffect(uiState.isSaved) {
-        if (uiState.isSaved) navController.popBackStack()
+        if (uiState.isSaved) {
+            snackbarHostState.showSnackbar("Location saved")
+            navController.popBackStack()
+        }
     }
 
     LaunchedEffect(uiState.error) {
@@ -116,14 +121,20 @@ fun LocationFormScreen(
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = uiState.isActive,
+                        onValueChange = { viewModel.updateIsActive(it) },
+                        role = Role.Switch
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Active")
                 Switch(
                     checked = uiState.isActive,
-                    onCheckedChange = { viewModel.updateIsActive(it) }
+                    onCheckedChange = null
                 )
             }
 

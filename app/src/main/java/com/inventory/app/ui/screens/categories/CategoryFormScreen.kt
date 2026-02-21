@@ -3,6 +3,7 @@ package com.inventory.app.ui.screens.categories
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ import androidx.compose.runtime.remember
 
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -140,6 +142,7 @@ fun CategoryFormScreen(
 
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
+            snackbarHostState.showSnackbar("Category saved")
             navController.popBackStack()
         }
     }
@@ -245,14 +248,14 @@ fun CategoryFormScreen(
                         val isSelected = uiState.color.equals(hex, ignoreCase = true)
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(parseHexColor(hex) ?: Color.Gray)
                                 .then(
                                     if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
                                     else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                                 )
-                                .clickable { viewModel.updateColor(hex) },
+                                .clickable(onClickLabel = "Select $name") { viewModel.updateColor(hex) },
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSelected) {
@@ -285,14 +288,20 @@ fun CategoryFormScreen(
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = uiState.isActive,
+                        onValueChange = { viewModel.updateIsActive(it) },
+                        role = Role.Switch
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Active")
                 Switch(
                     checked = uiState.isActive,
-                    onCheckedChange = { viewModel.updateIsActive(it) }
+                    onCheckedChange = null
                 )
             }
 

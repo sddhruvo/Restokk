@@ -44,6 +44,9 @@ interface StorageLocationDao {
     @Query("UPDATE storage_locations SET is_active = 0 WHERE id = :id")
     suspend fun softDelete(id: Long)
 
+    @Query("UPDATE storage_locations SET is_active = 1 WHERE id = :id")
+    suspend fun restore(id: Long)
+
     @Query("SELECT * FROM storage_locations WHERE name = :name AND is_active = 1 LIMIT 1")
     suspend fun findByName(name: String): StorageLocationEntity?
 

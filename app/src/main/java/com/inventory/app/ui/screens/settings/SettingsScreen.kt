@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -151,7 +153,7 @@ fun SettingsScreen(
                             } else {
                                 Icon(
                                     Icons.Filled.AccountCircle,
-                                    contentDescription = null,
+                                    contentDescription = "Account",
                                     modifier = Modifier.size(40.dp),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -191,7 +193,7 @@ fun SettingsScreen(
                         ) {
                             Icon(
                                 Icons.Filled.AccountCircle,
-                                contentDescription = null,
+                                contentDescription = "Account",
                                 modifier = Modifier.size(40.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -242,7 +244,13 @@ fun SettingsScreen(
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = uiState.notificationsEnabled,
+                                onValueChange = { viewModel.toggleNotificationsEnabled(it) },
+                                role = Role.Switch
+                            ),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -256,7 +264,7 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = uiState.notificationsEnabled,
-                            onCheckedChange = { viewModel.toggleNotificationsEnabled(it) }
+                            onCheckedChange = null
                         )
                     }
                     if (uiState.notificationsEnabled) {
@@ -435,7 +443,12 @@ private fun NotificationToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 8.dp),
+            .toggleable(
+                value = checked,
+                onValueChange = onCheckedChange,
+                role = Role.Switch
+            )
+            .padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -447,7 +460,7 @@ private fun NotificationToggleRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

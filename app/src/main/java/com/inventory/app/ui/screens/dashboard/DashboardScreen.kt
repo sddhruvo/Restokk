@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingDown
@@ -339,12 +340,12 @@ fun DashboardScreen(
                                         Row {
                                             IconButton(
                                                 onClick = { showShoppingSheet(item.item.id, null) },
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             ) {
                                                 Icon(
-                                                    Icons.Filled.ShoppingCart,
+                                                    Icons.Filled.AddShoppingCart,
                                                     contentDescription = "Add ${item.item.name} to shopping list",
-                                                    modifier = Modifier.size(18.dp),
+                                                    modifier = Modifier.size(20.dp),
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
@@ -362,12 +363,12 @@ fun DashboardScreen(
                                                         }
                                                     }
                                                 },
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             ) {
                                                 Icon(
                                                     Icons.Filled.PauseCircleOutline,
                                                     contentDescription = "Pause alerts for ${item.item.name}",
-                                                    modifier = Modifier.size(20.dp),
+                                                    modifier = Modifier.size(22.dp),
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
@@ -432,12 +433,12 @@ fun DashboardScreen(
                                         Row {
                                             IconButton(
                                                 onClick = { showShoppingSheet(item.item.id, null) },
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             ) {
                                                 Icon(
-                                                    Icons.Filled.ShoppingCart,
+                                                    Icons.Filled.AddShoppingCart,
                                                     contentDescription = "Add ${item.item.name} to shopping list",
-                                                    modifier = Modifier.size(18.dp),
+                                                    modifier = Modifier.size(20.dp),
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
@@ -455,12 +456,12 @@ fun DashboardScreen(
                                                         }
                                                     }
                                                 },
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(40.dp)
                                             ) {
                                                 Icon(
                                                     Icons.Filled.PauseCircleOutline,
                                                     contentDescription = "Pause alerts for ${item.item.name}",
-                                                    modifier = Modifier.size(20.dp),
+                                                    modifier = Modifier.size(22.dp),
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }

@@ -29,7 +29,7 @@ class LocationDetailViewModel @Inject constructor(
     private val itemDao: ItemDao
 ) : ViewModel() {
 
-    private val locationId: Long = savedStateHandle["locationId"] ?: 0L
+    val locationId: Long = savedStateHandle["locationId"] ?: 0L
     private val _uiState = MutableStateFlow(LocationDetailUiState())
     val uiState = _uiState.asStateFlow()
 

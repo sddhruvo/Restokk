@@ -83,50 +83,78 @@ class ItemDetailViewModel @Inject constructor(
 
     fun adjustQuantity(delta: Double) {
         viewModelScope.launch {
-            itemRepository.adjustQuantity(itemId, delta)
+            try {
+                val current = _uiState.value.item?.item?.quantity ?: 0.0
+                if (current + delta < 0) return@launch
+                itemRepository.adjustQuantity(itemId, delta)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to adjust quantity: ${e.message}") }
+            }
         }
     }
 
     fun logUsage(quantity: Double, usageType: String, notes: String?) {
         viewModelScope.launch {
-            usageRepository.logUsage(itemId, quantity, usageType, notes)
+            try {
+                usageRepository.logUsage(itemId, quantity, usageType, notes)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to log usage: ${e.message}") }
+            }
         }
     }
 
     fun addPurchase(quantity: Double, totalPrice: Double?, storeName: String?, notes: String?) {
+        if (quantity <= 0) return
+        if (totalPrice != null && totalPrice < 0) return
         viewModelScope.launch {
-            purchaseRepository.addPurchase(
-                itemId = itemId,
-                quantity = quantity,
-                totalPrice = totalPrice,
-                purchaseDate = LocalDate.now(),
-                expiryDate = null,
-                storeName = storeName,
-                notes = notes
-            )
+            try {
+                purchaseRepository.addPurchase(
+                    itemId = itemId,
+                    quantity = quantity,
+                    totalPrice = totalPrice,
+                    purchaseDate = LocalDate.now(),
+                    expiryDate = null,
+                    storeName = storeName,
+                    notes = notes
+                )
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to record purchase: ${e.message}") }
+            }
         }
     }
 
     fun toggleFavorite() {
         viewModelScope.launch {
-            itemRepository.toggleFavorite(itemId)
+            try {
+                itemRepository.toggleFavorite(itemId)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to update favorite: ${e.message}") }
+            }
         }
     }
 
     fun togglePause() {
         viewModelScope.launch {
-            val item = _uiState.value.item?.item ?: return@launch
-            if (item.isPaused) {
-                itemRepository.unpauseItem(itemId)
-            } else {
-                itemRepository.pauseItem(itemId)
+            try {
+                val item = _uiState.value.item?.item ?: return@launch
+                if (item.isPaused) {
+                    itemRepository.unpauseItem(itemId)
+                } else {
+                    itemRepository.pauseItem(itemId)
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to update pause status: ${e.message}") }
             }
         }
     }
 
     fun deleteItem() {
         viewModelScope.launch {
-            itemRepository.softDelete(itemId)
+            try {
+                itemRepository.softDelete(itemId)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to delete item: ${e.message}") }
+            }
         }
     }
 }

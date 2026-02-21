@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.ViewList
@@ -592,11 +593,18 @@ private fun ItemGridCard(
 
             // Stock level indicator (when effective min is available)
             if (hasEffectiveMin) {
+                val stockLabel = when {
+                    item.quantity <= 0 -> "Out of stock"
+                    stockRatio < 0.3f -> "Low"
+                    stockRatio < 0.6f -> "Getting low"
+                    else -> "OK"
+                }
                 val qtyText = buildString {
                     append(item.quantity.formatQty())
                     unitAbbr?.let { append(" $it") }
                     append(" / ${effectiveMin.formatQty()}")
                     unitAbbr?.let { append(" $it") }
+                    append(" · $stockLabel")
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -611,12 +619,12 @@ private fun ItemGridCard(
                     if (!selectionMode) {
                         IconButton(
                             onClick = onAddToShopping,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                Icons.Filled.ShoppingCart,
+                                Icons.Filled.AddShoppingCart,
                                 contentDescription = "Add to shopping list",
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                         }
@@ -650,12 +658,12 @@ private fun ItemGridCard(
                     if (!selectionMode) {
                         IconButton(
                             onClick = onAddToShopping,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                Icons.Filled.ShoppingCart,
+                                Icons.Filled.AddShoppingCart,
                                 contentDescription = "Add to shopping list",
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                         }
@@ -752,6 +760,13 @@ private fun ItemListRow(
                     if (hasEffectiveMin) {
                         append(" / ${effectiveMin.formatQty()}")
                         unitAbbr?.let { append(" $it") }
+                        val stockLabel = when {
+                            item.quantity <= 0 -> "Out of stock"
+                            stockRatio < 0.3f -> "Low"
+                            stockRatio < 0.6f -> "Getting low"
+                            else -> "OK"
+                        }
+                        append(" · $stockLabel")
                     }
                 }
                 Text(
@@ -811,11 +826,11 @@ private fun ItemListRow(
         trailingContent = {
             if (!selectionMode) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onAddToShopping, modifier = Modifier.size(24.dp)) {
+                    IconButton(onClick = onAddToShopping, modifier = Modifier.size(40.dp)) {
                         Icon(
-                            Icons.Filled.ShoppingCart,
+                            Icons.Filled.AddShoppingCart,
                             contentDescription = "Add to shopping list",
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                     }

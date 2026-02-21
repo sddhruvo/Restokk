@@ -65,26 +65,30 @@ class SubcategoryFormViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            val id = editingId
-            if (id != null) {
-                categoryRepository.getSubcategoryById(id)?.let { existing ->
-                    categoryRepository.updateSubcategory(
-                        existing.copy(
+            try {
+                val id = editingId
+                if (id != null) {
+                    categoryRepository.getSubcategoryById(id)?.let { existing ->
+                        categoryRepository.updateSubcategory(
+                            existing.copy(
+                                name = state.name.trim(),
+                                description = state.description.ifBlank { null }
+                            )
+                        )
+                    }
+                } else {
+                    categoryRepository.insertSubcategory(
+                        SubcategoryEntity(
                             name = state.name.trim(),
-                            description = state.description.ifBlank { null }
+                            description = state.description.ifBlank { null },
+                            categoryId = parentCategoryId
                         )
                     )
                 }
-            } else {
-                categoryRepository.insertSubcategory(
-                    SubcategoryEntity(
-                        name = state.name.trim(),
-                        description = state.description.ifBlank { null },
-                        categoryId = parentCategoryId
-                    )
-                )
+                _uiState.update { it.copy(isSaved = true) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(nameError = "Failed to save: ${e.message}") }
             }
-            _uiState.update { it.copy(isSaved = true) }
         }
     }
 }

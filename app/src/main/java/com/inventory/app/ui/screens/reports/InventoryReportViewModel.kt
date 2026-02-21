@@ -52,10 +52,11 @@ class InventoryReportViewModel @Inject constructor(
             try {
                 itemRepository.getAllActiveWithDetails().collect { items ->
                     _uiState.update {
-                        val avg = if (items.isNotEmpty() && it.totalValue > 0) it.totalValue / items.size else 0.0
+                        val count = items.size
+                        val avg = if (count > 0 && it.totalValue > 0) it.totalValue / count else 0.0
                         it.copy(
                             allItems = items,
-                            totalItems = items.size,
+                            totalItems = count,
                             averageItemValue = avg,
                             isLoading = false
                         )

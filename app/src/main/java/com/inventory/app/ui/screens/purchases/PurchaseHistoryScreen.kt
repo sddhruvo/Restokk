@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -64,6 +65,13 @@ fun PurchaseHistoryScreen(
                     }
                 },
                 actions = {
+                    viewModel.itemId?.let { id ->
+                        IconButton(onClick = {
+                            navController.navigate(Screen.ItemDetail.createRoute(id))
+                        }) {
+                            Icon(Icons.Filled.Add, contentDescription = "Add purchase")
+                        }
+                    }
                     IconButton(onClick = { showSearch = !showSearch }) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
                     }
@@ -129,7 +137,7 @@ fun PurchaseHistoryScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "${uiState.purchaseCount}",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text("Purchases", style = MaterialTheme.typography.labelSmall)
@@ -137,7 +145,7 @@ fun PurchaseHistoryScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "${uiState.currencySymbol}${String.format("%.2f", uiState.totalSpent)}",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text("Total Spent", style = MaterialTheme.typography.labelSmall)

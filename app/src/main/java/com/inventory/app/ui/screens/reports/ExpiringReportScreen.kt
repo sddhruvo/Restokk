@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddShoppingCart
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -48,6 +50,7 @@ fun ExpiringReportScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
@@ -139,7 +142,16 @@ fun ExpiringReportScreen(
                             )
                         },
                         trailingContent = {
-                            item.category?.let { Text(it.name, style = MaterialTheme.typography.labelSmall) }
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                item.category?.let { Text(it.name, style = MaterialTheme.typography.labelSmall) }
+                                IconButton(onClick = { showShoppingSheet(item.item.id, null) }) {
+                                    Icon(
+                                        Icons.Filled.AddShoppingCart,
+                                        contentDescription = "Add to shopping list",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         },
                         modifier = Modifier.clickable {
                             navController.navigate(Screen.ItemDetail.createRoute(item.item.id))
@@ -173,7 +185,16 @@ fun ExpiringReportScreen(
                             )
                         },
                         trailingContent = {
-                            item.category?.let { Text(it.name, style = MaterialTheme.typography.labelSmall) }
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                item.category?.let { Text(it.name, style = MaterialTheme.typography.labelSmall) }
+                                IconButton(onClick = { showShoppingSheet(item.item.id, null) }) {
+                                    Icon(
+                                        Icons.Filled.AddShoppingCart,
+                                        contentDescription = "Add to shopping list",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         },
                         modifier = Modifier.clickable {
                             navController.navigate(Screen.ItemDetail.createRoute(item.item.id))

@@ -258,6 +258,7 @@ class ItemFormViewModel @Inject constructor(
     }
 
     fun updateName(v: String) {
+        if (v.length > 100) return
         _uiState.update { it.copy(name = v, nameError = null) }
 
         // Fetch name suggestions
@@ -295,7 +296,7 @@ class ItemFormViewModel @Inject constructor(
         }
     }
 
-    fun updateDescription(v: String) { _uiState.update { it.copy(description = v) } }
+    fun updateDescription(v: String) { if (v.length > 500) return; _uiState.update { it.copy(description = v) } }
     fun updateBarcode(v: String) { _uiState.update { it.copy(barcode = v) } }
     fun updateBrand(v: String) { _uiState.update { it.copy(brand = v) } }
     fun updateQuantity(v: String) { userSetQuantity = true; _uiState.update { it.copy(quantity = v, quantityError = null) } }
@@ -309,46 +310,48 @@ class ItemFormViewModel @Inject constructor(
     fun updatePurchasePrice(v: String) { userSetPrice = true; _uiState.update { it.copy(purchasePrice = v, priceError = null) } }
     fun updateFavorite(v: Boolean) { _uiState.update { it.copy(isFavorite = v) } }
     fun updatePaused(v: Boolean) { _uiState.update { it.copy(isPaused = v) } }
-    fun updateNotes(v: String) { _uiState.update { it.copy(notes = v) } }
+    fun updateNotes(v: String) { if (v.length > 1000) return; _uiState.update { it.copy(notes = v) } }
 
     fun scanExpiryDate(bitmap: Bitmap) {
         viewModelScope.launch {
             _uiState.update { it.copy(isScanningExpiry = true, expiryScanError = null) }
             try {
-                // Step 1: Scale to readable resolution (higher than before for small label text)
-                val maxDim = 1200
-                val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
-                    val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
-                    Bitmap.createScaledBitmap(
-                        bitmap,
-                        (bitmap.width * scale).toInt(),
-                        (bitmap.height * scale).toInt(),
-                        true
-                    ).also { if (it !== bitmap) bitmap.recycle() }
-                } else bitmap
+                // Bitmap processing on background thread to avoid UI jank
+                val base64 = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    // Step 1: Scale to readable resolution
+                    val maxDim = 1200
+                    val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+                        val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
+                        Bitmap.createScaledBitmap(
+                            bitmap,
+                            (bitmap.width * scale).toInt(),
+                            (bitmap.height * scale).toInt(),
+                            true
+                        ).also { if (it !== bitmap) bitmap.recycle() }
+                    } else bitmap
 
-                // Step 2: Document-style preprocessing — grayscale + high contrast
-                // Makes text pop against background, like a flatbed scanner
-                val enhanced = Bitmap.createBitmap(scaled.width, scaled.height, Bitmap.Config.ARGB_8888)
-                val canvas = Canvas(enhanced)
-                val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-                val contrast = 1.8f
-                val translate = (-0.5f * contrast + 0.5f) * 255f
-                // Grayscale + contrast boost in a single ColorMatrix
-                paint.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
-                    0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
-                    0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
-                    0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
-                    0f, 0f, 0f, 1f, 0f
-                )))
-                canvas.drawBitmap(scaled, 0f, 0f, paint)
-                if (scaled !== bitmap) scaled.recycle()
+                    // Step 2: Document-style preprocessing — grayscale + high contrast
+                    val enhanced = Bitmap.createBitmap(scaled.width, scaled.height, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(enhanced)
+                    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                    val contrast = 1.8f
+                    val translate = (-0.5f * contrast + 0.5f) * 255f
+                    paint.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
+                        0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
+                        0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
+                        0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
+                        0f, 0f, 0f, 1f, 0f
+                    )))
+                    canvas.drawBitmap(scaled, 0f, 0f, paint)
+                    if (scaled !== bitmap) scaled.recycle()
 
-                // Step 3: Compress with higher quality for text readability
-                val stream = java.io.ByteArrayOutputStream()
-                enhanced.compress(Bitmap.CompressFormat.JPEG, 85, stream)
-                val base64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
-                enhanced.recycle()
+                    // Step 3: Compress with higher quality for text readability
+                    val stream = java.io.ByteArrayOutputStream()
+                    enhanced.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                    val result = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    enhanced.recycle()
+                    result
+                }
 
                 if (base64.length > 2_000_000) {
                     _uiState.update { it.copy(isScanningExpiry = false, expiryScanError = "Image too large — try holding the camera closer to the label") }

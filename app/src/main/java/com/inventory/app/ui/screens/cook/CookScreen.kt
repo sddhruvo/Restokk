@@ -3,6 +3,7 @@ package com.inventory.app.ui.screens.cook
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -276,7 +278,13 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                         EquipmentChips(uiState.equipment) { viewModel.toggleEquipment(it) }
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .toggleable(
+                                    value = uiState.flexibleIngredients,
+                                    onValueChange = { viewModel.setFlexibleIngredients(it) },
+                                    role = Role.Switch
+                                ),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -290,7 +298,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                             }
                             Switch(
                                 checked = uiState.flexibleIngredients,
-                                onCheckedChange = { viewModel.setFlexibleIngredients(it) }
+                                onCheckedChange = null
                             )
                         }
                     }
@@ -501,9 +509,9 @@ private fun MealAndServingsRow(uiState: CookUiState, viewModel: CookViewModel) {
                 IconButton(
                     onClick = { viewModel.setServings(uiState.servings - 1) },
                     enabled = uiState.servings > 1,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Filled.Remove, "Less", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Remove, "Less", modifier = Modifier.size(20.dp))
                 }
                 Text(
                     "${uiState.servings}",
@@ -513,9 +521,9 @@ private fun MealAndServingsRow(uiState: CookUiState, viewModel: CookViewModel) {
                 IconButton(
                     onClick = { viewModel.setServings(uiState.servings + 1) },
                     enabled = uiState.servings < 8,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Filled.Add, "More", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Add, "More", modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -683,7 +691,7 @@ private fun RecipeCard(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Filled.Schedule,
-                                contentDescription = null,
+                                contentDescription = "Time",
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -806,7 +814,7 @@ private fun RecipeCard(
                             Row(modifier = Modifier.weight(1f)) {
                                 Icon(
                                     if (ing.have_it) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
-                                    contentDescription = null,
+                                    contentDescription = if (ing.have_it) "In stock" else "Missing",
                                     modifier = Modifier.size(16.dp),
                                     tint = if (ing.have_it) Color(0xFF34C759) else MaterialTheme.colorScheme.error
                                 )
@@ -1176,7 +1184,7 @@ private fun InventoryPickItem(item: InventoryItemSummary, isSelected: Boolean, o
             Checkbox(
                 checked = isSelected,
                 onCheckedChange = { onToggle() },
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(36.dp)
             )
             Spacer(Modifier.width(8.dp))
             Column {
@@ -1389,13 +1397,13 @@ private fun AnimatedBookmarkIcon(
             if (!isSaved) wasJustSaved = true
             onClick()
         },
-        modifier = Modifier.size(32.dp)
+        modifier = Modifier.size(40.dp)
     ) {
         Icon(
             if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
             contentDescription = if (isSaved) "Unsave recipe" else "Save recipe",
             modifier = Modifier
-                .size(22.dp)
+                .size(24.dp)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale

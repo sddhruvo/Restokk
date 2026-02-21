@@ -40,7 +40,7 @@ class PurchaseHistoryViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val itemId: Long? = savedStateHandle.get<String>("itemId")?.toLongOrNull()
+    val itemId: Long? = savedStateHandle.get<String>("itemId")?.toLongOrNull()
 
     private val _uiState = MutableStateFlow(PurchaseHistoryUiState())
     val uiState = _uiState.asStateFlow()
