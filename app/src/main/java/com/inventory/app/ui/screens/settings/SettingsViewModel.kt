@@ -9,10 +9,13 @@ import com.inventory.app.ui.theme.AppTheme
 import com.inventory.app.util.FormatUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -103,12 +106,16 @@ class SettingsViewModel @Inject constructor(
         authRepository.signOut()
     }
 
+    fun clearAuthError() {
+        _uiState.update { it.copy(authError = null) }
+    }
+
     fun deleteAccount(onComplete: () -> Unit) {
         viewModelScope.launch {
             _uiState.update { it.copy(authLoading = true, authError = null) }
             val result = authRepository.deleteAccount()
             if (result.isSuccess) {
-                database.clearAllTables()
+                withContext(Dispatchers.IO) { database.clearAllTables() }
                 settingsRepository.clearEncryptedPrefs()
                 _uiState.update { it.copy(authLoading = false) }
                 onComplete()
@@ -246,6 +253,8 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.set(SettingsRepository.KEY_SHOPPING_BUDGET, state.shoppingBudget)
             settingsRepository.set(SettingsRepository.KEY_AUTO_CLEAR_DAYS, state.autoClearDays)
             _uiState.update { it.copy(isSaved = true) }
+            delay(100)
+            _uiState.update { it.copy(isSaved = false) }
         }
     }
 }

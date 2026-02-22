@@ -77,6 +77,7 @@ import com.inventory.app.ui.theme.ExpiryOrange
 import com.inventory.app.ui.theme.ExpiryRed
 import com.inventory.app.ui.theme.StockGreen
 import com.inventory.app.ui.theme.StockYellow
+import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -95,6 +96,13 @@ fun ItemDetailScreen(
     var showUsageDialog by remember { mutableStateOf(false) }
     var showPurchaseDialog by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(uiState.operationError) {
+        uiState.operationError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearOperationError()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -518,10 +526,7 @@ fun ItemDetailScreen(
             onConfirm = {
                 viewModel.deleteItem()
                 showDeleteDialog = false
-                scope.launch {
-                    snackbarHostState.showSnackbar("Item deleted")
-                    navController.navigateUp()
-                }
+                navController.navigateUp()
             },
             onDismiss = { showDeleteDialog = false }
         )

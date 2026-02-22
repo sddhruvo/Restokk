@@ -1,10 +1,16 @@
 package com.inventory.app
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,7 +19,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.*
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -87,11 +92,9 @@ class MainActivity : ComponentActivity() {
             val shoppingBadgeCount by shoppingListRepository.getActiveCount()
                 .collectAsState(initial = 0)
 
-            // Expiry warning days + expiring count for badge
-            var warningDays by remember { mutableIntStateOf(7) }
-            LaunchedEffect(Unit) {
-                warningDays = settingsRepository.getExpiryWarningDays()
-            }
+            // Expiry warning days + expiring count for badge (reactive)
+            val warningDays by settingsRepository.getIntFlow(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 7)
+                .collectAsState(initial = 7)
             val expiringBadgeCount by itemRepository.getExpiringSoonCount(warningDays)
                 .collectAsState(initial = 0)
 
@@ -114,6 +117,22 @@ class MainActivity : ComponentActivity() {
                 if (!settingsRepository.getBoolean(key, false)) {
                     categoryRepository.backfillIcons()
                     settingsRepository.setBoolean(key, true)
+                }
+            }
+
+            // Request notification permission on Android 13+ after onboarding
+            val notifPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { _ -> /* no-op — user's choice is respected */ }
+
+            LaunchedEffect(onboardingCompleted) {
+                if (onboardingCompleted == true && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val granted = ContextCompat.checkSelfPermission(
+                        this@MainActivity, Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (!granted) {
+                        notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
                 }
             }
 

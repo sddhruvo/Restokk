@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
 import com.inventory.app.data.repository.ItemRepository
+import com.inventory.app.data.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,8 @@ data class ExpiringReportUiState(
 
 @HiltViewModel
 class ExpiringReportViewModel @Inject constructor(
-    private val itemRepository: ItemRepository
+    private val itemRepository: ItemRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExpiringReportUiState())
@@ -33,7 +35,11 @@ class ExpiringReportViewModel @Inject constructor(
     private var dataJobs = mutableListOf<Job>()
 
     init {
-        loadData()
+        viewModelScope.launch {
+            val days = settingsRepository.getInt(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 7)
+            _uiState.update { it.copy(warningDays = days) }
+            loadData()
+        }
     }
 
     private fun loadData() {

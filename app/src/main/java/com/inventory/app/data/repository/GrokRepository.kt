@@ -87,7 +87,7 @@ class GrokRepository @Inject constructor(
         return if (openAiKey != null) {
             VisionProvider(MODEL_VISION_OPENAI, OPENAI_URL, openAiKey, "high", "OpenAI")
         } else {
-            VisionProvider(MODEL_VISION_GROQ, GROQ_URL, getGroqApiKey(), null, "Groq")
+            VisionProvider(MODEL_VISION_GROQ, GROQ_URL, getGroqApiKeyOrEmpty(), null, "Groq")
         }
     }
 
@@ -96,6 +96,12 @@ class GrokRepository @Inject constructor(
         val apiKey = settingsKey.ifBlank { BuildConfig.GROK_API_KEY }
         if (apiKey.isBlank()) throw IllegalStateException("AI service unavailable. Please try again later.")
         return apiKey
+    }
+
+    /** Returns Groq API key or empty string (for proxy-first flow where local key is optional). */
+    private fun getGroqApiKeyOrEmpty(): String {
+        val settingsKey = settingsRepository.getSecureString(SettingsRepository.KEY_GROK_API_KEY, "")
+        return settingsKey.ifBlank { BuildConfig.GROK_API_KEY }
     }
 
     private fun getOpenAiApiKey(): String? {
@@ -172,6 +178,9 @@ class GrokRepository @Inject constructor(
         }
 
         // Fallback: direct API call (dev mode or Cloud Function not deployed)
+        if (directApiKey.isBlank()) {
+            throw IllegalStateException("AI service unavailable. Please try again later.")
+        }
         return executeRequest(bodyJson, directClient, directUrl, directApiKey)
     }
 
@@ -188,7 +197,7 @@ class GrokRepository @Inject constructor(
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val body = buildTextRequestJson(MODEL_TEXT, systemPrompt, userPrompt, temperature, maxTokens)
-            val text = executeViaProxy("groq", body, okHttpClient, GROQ_URL, getGroqApiKey())
+            val text = executeViaProxy("groq", body, okHttpClient, GROQ_URL, getGroqApiKeyOrEmpty())
             analyticsRepository.logAiRequest("text")
             Result.success(text)
         } catch (e: Exception) {
@@ -437,9 +446,8 @@ class GrokRepository @Inject constructor(
                 val errorMsg = parseApiError(responseBody)
                 throw Exception(errorMsg ?: "API error: ${response.code}")
             }
-            val provider = if (url.contains("openai.com")) "OpenAI" else "Groq"
             return extractResponseContent(responseBody)
-                ?: throw Exception("Empty response from $provider")
+                ?: throw Exception("Empty response from API")
         }
     }
 

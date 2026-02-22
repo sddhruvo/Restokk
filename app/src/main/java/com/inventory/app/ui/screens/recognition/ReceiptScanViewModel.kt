@@ -115,6 +115,7 @@ class ReceiptScanViewModel @Inject constructor(
     }
 
     fun onImageCaptured(bitmap: Bitmap) {
+        _uiState.value.capturedBitmap?.recycle()
         _uiState.update { it.copy(state = ReceiptScanState.ParsingWithAI, capturedBitmap = bitmap) }
         viewModelScope.launch {
             // Step 1: Compress and base64-encode the image
@@ -262,7 +263,7 @@ class ReceiptScanViewModel @Inject constructor(
 
             var scaled = if (bitmap.width > config.maxDimension || bitmap.height > config.maxDimension) {
                 val scale = config.maxDimension.toFloat() / maxOf(bitmap.width, bitmap.height)
-                Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+                Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt().coerceAtLeast(1), (bitmap.height * scale).toInt().coerceAtLeast(1), true)
             } else bitmap
 
             var quality = config.startQuality
@@ -601,6 +602,12 @@ class ReceiptScanViewModel @Inject constructor(
     }
 
     fun reset() {
+        _uiState.value.capturedBitmap?.recycle()
         _uiState.update { ReceiptScanUiState(currencySymbol = it.currencySymbol) }
+    }
+
+    override fun onCleared() {
+        _uiState.value.capturedBitmap?.recycle()
+        super.onCleared()
     }
 }

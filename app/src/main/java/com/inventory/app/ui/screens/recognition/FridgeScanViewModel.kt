@@ -243,6 +243,7 @@ class FridgeScanViewModel @Inject constructor(
     private var resolvedLocationId: Long? = null
 
     fun onImageCaptured(bitmap: Bitmap) {
+        _uiState.value.capturedBitmap?.recycle()
         _uiState.update { it.copy(state = FridgeScanState.Processing, capturedBitmap = bitmap) }
         viewModelScope.launch {
             val imageBase64 = compressAndEncode(bitmap, grokRepository.getImageConfig())

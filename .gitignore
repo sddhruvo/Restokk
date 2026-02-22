@@ -74,6 +74,13 @@ CLAUDE.md
 brainstorming.md
 play-store-listing.md
 pre-launch-audit.md
+pre-launch-audit-2.md
+
+# Play Store internal docs (session notes, listing drafts)
+play-store/
+
+# Scripts (local dev tooling, not needed in repo)
+scripts/
 
 # Emulator testing artifacts
 testing/

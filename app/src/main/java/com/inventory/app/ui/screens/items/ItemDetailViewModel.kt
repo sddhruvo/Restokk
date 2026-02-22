@@ -27,6 +27,7 @@ data class ItemDetailUiState(
     val item: ItemWithDetails? = null,
     val isLoading: Boolean = true,
     val error: String? = null,
+    val operationError: String? = null,
     val usageLogs: List<UsageLogEntity> = emptyList(),
     val purchaseHistory: List<PurchaseHistoryEntity> = emptyList(),
     val priceTrendData: List<PriceTrendPoint> = emptyList(),
@@ -88,7 +89,7 @@ class ItemDetailViewModel @Inject constructor(
                 if (current + delta < 0) return@launch
                 itemRepository.adjustQuantity(itemId, delta)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Failed to adjust quantity: ${e.message}") }
+                _uiState.update { it.copy(operationError = "Failed to adjust quantity: ${e.message}") }
             }
         }
     }
@@ -98,7 +99,7 @@ class ItemDetailViewModel @Inject constructor(
             try {
                 usageRepository.logUsage(itemId, quantity, usageType, notes)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Failed to log usage: ${e.message}") }
+                _uiState.update { it.copy(operationError = "Failed to log usage: ${e.message}") }
             }
         }
     }
@@ -118,7 +119,7 @@ class ItemDetailViewModel @Inject constructor(
                     notes = notes
                 )
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Failed to record purchase: ${e.message}") }
+                _uiState.update { it.copy(operationError = "Failed to record purchase: ${e.message}") }
             }
         }
     }
@@ -128,7 +129,7 @@ class ItemDetailViewModel @Inject constructor(
             try {
                 itemRepository.toggleFavorite(itemId)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Failed to update favorite: ${e.message}") }
+                _uiState.update { it.copy(operationError = "Failed to update favorite: ${e.message}") }
             }
         }
     }
@@ -143,9 +144,13 @@ class ItemDetailViewModel @Inject constructor(
                     itemRepository.pauseItem(itemId)
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Failed to update pause status: ${e.message}") }
+                _uiState.update { it.copy(operationError = "Failed to update pause status: ${e.message}") }
             }
         }
+    }
+
+    fun clearOperationError() {
+        _uiState.update { it.copy(operationError = null) }
     }
 
     fun deleteItem() {
@@ -153,7 +158,7 @@ class ItemDetailViewModel @Inject constructor(
             try {
                 itemRepository.softDelete(itemId)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Failed to delete item: ${e.message}") }
+                _uiState.update { it.copy(operationError = "Failed to delete item: ${e.message}") }
             }
         }
     }

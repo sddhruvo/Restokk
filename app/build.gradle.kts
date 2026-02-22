@@ -17,7 +17,7 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.inventory.app"
-    compileSdk = 34
+    compileSdk = 35
 
     signingConfigs {
         create("release") {
@@ -29,11 +29,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.inventory.app"
+        applicationId = "com.restokk.app"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 35
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -61,6 +61,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
+            ndk { debugSymbolLevel = "FULL" }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

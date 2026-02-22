@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.first
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,7 +25,7 @@ class ItemRepository @Inject constructor(
     private val itemImageDao: ItemImageDao
 ) {
     private fun now(): Long = LocalDateTime.now()
-        .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        .atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
 
     private fun dateToEpoch(date: LocalDate): Long = date.toEpochDay()
 
@@ -66,7 +66,7 @@ class ItemRepository @Inject constructor(
     fun getTotalValue(): Flow<Double> = itemDao.getTotalValue()
 
     fun getExpiringSoon(warningDays: Int = 7, limit: Int = 5): Flow<List<ItemWithDetails>> =
-        itemDao.getExpiringSoon(dateToEpoch(LocalDate.now().plusDays(warningDays.toLong())), limit)
+        itemDao.getExpiringSoon(dateToEpoch(LocalDate.now()), dateToEpoch(LocalDate.now().plusDays(warningDays.toLong())), limit)
 
     fun getLowStockItems(limit: Int = 5): Flow<List<ItemWithDetails>> =
         itemDao.getLowStockItems(limit)
@@ -102,7 +102,7 @@ class ItemRepository @Inject constructor(
 
     fun getRecentItemCount(daysSince: Int = 7): Flow<Int> {
         val since = LocalDateTime.now().minusDays(daysSince.toLong())
-            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            .atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
         return itemDao.getRecentItemCount(since)
     }
 

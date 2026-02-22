@@ -155,9 +155,9 @@ fun ReceiptScanScreen(
             if (!pages.isNullOrEmpty()) {
                 val pageUri = pages[0].imageUri
                 try {
-                    val inputStream = context.contentResolver.openInputStream(pageUri)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    inputStream?.close()
+                    val bitmap = context.contentResolver.openInputStream(pageUri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    }
                     if (bitmap != null) {
                         viewModel.onImageCaptured(bitmap)
                     }

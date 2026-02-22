@@ -572,8 +572,8 @@ Rules:
         if (state.quantity.isNotBlank() && state.quantity.toDoubleOrNull() == null) {
             _uiState.update { it.copy(quantityError = "Invalid number") }
             hasError = true
-        } else if (state.quantity.toDoubleOrNull()?.let { it < 0 } == true) {
-            _uiState.update { it.copy(quantityError = "Cannot be negative") }
+        } else if (state.quantity.toDoubleOrNull()?.let { it <= 0 } == true) {
+            _uiState.update { it.copy(quantityError = "Must be greater than zero") }
             hasError = true
         }
         if (state.minQuantity.isNotBlank() && state.minQuantity.toDoubleOrNull() == null) {

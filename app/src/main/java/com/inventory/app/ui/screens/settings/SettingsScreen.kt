@@ -1,6 +1,8 @@
 package com.inventory.app.ui.screens.settings
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -106,6 +108,11 @@ fun SettingsScreen(
         }
     }
 
+    // Notification permission launcher — re-prompt when user enables notifications
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
             snackbarHostState.showSnackbar("Settings saved")
@@ -115,6 +122,7 @@ fun SettingsScreen(
     LaunchedEffect(uiState.authError) {
         uiState.authError?.let { error ->
             snackbarHostState.showSnackbar("Sign-in failed: $error")
+            viewModel.clearAuthError()
         }
     }
 
@@ -309,7 +317,17 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .toggleable(
                                 value = uiState.notificationsEnabled,
-                                onValueChange = { viewModel.toggleNotificationsEnabled(it) },
+                                onValueChange = { enabled ->
+                                    viewModel.toggleNotificationsEnabled(enabled)
+                                    if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                            context, Manifest.permission.POST_NOTIFICATIONS
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                        if (!granted) {
+                                            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
+                                    }
+                                },
                                 role = Role.Switch
                             ),
                         horizontalArrangement = Arrangement.SpaceBetween,

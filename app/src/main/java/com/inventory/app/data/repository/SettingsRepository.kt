@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.inventory.app.util.FormatUtils
 import java.time.LocalDateTime
-import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -61,7 +61,7 @@ class SettingsRepository @Inject constructor(
     }
 
     private fun now(): Long = LocalDateTime.now()
-        .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        .atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
 
     suspend fun getString(key: String, default: String = ""): String =
         settingsDao.get(key)?.value ?: default

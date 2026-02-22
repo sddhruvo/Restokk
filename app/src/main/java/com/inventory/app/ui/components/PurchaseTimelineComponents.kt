@@ -138,7 +138,7 @@ internal fun TimelinePurchaseItem(
                     )
                     purchase.totalPrice?.let { price ->
                         Text(
-                            text = "${currencySymbol}${String.format("%.2f", price)}",
+                            text = "${currencySymbol}${String.format(java.util.Locale.US, "%.2f", price)}",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -159,7 +159,7 @@ internal fun TimelinePurchaseItem(
                     )
                     purchase.unitPrice?.let { unitPrice ->
                         Text(
-                            text = "${currencySymbol}${String.format("%.2f", unitPrice)}/unit",
+                            text = "${currencySymbol}${String.format(java.util.Locale.US, "%.2f", unitPrice)}/unit",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -97,6 +97,7 @@ interface PurchaseHistoryDao {
             FROM purchase_history GROUP BY item_id
         ) latest ON ph.item_id = latest.item_id AND ph.purchase_date = latest.max_date
         WHERE ph.item_id IN (:itemIds)
+          AND ph.id = (SELECT MAX(ph2.id) FROM purchase_history ph2 WHERE ph2.item_id = ph.item_id AND ph2.purchase_date = latest.max_date)
     """)
     suspend fun getLatestPricesForItems(itemIds: List<Long>): List<LatestItemPrice>
 
@@ -107,6 +108,7 @@ interface PurchaseHistoryDao {
             SELECT item_id, MAX(purchase_date) as max_date
             FROM purchase_history GROUP BY item_id
         ) latest ON ph.item_id = latest.item_id AND ph.purchase_date = latest.max_date
+        WHERE ph.id = (SELECT MAX(ph2.id) FROM purchase_history ph2 WHERE ph2.item_id = ph.item_id AND ph2.purchase_date = latest.max_date)
     """)
     suspend fun getLatestPricesForAllItems(): List<LatestItemPrice>
 
@@ -120,6 +122,7 @@ interface PurchaseHistoryDao {
         ) latest ON ph.item_id = latest.item_id AND ph.purchase_date = latest.max_date
         LEFT JOIN stores s ON ph.store_id = s.id
         WHERE ph.item_id IN (:itemIds)
+          AND ph.id = (SELECT MAX(ph2.id) FROM purchase_history ph2 WHERE ph2.item_id = ph.item_id AND ph2.purchase_date = latest.max_date)
     """)
     suspend fun getLatestPricesWithStoreForItems(itemIds: List<Long>): List<LatestItemPriceWithStore>
 

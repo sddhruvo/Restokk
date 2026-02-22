@@ -120,7 +120,7 @@ fun HorizontalBarChart(
                 ) {
                     Text(entry.label, style = MaterialTheme.typography.bodySmall)
                     Text(
-                        "$valuePrefix${if (valuePrefix.isNotEmpty()) String.format("%.2f", entry.value) else if (entry.value % 1f == 0f) entry.value.toLong().toString() else String.format("%.1f", entry.value)}",
+                        "$valuePrefix${if (valuePrefix.isNotEmpty()) String.format(java.util.Locale.US, "%.2f", entry.value) else if (entry.value % 1f == 0f) entry.value.toLong().toString() else String.format(java.util.Locale.US, "%.1f", entry.value)}",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -245,7 +245,7 @@ fun SpendingLineChart(
 
             // Peak value label
             if (entries[peakIndex].value > 0) {
-                val peakText = "$currencySymbol${String.format("%.0f", entries[peakIndex].value)}"
+                val peakText = "$currencySymbol${String.format(java.util.Locale.US, "%.0f", entries[peakIndex].value)}"
                 val peakLayout = textMeasurer.measure(peakText, peakStyle)
                 val peakX = (points[peakIndex].x - peakLayout.size.width / 2)
                     .coerceIn(0f, size.width - peakLayout.size.width)

@@ -87,6 +87,10 @@ class DashboardViewModel @Inject constructor(
         _uiState.update { it.copy(showBetaWelcome = false, betaSignInError = null) }
     }
 
+    fun onBetaSignInError(message: String) {
+        _uiState.update { it.copy(betaSignInError = message) }
+    }
+
     /** Sign in with Google from beta dialog — sets flag permanently on success */
     fun onBetaGoogleSignIn(idToken: String) {
         viewModelScope.launch {

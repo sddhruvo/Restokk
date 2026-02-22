@@ -13,7 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.ZoneId
+import java.time.ZoneOffset
 import com.inventory.app.domain.model.ShoppingListMatcher
 import com.inventory.app.domain.model.ShoppingMatch
 import com.inventory.app.domain.model.ShoppingNameInfo
@@ -34,7 +34,7 @@ class ShoppingListRepository @Inject constructor(
     private val toggleInProgress = mutableSetOf<Long>()
 
     private fun now(): Long = LocalDateTime.now()
-        .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        .atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
 
     fun getActiveItems(): Flow<List<ShoppingListItemWithDetails>> = shoppingListDao.getActiveItems()
 
@@ -134,7 +134,7 @@ class ShoppingListRepository @Inject constructor(
 
     suspend fun clearPurchasedOlderThan(days: Int) {
         val cutoff = LocalDateTime.now().minusDays(days.toLong())
-            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            .atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
         shoppingListDao.clearPurchasedBefore(cutoff)
     }
 

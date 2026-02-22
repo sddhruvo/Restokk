@@ -53,6 +53,7 @@ fun BarcodeCameraPreview(
 
     DisposableEffect(Unit) {
         var boundCameraProvider: ProcessCameraProvider? = null
+        var boundBarcodeScanner: com.google.mlkit.vision.barcode.BarcodeScanner? = null
         var lastDetectedBarcode: String? = null
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -78,6 +79,8 @@ fun BarcodeCameraPreview(
                 .build()
 
             val barcodeScanner = BarcodeScanning.getClient(barcodeOptions)
+            boundBarcodeScanner = barcodeScanner
+            val mainExecutor = ContextCompat.getMainExecutor(context)
 
             val imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -87,7 +90,7 @@ fun BarcodeCameraPreview(
                         processImageProxy(imageProxy, barcodeScanner) { barcode ->
                             if (barcode != lastDetectedBarcode) {
                                 lastDetectedBarcode = barcode
-                                onBarcodeDetected(barcode)
+                                mainExecutor.execute { onBarcodeDetected(barcode) }
                             }
                         }
                     }
@@ -108,6 +111,7 @@ fun BarcodeCameraPreview(
 
         onDispose {
             boundCameraProvider?.unbindAll()
+            boundBarcodeScanner?.close()
             cameraExecutor.shutdown()
         }
     }

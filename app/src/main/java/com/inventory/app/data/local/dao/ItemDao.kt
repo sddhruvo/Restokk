@@ -156,10 +156,10 @@ interface ItemDao {
     """)
     fun getTopValueItems(limit: Int = 5): Flow<List<TopValueItemRow>>
 
-    // Expiring items (exclude paused)
+    // Expiring items (exclude paused, exclude already expired)
     @Transaction
-    @Query("SELECT * FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL AND expiry_date <= :futureDate ORDER BY expiry_date ASC LIMIT :limit")
-    fun getExpiringSoon(futureDate: Long, limit: Int = 5): Flow<List<ItemWithDetails>>
+    @Query("SELECT * FROM items WHERE is_active = 1 AND is_paused = 0 AND expiry_date IS NOT NULL AND expiry_date >= :today AND expiry_date <= :futureDate ORDER BY expiry_date ASC LIMIT :limit")
+    fun getExpiringSoon(today: Long, futureDate: Long, limit: Int = 5): Flow<List<ItemWithDetails>>
 
     // Low stock items (exclude paused)
     @Transaction

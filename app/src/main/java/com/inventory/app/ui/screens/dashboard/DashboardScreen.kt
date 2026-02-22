@@ -136,7 +136,9 @@ fun DashboardScreen(
                 account.idToken?.let { token ->
                     viewModel.onBetaGoogleSignIn(token)
                 }
-            } catch (_: ApiException) { }
+            } catch (e: ApiException) {
+                viewModel.onBetaSignInError(e.message ?: "Google sign-in failed")
+            }
         }
     }
 

@@ -380,8 +380,6 @@ private fun ZoneCard(
     var expanded by rememberSaveable(zone.locationId) {
         mutableStateOf(zone.itemCount < COLLAPSE_THRESHOLD)
     }
-    val visibleItems = if (expanded) zone.items else zone.items.take(COLLAPSE_THRESHOLD)
-    val hiddenCount = zone.itemCount - visibleItems.size
 
     // Chevron rotation animation
     val chevronRotation by animateFloatAsState(
@@ -473,37 +471,57 @@ private fun ZoneCard(
                     // Floating "No items yet" — alive at rest
                     FloatingText("No items yet")
                 } else {
-                    // Chip content — expand/collapse animated
-                    AnimatedVisibility(
-                        visible = expanded,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
+                    val collapsedItems = zone.items.take(COLLAPSE_THRESHOLD)
+                    val overflowItems = zone.items.drop(COLLAPSE_THRESHOLD)
+
+                    // Always-visible items (first COLLAPSE_THRESHOLD)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        collapsedItems.forEachIndexed { chipIndex, item ->
+                            WriteInChip(index = chipIndex) {
+                                ItemChip(
+                                    item = item,
+                                    onClick = { onItemClick(item) }
+                                )
+                            }
+                        }
+                    }
+
+                    // Overflow items — only visible when expanded
+                    if (overflowItems.isNotEmpty()) {
+                        AnimatedVisibility(
+                            visible = expanded,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
                         ) {
-                            visibleItems.forEachIndexed { chipIndex, item ->
-                                WriteInChip(index = chipIndex) {
-                                    ItemChip(
-                                        item = item,
-                                        onClick = { onItemClick(item) }
-                                    )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(top = 6.dp)
+                            ) {
+                                overflowItems.forEachIndexed { chipIndex, item ->
+                                    WriteInChip(index = chipIndex + COLLAPSE_THRESHOLD) {
+                                        ItemChip(
+                                            item = item,
+                                            onClick = { onItemClick(item) }
+                                        )
+                                    }
                                 }
                             }
-                            if (hiddenCount > 0) {
-                                WriteInChip(index = visibleItems.size) {
-                                    AssistChip(
-                                        onClick = { expanded = true },
-                                        label = {
-                                            Text(
-                                                "+$hiddenCount more",
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
-                                        }
+                        }
+                        if (!expanded) {
+                            AssistChip(
+                                onClick = { expanded = true },
+                                label = {
+                                    Text(
+                                        "+${overflowItems.size} more",
+                                        style = MaterialTheme.typography.labelSmall
                                     )
-                                }
-                            }
+                                },
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
                         }
                     }
                 }

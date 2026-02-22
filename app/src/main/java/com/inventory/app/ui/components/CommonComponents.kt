@@ -324,5 +324,5 @@ fun DatePickerField(
  */
 fun Double.formatQty(): String {
     return if (this % 1.0 == 0.0) this.toLong().toString()
-    else "%.1f".format(this)
+    else String.format(java.util.Locale.US, "%.1f", this)
 }

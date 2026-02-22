@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -100,6 +101,8 @@ class AuthRepository @Inject constructor(
             GoogleSignIn.getClient(context, gso).revokeAccess().await()
             user.delete().await()
             Result.success(Unit)
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            Result.failure(Exception("Please sign in again before deleting your account"))
         } catch (e: Exception) {
             Result.failure(e)
         }

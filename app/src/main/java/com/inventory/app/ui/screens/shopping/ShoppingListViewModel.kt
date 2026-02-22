@@ -281,7 +281,7 @@ class ShoppingListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val item = shoppingListRepository.getById(id) ?: return@launch
-                val newQty = (item.quantity + delta).coerceAtLeast(0.5)
+                val newQty = (item.quantity + delta).coerceAtLeast(0.1)
                 shoppingListRepository.updateQuantity(id, newQty)
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Failed to update quantity: ${e.message}") }
@@ -356,19 +356,29 @@ class ShoppingListViewModel @Inject constructor(
                 }
                 if (name.isNotBlank()) {
                     val existingItem = itemRepository.findByName(name)
-                    shoppingListRepository.addItem(
-                        if (existingItem != null) {
-                            ShoppingListItemEntity(
-                                itemId = existingItem.id,
-                                quantity = qty
-                            )
-                        } else {
-                            ShoppingListItemEntity(
-                                customName = name,
-                                quantity = qty
-                            )
-                        }
-                    )
+                    // Check if already on the shopping list — increment quantity instead of duplicating
+                    val existingShoppingItem = if (existingItem != null) {
+                        shoppingListRepository.findActiveByItemId(existingItem.id)
+                    } else {
+                        shoppingListRepository.findActiveByCustomName(name)
+                    }
+                    if (existingShoppingItem != null) {
+                        shoppingListRepository.updateQuantity(existingShoppingItem.id, existingShoppingItem.quantity + qty)
+                    } else {
+                        shoppingListRepository.addItem(
+                            if (existingItem != null) {
+                                ShoppingListItemEntity(
+                                    itemId = existingItem.id,
+                                    quantity = qty
+                                )
+                            } else {
+                                ShoppingListItemEntity(
+                                    customName = name,
+                                    quantity = qty
+                                )
+                            }
+                        )
+                    }
                     added++
                 }
             }
