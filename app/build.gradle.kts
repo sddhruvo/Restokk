@@ -6,6 +6,7 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 // Grok API key from local.properties
@@ -21,10 +22,16 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(localProperties.getProperty("RELEASE_STORE_FILE", ""))
-            storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD", "")
-            keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS", "")
-            keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD", "")
+            storeFile = file(
+                System.getenv("RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
+                    ?: localProperties.getProperty("RELEASE_STORE_FILE", "")
+            )
+            storePassword = System.getenv("RELEASE_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
+                ?: localProperties.getProperty("RELEASE_STORE_PASSWORD", "")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")?.takeIf { it.isNotBlank() }
+                ?: localProperties.getProperty("RELEASE_KEY_ALIAS", "")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+                ?: localProperties.getProperty("RELEASE_KEY_PASSWORD", "")
         }
     }
 
@@ -32,8 +39,8 @@ android {
         applicationId = "com.restokk.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 9
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -179,6 +186,7 @@ dependencies {
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
     implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-functions-ktx")

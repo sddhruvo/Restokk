@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -97,14 +98,20 @@ fun SettingsScreen(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            try {
-                val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                    .getResult(ApiException::class.java)
-                account.idToken?.let { token ->
-                    viewModel.signInWithGoogle(token)
-                }
-            } catch (_: ApiException) { }
+        try {
+            val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                .getResult(ApiException::class.java)
+            val token = account.idToken
+            if (token != null) {
+                viewModel.signInWithGoogle(token)
+            } else {
+                viewModel.signInFailed("Sign-in failed: no authentication token received.")
+            }
+        } catch (e: ApiException) {
+            Log.e("SettingsScreen", "Google sign-in failed: status=${e.statusCode}", e)
+            if (e.statusCode != 12501) {
+                viewModel.signInFailed("Google sign-in failed (code ${e.statusCode}). Please try again.")
+            }
         }
     }
 
@@ -297,7 +304,10 @@ fun SettingsScreen(
                                             .build()
                                         val client = GoogleSignIn.getClient(context, gso)
                                         googleSignInLauncher.launch(client.signInIntent)
-                                    } catch (_: Exception) { }
+                                    } catch (e: Exception) {
+                                        Log.e("SettingsScreen", "Failed to launch Google sign-in", e)
+                                        viewModel.signInFailed("Could not start Google sign-in: ${e.message}")
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {

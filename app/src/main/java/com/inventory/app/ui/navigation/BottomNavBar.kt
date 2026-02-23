@@ -102,16 +102,10 @@ private fun RowScope.NavBarItem(
     shoppingBadgeCount: Int,
     expiringBadgeCount: Int
 ) {
-    val navRoute = when (item.screen) {
-        is Screen.ItemList -> Screen.ItemList.baseRoute
-        else -> item.screen.route
-    }
+    val navRoute = item.screen.route
     val routePrefix = item.screen.route.substringBefore('/')
         .substringBefore('?')
-    val isSelected = when (item.screen) {
-        is Screen.ItemList -> currentRoute?.startsWith("items") == true
-        else -> currentRoute?.startsWith(routePrefix) == true
-    }
+    val isSelected = currentRoute?.startsWith(routePrefix) == true
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.15f else 1.0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),

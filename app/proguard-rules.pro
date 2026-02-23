@@ -19,6 +19,21 @@
 -keepclassmembers,allowobfuscation class * {
   @com.google.gson.annotations.SerializedName <fields>;
 }
+# Gson TypeToken fix for R8 (Gson 2.10.1+) — preserves generic type info on anonymous TypeToken subclasses
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+# Keep app data classes deserialized by Gson
+-keep class com.inventory.app.data.repository.FridgeItem { *; }
+-keep class com.inventory.app.data.repository.ReceiptItem { *; }
+-keep class com.inventory.app.data.local.entity.** { *; }
+-keep class com.inventory.app.data.local.db.CategoriesData { *; }
+-keep class com.inventory.app.data.local.db.CategorySeed { *; }
+-keep class com.inventory.app.data.local.db.LocationsData { *; }
+-keep class com.inventory.app.data.local.db.LocationSeed { *; }
+-keep class com.inventory.app.data.local.db.UnitsData { *; }
+-keep class com.inventory.app.data.local.db.UnitSeed { *; }
+-keep class com.inventory.app.ui.screens.cook.SuggestedRecipe { *; }
+-keep class com.inventory.app.ui.screens.cook.RecipeIngredient { *; }
 
 # ---- Retrofit ----
 -dontwarn retrofit2.**
@@ -58,13 +73,15 @@
 -keep class androidx.camera.** { *; }
 
 # ---- Vico Charts ----
--keep class com.patrykandpatrick.vico.** { *; }
+-keep class com.patrykandpatrick.vico.** { public protected *; }
 
 # ---- Coil ----
 -dontwarn coil.**
 
 # ---- FuzzyWuzzy ----
--keep class me.xdrop.fuzzywuzzy.** { *; }
+-keep class me.xdrop.fuzzywuzzy.FuzzySearch { public *; }
+-keep class me.xdrop.fuzzywuzzy.model.** { *; }
+-keep class me.xdrop.fuzzywuzzy.ratios.** { *; }
 
 # ---- Compose (R8 full mode) ----
 -dontwarn androidx.compose.**

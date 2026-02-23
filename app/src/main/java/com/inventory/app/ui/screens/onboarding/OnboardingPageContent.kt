@@ -20,9 +20,11 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -147,76 +149,82 @@ private fun WelcomePage(onGetStarted: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Brand banner — lands then breathes, constrained for tablets
-        Image(
-            painter = painterResource(id = R.drawable.restokk_banner),
-            contentDescription = "Restokk — AI-powered kitchen tracker",
-            contentScale = ContentScale.FillWidth,
+        // Scrollable content area
+        Column(
             modifier = Modifier
-                .widthIn(max = 360.dp)
-                .graphicsLayer {
-                    scaleX = bannerScale * (if (bannerLanded) breatheScale else 1f)
-                    scaleY = bannerScale * (if (bannerLanded) breatheScale else 1f)
-                    translationY = bannerOffsetY
-                    alpha = bannerAlpha
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Brand banner — lands then breathes, constrained for tablets
+            Image(
+                painter = painterResource(id = R.drawable.restokk_banner),
+                contentDescription = "Restokk — AI-powered kitchen tracker",
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier
+                    .widthIn(max = 360.dp)
+                    .graphicsLayer {
+                        scaleX = bannerScale * (if (bannerLanded) breatheScale else 1f)
+                        scaleY = bannerScale * (if (bannerLanded) breatheScale else 1f)
+                        translationY = bannerOffsetY
+                        alpha = bannerAlpha
+                    }
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Value props — "Write In" stagger cascade
+            val valueProps = listOf(
+                Triple(Icons.Filled.CameraAlt, "Scan Your Kitchen", "AI identifies items from photos"),
+                Triple(Icons.Filled.ShoppingCart, "Smart Shopping Lists", "Budget tracking & auto-categorize"),
+                Triple(Icons.Filled.Restaurant, "Meal Suggestions", "Recipes from what you already have"),
+                Triple(Icons.Filled.QrCodeScanner, "Barcode & Receipt Scan", "Add items in seconds"),
+                Triple(Icons.Filled.Eco, "Expiry & Stock Alerts", "Never waste food again"),
+                Triple(Icons.Filled.Notifications, "Smart Reminders", "Restock nudges & shopping alerts"),
+            )
+
+            valueProps.forEachIndexed { index, (icon, title, subtitle) ->
+                WriteInItem(
+                    index = index,
+                    visible = propsReady,
+                    staggerMs = 70L
+                ) {
+                    ValuePropRow(icon = icon, title = title, subtitle = subtitle, index = index, visible = propsReady)
                 }
-        )
+                if (index < valueProps.lastIndex) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
 
-        Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Value props — "Write In" stagger cascade
-        val valueProps = listOf(
-            Triple(Icons.Filled.CameraAlt, "Scan Your Kitchen", "AI identifies items from photos"),
-            Triple(Icons.Filled.ShoppingCart, "Smart Shopping Lists", "Budget tracking & auto-categorize"),
-            Triple(Icons.Filled.Restaurant, "Meal Suggestions", "Recipes from what you already have"),
-            Triple(Icons.Filled.QrCodeScanner, "Barcode & Receipt Scan", "Add items in seconds"),
-            Triple(Icons.Filled.Eco, "Expiry & Stock Alerts", "Never waste food again"),
-            Triple(Icons.Filled.Notifications, "Smart Reminders", "Restock nudges & shopping alerts"),
-        )
-
-        valueProps.forEachIndexed { index, (icon, title, subtitle) ->
+            // "...and more" hint
             WriteInItem(
-                index = index,
+                index = valueProps.size,
                 visible = propsReady,
                 staggerMs = 70L
             ) {
-                ValuePropRow(icon = icon, title = title, subtitle = subtitle, index = index, visible = propsReady)
-            }
-            if (index < valueProps.lastIndex) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "...and much more inside",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // "...and more" hint
-        WriteInItem(
-            index = valueProps.size,
-            visible = propsReady,
-            staggerMs = 70L
-        ) {
-            Text(
-                text = "...and much more inside",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // CTA — fades up last
+        // CTA — always visible at bottom, fades up last
         Button(
             onClick = onGetStarted,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(bottom = 16.dp)
                 .height(52.dp)
                 .graphicsLayer { translationY = buttonY; alpha = buttonAlpha },
             shape = RoundedCornerShape(16.dp)
@@ -449,35 +457,144 @@ private fun RegionSetupPage(
                 label = "regionActions"
             ) { picking ->
                 if (picking) {
+                    var searchQuery by remember { mutableStateOf("") }
+                    var showCustomForm by remember { mutableStateOf(false) }
+
+                    val filteredRegions = remember(searchQuery) {
+                        if (searchQuery.isBlank()) popularRegions
+                        else popularRegions.filter { region ->
+                            region.countryName.contains(searchQuery, ignoreCase = true) ||
+                            region.countryCode.contains(searchQuery, ignoreCase = true) ||
+                            region.currencySymbol.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 300.dp),
+                            .heightIn(max = 360.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        LazyColumn(modifier = Modifier.padding(8.dp)) {
-                            items(popularRegions, key = { it.countryCode }) { region ->
-                                val isSelected = region.countryCode == selectedRegion.countryCode
-                                ListItem(
-                                    headlineContent = {
-                                        Text("${region.flag}  ${region.countryName}")
-                                    },
-                                    supportingContent = {
-                                        Text("${region.currencySymbol} \u2022 ${region.dateFormatPreview}")
-                                    },
-                                    trailingContent = {
-                                        if (isSelected) {
-                                            Icon(
-                                                Icons.Filled.Check,
-                                                contentDescription = "Selected",
-                                                tint = MaterialTheme.colorScheme.primary
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            // Search field
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = {
+                                    searchQuery = it
+                                    showCustomForm = false
+                                },
+                                placeholder = { Text("Search countries...") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Filled.Search,
+                                        contentDescription = "Search",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium
+                            )
+
+                            AnimatedContent(
+                                targetState = showCustomForm,
+                                transitionSpec = {
+                                    fadeIn(tween(200)) togetherWith fadeOut(tween(150))
+                                },
+                                label = "pickerContent"
+                            ) { customFormVisible ->
+                                if (customFormVisible) {
+                                    CustomCountryForm(
+                                        initialCountryName = searchQuery,
+                                        onConfirm = { name, symbol ->
+                                            val datePreview = try {
+                                                java.time.LocalDate.of(2026, 2, 19)
+                                                    .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
+                                            } catch (_: Exception) { "19 Feb 2026" }
+                                            val customRegion = RegionInfo(
+                                                countryCode = "CUSTOM",
+                                                countryName = name.trim(),
+                                                currencySymbol = symbol.trim(),
+                                                dateFormatPreview = datePreview,
+                                                flag = "\uD83C\uDF10"
                                             )
+                                            onSelect(customRegion)
                                         }
-                                    },
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { onSelect(region) }
-                                )
+                                    )
+                                } else {
+                                    Column {
+                                        LazyColumn(
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        ) {
+                                            items(filteredRegions, key = { it.countryCode }) { region ->
+                                                val isSelected = region.countryCode == selectedRegion.countryCode
+                                                ListItem(
+                                                    headlineContent = {
+                                                        Text("${region.flag}  ${region.countryName}")
+                                                    },
+                                                    supportingContent = {
+                                                        Text("${region.currencySymbol} \u2022 ${region.dateFormatPreview}")
+                                                    },
+                                                    trailingContent = {
+                                                        if (isSelected) {
+                                                            Icon(
+                                                                Icons.Filled.Check,
+                                                                contentDescription = "Selected",
+                                                                tint = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        }
+                                                    },
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .clickable { onSelect(region) }
+                                                )
+                                            }
+
+                                            // "Can't find your country?" option
+                                            if (searchQuery.isNotBlank() && filteredRegions.size <= 3) {
+                                                item(key = "custom_country_option") {
+                                                    ListItem(
+                                                        headlineContent = {
+                                                            Text(
+                                                                "Can't find your country?",
+                                                                color = MaterialTheme.colorScheme.primary,
+                                                                fontWeight = FontWeight.Medium
+                                                            )
+                                                        },
+                                                        supportingContent = {
+                                                            Text("Set up a custom region")
+                                                        },
+                                                        leadingContent = {
+                                                            Icon(
+                                                                Icons.Filled.Language,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        },
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .clickable { showCustomForm = true }
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // Also show "Can't find?" as a text button when no search query
+                                        if (searchQuery.isBlank()) {
+                                            TextButton(
+                                                onClick = { showCustomForm = true },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 4.dp)
+                                            ) {
+                                                Text("Can't find your country?")
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -518,6 +635,110 @@ private fun DetailChip(label: String, value: String) {
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onPrimaryContainer
         )
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Custom Country Form — inline form for unsupported countries
+// ═══════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun CustomCountryForm(
+    initialCountryName: String,
+    onConfirm: (countryName: String, currencySymbol: String) -> Unit
+) {
+    var countryName by remember { mutableStateOf(initialCountryName) }
+    var currencySymbol by remember { mutableStateOf("") }
+
+    val datePreview = remember {
+        try {
+            java.time.LocalDate.of(2026, 2, 19)
+                .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
+        } catch (_: Exception) { "19 Feb 2026" }
+    }
+
+    // Fade-up entrance
+    var formVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(50)
+        formVisible = true
+    }
+    val formY by animateFloatAsState(
+        targetValue = if (formVisible) 0f else 16f,
+        animationSpec = GentleSpring, label = "customFormY"
+    )
+    val formAlpha by animateFloatAsState(
+        targetValue = if (formVisible) 1f else 0f,
+        animationSpec = tween(250), label = "customFormAlpha"
+    )
+
+    val isValid = countryName.isNotBlank() && currencySymbol.isNotBlank()
+
+    Column(
+        modifier = Modifier
+            .graphicsLayer { translationY = formY; alpha = formAlpha }
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Your country isn't in our list yet — no worries! Just tell us a few basics.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+
+        OutlinedTextField(
+            value = countryName,
+            onValueChange = { countryName = it },
+            label = { Text("Country name") },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+
+        OutlinedTextField(
+            value = currencySymbol,
+            onValueChange = { currencySymbol = it },
+            label = { Text("Currency symbol") },
+            placeholder = { Text("e.g. kr, \u20AC, \u00A5") },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+
+        // Read-only date preview
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Date format",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "$datePreview (from device)",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Button(
+            onClick = { onConfirm(countryName, currencySymbol) },
+            enabled = isValid,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Use This", style = MaterialTheme.typography.titleSmall)
+        }
     }
 }
 

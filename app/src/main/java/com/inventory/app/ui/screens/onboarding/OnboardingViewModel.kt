@@ -24,6 +24,8 @@ class OnboardingViewModel @Inject constructor(
         private const val SS_REGION_CODE = "ss_region_code"
         private const val SS_START_CHOICE = "ss_start_choice"
         private const val SS_SHOW_REGION_PICKER = "ss_show_region_picker"
+        private const val SS_CUSTOM_COUNTRY_NAME = "ss_custom_country_name"
+        private const val SS_CUSTOM_CURRENCY = "ss_custom_currency"
     }
 
     data class UiState(
@@ -51,7 +53,15 @@ class OnboardingViewModel @Inject constructor(
         val showPicker = savedStateHandle.get<Boolean>(SS_SHOW_REGION_PICKER) ?: false
 
         val detected = detectRegion()
-        val region = if (regionCode != null) {
+        val customCountryName = savedStateHandle.get<String>(SS_CUSTOM_COUNTRY_NAME)
+        val customCurrency = savedStateHandle.get<String>(SS_CUSTOM_CURRENCY)
+        val region = if (regionCode == "CUSTOM" && customCountryName != null && customCurrency != null) {
+            val datePreview = try {
+                java.time.LocalDate.of(2026, 2, 19)
+                    .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
+            } catch (_: Exception) { "19 Feb 2026" }
+            RegionInfo("CUSTOM", customCountryName, customCurrency, datePreview, "\uD83C\uDF10")
+        } else if (regionCode != null) {
             popularRegions.find { it.countryCode == regionCode } ?: detected
         } else detected
 
@@ -73,6 +83,10 @@ class OnboardingViewModel @Inject constructor(
         savedStateHandle[SS_REGION_CODE] = state.selectedRegion.countryCode
         savedStateHandle[SS_START_CHOICE] = state.startChoice?.name
         savedStateHandle[SS_SHOW_REGION_PICKER] = state.showRegionPicker
+        if (state.selectedRegion.countryCode == "CUSTOM") {
+            savedStateHandle[SS_CUSTOM_COUNTRY_NAME] = state.selectedRegion.countryName
+            savedStateHandle[SS_CUSTOM_CURRENCY] = state.selectedRegion.currencySymbol
+        }
     }
 
     private inline fun updateState(crossinline transform: (UiState) -> UiState) {

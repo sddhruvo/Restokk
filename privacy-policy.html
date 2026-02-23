@@ -66,6 +66,11 @@
         <td>Device info (model, OS), app events (screen views, feature usage), approximate geographic region</td>
         <td>Understand how features are used to improve the app</td>
     </tr>
+    <tr>
+        <td>Firebase Crashlytics (Google)</td>
+        <td>Crash logs, device model, OS version, app state at time of crash</td>
+        <td>Identify and fix app crashes</td>
+    </tr>
 </table>
 <p>Firebase data is processed by Google under their <a href="https://firebase.google.com/support/privacy">Firebase Privacy Policy</a>.</p>
 
@@ -109,13 +114,19 @@
         <td>Open Food Facts (public API)</td>
         <td>N/A (public database)</td>
     </tr>
+    <tr>
+        <td>Barcode Lookup (fallback)</td>
+        <td>Barcode number only</td>
+        <td>UPC Item DB (api.upcitemdb.com)</td>
+        <td>N/A (public database)</td>
+    </tr>
 </table>
 
 <div class="highlight">
     <strong>Important:</strong>
     <ul style="margin-bottom:0">
-        <li>All AI requests are routed through our secure server (Firebase Cloud Functions). Your API keys are never stored in the app.</li>
-        <li>Photos are processed in real-time and <strong>not stored</strong> on any server after processing.</li>
+        <li>All AI requests are routed through our secure server (Firebase Cloud Functions, hosted on Google Cloud). Your API keys are never stored in the app.</li>
+        <li>Photos (including receipt images that may contain purchase prices) are processed in real-time and <strong>not stored</strong> on any server after processing.</li>
         <li>OpenAI does <strong>not</strong> use API data for model training (per their <a href="https://openai.com/enterprise-privacy/">data usage policy</a>).</li>
         <li>Groq does <strong>not</strong> use API data for model training.</li>
         <li>We do <strong>not</strong> send your full inventory or shopping list to AI providers — only the minimum data needed for each specific feature.</li>

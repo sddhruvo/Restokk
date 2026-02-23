@@ -104,6 +104,7 @@ import com.inventory.app.ui.theme.StockYellow
 import com.inventory.app.ui.theme.scoreToColor
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import android.util.Log
 import com.google.android.gms.common.api.ApiException
 import com.inventory.app.R
 import kotlinx.coroutines.launch
@@ -129,15 +130,20 @@ fun DashboardScreen(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            try {
-                val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                    .getResult(ApiException::class.java)
-                account.idToken?.let { token ->
-                    viewModel.onBetaGoogleSignIn(token)
-                }
-            } catch (e: ApiException) {
-                viewModel.onBetaSignInError(e.message ?: "Google sign-in failed")
+        try {
+            val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                .getResult(ApiException::class.java)
+            val token = account.idToken
+            if (token != null) {
+                viewModel.onBetaGoogleSignIn(token)
+            } else {
+                viewModel.onBetaSignInError("Sign-in failed: no authentication token received. Please try again.")
+            }
+        } catch (e: ApiException) {
+            Log.e("DashboardScreen", "Google sign-in failed: status=${e.statusCode}", e)
+            // Status 12501 = user cancelled, don't show error
+            if (e.statusCode != 12501) {
+                viewModel.onBetaSignInError("Google sign-in failed (code ${e.statusCode}). Please try again.")
             }
         }
     }
@@ -250,7 +256,10 @@ fun DashboardScreen(
                                     .build()
                                 val client = GoogleSignIn.getClient(context, gso)
                                 googleSignInLauncher.launch(client.signInIntent)
-                            } catch (_: Exception) { }
+                            } catch (e: Exception) {
+                                Log.e("DashboardScreen", "Failed to launch Google sign-in", e)
+                                viewModel.onBetaSignInError("Could not start Google sign-in: ${e.message}")
+                            }
                         },
                         enabled = !uiState.betaSignInLoading
                     ) {

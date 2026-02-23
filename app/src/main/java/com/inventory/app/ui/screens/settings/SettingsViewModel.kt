@@ -106,6 +106,10 @@ class SettingsViewModel @Inject constructor(
         authRepository.signOut()
     }
 
+    fun signInFailed(message: String) {
+        _uiState.update { it.copy(authLoading = false, authError = message) }
+    }
+
     fun clearAuthError() {
         _uiState.update { it.copy(authError = null) }
     }

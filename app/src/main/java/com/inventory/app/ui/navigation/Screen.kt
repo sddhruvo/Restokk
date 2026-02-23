@@ -3,8 +3,8 @@ package com.inventory.app.ui.navigation
 import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Receipt
@@ -128,7 +128,7 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard, "Home", Icons.Filled.Home),
-    BottomNavItem(Screen.ItemList, "Items", Icons.Filled.Inventory2),
+    BottomNavItem(Screen.Cook, "Cook", Icons.Filled.Restaurant),
     // Center slot is reserved for the Quick Add FAB (no nav item here)
     BottomNavItem(Screen.ShoppingList, "Shopping", Icons.Filled.ShoppingCart),
     BottomNavItem(Screen.More, "More", Icons.Filled.MoreHoriz)

@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         pendingNavRoute = intent.getStringExtra(SmartNotificationWorker.EXTRA_NAV_ROUTE)
         enableEdgeToEdge()
+
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
             val themeKey by settingsRepository

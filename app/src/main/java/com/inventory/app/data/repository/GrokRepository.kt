@@ -173,7 +173,7 @@ class GrokRepository @Inject constructor(
                 if (errorMsg.contains("Daily AI limit") || errorMsg.contains("Too many requests")) {
                     throw e
                 }
-                Log.w(TAG, "Cloud Function failed, trying direct: ${e.message}")
+                if (BuildConfig.DEBUG) Log.w(TAG, "Cloud Function failed, trying direct: ${e.message}")
             }
         }
 
@@ -374,20 +374,20 @@ class GrokRepository @Inject constructor(
 
                 val hasJson = lastText.contains("[") && lastText.contains("]")
                 if (!hasJson) {
-                    Log.w(TAG, "Attempt $attempt: no JSON array found, retrying...")
+                    if (BuildConfig.DEBUG) Log.w(TAG, "Attempt $attempt: no JSON array found, retrying...")
                     continue
                 }
 
                 val items = parser(lastText)
                 if (items.isNotEmpty()) return Result.success(items)
 
-                Log.w(TAG, "Attempt $attempt: parsed 0 items, retrying...")
+                if (BuildConfig.DEBUG) Log.w(TAG, "Attempt $attempt: parsed 0 items, retrying...")
             } catch (e: Exception) {
-                Log.w(TAG, "Attempt $attempt failed: ${e.message}")
+                if (BuildConfig.DEBUG) Log.w(TAG, "Attempt $attempt failed: ${e.message}")
                 if (attempt >= MAX_RETRIES) throw e
             }
         }
-        Log.w(TAG, "All $MAX_RETRIES attempts failed. Last: $lastText")
+        if (BuildConfig.DEBUG) Log.w(TAG, "All $MAX_RETRIES attempts failed. Last: $lastText")
         return null
     }
 
@@ -400,7 +400,7 @@ class GrokRepository @Inject constructor(
             val type = object : TypeToken<List<FridgeItem>>() {}.type
             gson.fromJson<List<FridgeItem>>(arrayStr, type).filter { it.name.isNotBlank() }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to parse fridge items: ${e.message}")
+            if (BuildConfig.DEBUG) Log.w(TAG, "Failed to parse fridge items: ${e.message}")
             try {
                 val item = gson.fromJson(arrayStr, FridgeItem::class.java)
                 if (item.name.isNotBlank()) listOf(item) else emptyList()
@@ -416,7 +416,7 @@ class GrokRepository @Inject constructor(
             val type = object : TypeToken<List<ReceiptItem>>() {}.type
             gson.fromJson<List<ReceiptItem>>(arrayStr, type).filter { it.name.isNotBlank() }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to parse as list: ${e.message}")
+            if (BuildConfig.DEBUG) Log.w(TAG, "Failed to parse as list: ${e.message}")
             try {
                 val item = gson.fromJson(arrayStr, ReceiptItem::class.java)
                 if (item.name.isNotBlank()) listOf(item) else emptyList()
