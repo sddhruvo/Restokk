@@ -34,18 +34,16 @@
 -keep class com.inventory.app.data.local.db.UnitSeed { *; }
 -keep class com.inventory.app.ui.screens.cook.SuggestedRecipe { *; }
 -keep class com.inventory.app.ui.screens.cook.RecipeIngredient { *; }
+-keep class com.inventory.app.ui.screens.cook.CookSettingsSnapshot { *; }
+# ---- Barcode API response classes (Gson deserialization) ----
+-keep class com.inventory.app.data.remote.api.OpenFoodFactsResponse { *; }
+-keep class com.inventory.app.data.remote.api.ProductData { *; }
+-keep class com.inventory.app.data.remote.api.UpcItemDbResponse { *; }
+-keep class com.inventory.app.data.remote.api.UpcItemDbProduct { *; }
 
-# ---- Retrofit ----
+# ---- Retrofit (2.11.0 ships its own R8 rules) ----
 -dontwarn retrofit2.**
--keep class retrofit2.** { *; }
--keepattributes Exceptions
--keepclassmembers,allowshrinking,allowobfuscation interface * {
-    @retrofit2.http.* <methods>;
-}
--dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
--dontwarn kotlin.Unit
--dontwarn retrofit2.KotlinExtensions
--dontwarn retrofit2.KotlinExtensions$*
+-keepattributes Signature,Exceptions
 
 # ---- OkHttp ----
 -dontwarn okhttp3.**
@@ -82,6 +80,13 @@
 -keep class me.xdrop.fuzzywuzzy.FuzzySearch { public *; }
 -keep class me.xdrop.fuzzywuzzy.model.** { *; }
 -keep class me.xdrop.fuzzywuzzy.ratios.** { *; }
+
+# ---- Manifest-registered components (framework instantiation) ----
+-keep class com.inventory.app.worker.AddToShoppingListReceiver { <init>(...); }
+-keep class com.inventory.app.widget.SmallWidgetReceiver { <init>(...); }
+-keep class com.inventory.app.widget.MediumWidgetReceiver { <init>(...); }
+-keep class com.inventory.app.worker.SmartNotificationWorker { <init>(...); }
+-keep class com.inventory.app.widget.WidgetUpdateWorker { <init>(...); }
 
 # ---- Compose (R8 full mode) ----
 -dontwarn androidx.compose.**

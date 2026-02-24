@@ -2,6 +2,7 @@ package com.inventory.app.data.repository
 
 import com.inventory.app.data.local.dao.BarcodeCacheDao
 import com.inventory.app.data.local.entity.BarcodeCacheEntity
+import android.util.Log
 import com.inventory.app.data.remote.api.OpenFoodFactsApi
 import com.inventory.app.data.remote.api.UpcItemDbApi
 import java.time.LocalDateTime
@@ -85,7 +86,8 @@ class BarcodeRepository @Inject constructor(
                 nutritionGrade = product?.nutrition_grades
             )
         } catch (e: Exception) {
-            BarcodeResult(found = false)
+            Log.e("BarcodeRepository", "OpenFoodFacts lookup failed for $barcode", e)
+            BarcodeResult(found = false, errorMessage = "OpenFoodFacts error: ${e.message}")
         }
     }
 
@@ -106,7 +108,8 @@ class BarcodeRepository @Inject constructor(
                 BarcodeResult(found = false)
             }
         } catch (e: Exception) {
-            BarcodeResult(found = false)
+            Log.e("BarcodeRepository", "UpcItemDb lookup failed for $barcode", e)
+            BarcodeResult(found = false, errorMessage = "UpcItemDb error: ${e.message}")
         }
     }
 

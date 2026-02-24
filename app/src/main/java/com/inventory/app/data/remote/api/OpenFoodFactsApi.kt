@@ -5,7 +5,7 @@ import retrofit2.http.Header
 import retrofit2.http.Path
 
 interface OpenFoodFactsApi {
-    @GET("api/v2/product/{barcode}")
+    @GET("api/v2/product/{barcode}.json")
     suspend fun lookupProduct(
         @Path("barcode") barcode: String,
         @Header("User-Agent") userAgent: String = "RestokkApp/1.0 (Android)"

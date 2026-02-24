@@ -8,6 +8,7 @@ import com.inventory.app.data.local.dao.StorageLocationDao
 import com.inventory.app.data.local.entity.ShoppingListItemEntity
 import com.inventory.app.data.local.entity.UnitEntity
 import com.inventory.app.data.repository.ItemRepository
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
 import com.inventory.app.data.repository.UnitRepository
 import com.inventory.app.domain.model.Priority
@@ -57,7 +58,8 @@ class AddShoppingItemViewModel @Inject constructor(
     private val unitRepository: UnitRepository,
     private val itemDao: ItemDao,
     private val purchaseHistoryDao: PurchaseHistoryDao,
-    private val storageLocationDao: StorageLocationDao
+    private val storageLocationDao: StorageLocationDao,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddShoppingItemUiState())
@@ -65,12 +67,16 @@ class AddShoppingItemViewModel @Inject constructor(
 
     private var suggestionJob: Job? = null
     private var smartDefaultJob: Job? = null
+    private var regionCode: String = "US"
 
     // Track which fields user has manually changed
     private var userSetQuantity = false
     private var userSetUnit = false
 
     init {
+        viewModelScope.launch {
+            regionCode = settingsRepository.getRegionCode()
+        }
         viewModelScope.launch {
             unitRepository.getAllActive().collect { units ->
                 _uiState.update { it.copy(units = units) }
@@ -219,7 +225,7 @@ class AddShoppingItemViewModel @Inject constructor(
                 }
             } else if (!userSetUnit) {
                 // Fallback to hardcoded smart defaults for unit
-                val defaults = SmartDefaults.lookup(name)
+                val defaults = SmartDefaults.lookup(name, regionCode)
                 if (defaults?.unit != null) {
                     val unit = _uiState.value.units.find {
                         it.abbreviation.equals(defaults.unit, ignoreCase = true)

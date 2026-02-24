@@ -117,6 +117,10 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.core.EaseOutCubic
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -219,7 +223,7 @@ private fun PulsingQuestionMark(
 
 // ── Main Screen ──────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun FridgeScanScreen(
     navController: NavController,
@@ -228,12 +232,34 @@ fun FridgeScanScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    // Camera permission state
+    val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
+    var showPermissionCard by remember { mutableStateOf(false) }
+
     // Camera launcher (TakePicturePreview — returns bitmap)
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
             viewModel.onImageCaptured(bitmap)
+        }
+    }
+
+    // Helper: launch camera only if permission granted, otherwise request
+    fun launchCameraWithPermission() {
+        if (cameraPermissionState.status.isGranted) {
+            cameraLauncher.launch(null)
+        } else {
+            showPermissionCard = true
+            cameraPermissionState.launchPermissionRequest()
+        }
+    }
+
+    // Auto-launch camera after permission is granted (if user was trying to take a photo)
+    LaunchedEffect(cameraPermissionState.status.isGranted) {
+        if (cameraPermissionState.status.isGranted && showPermissionCard) {
+            showPermissionCard = false
+            cameraLauncher.launch(null)
         }
     }
 
@@ -328,7 +354,7 @@ fun FridgeScanScreen(
                 actions = {
                     if (uiState.state is FridgeScanState.Review) {
                         TextButton(onClick = {
-                            cameraLauncher.launch(null)
+                            launchCameraWithPermission()
                         }) {
                             Text("Retake")
                         }
@@ -354,7 +380,7 @@ fun FridgeScanScreen(
             is FridgeScanState.Idle -> {
                 IdleContent(
                     areaName = uiState.currentArea?.name,
-                    onTakePhoto = { cameraLauncher.launch(null) },
+                    onTakePhoto = { launchCameraWithPermission() },
                     onPickGallery = { galleryLauncher.launch("image/*") },
                     modifier = Modifier
                         .fillMaxSize()
@@ -385,7 +411,7 @@ fun FridgeScanScreen(
                     onRemoveItem = viewModel::removeItem,
                     onAddAll = viewModel::addAllToInventory,
                     onRetake = {
-                        cameraLauncher.launch(null)
+                        launchCameraWithPermission()
                     },
                     onBackToAreas = { viewModel.returnToAreaSelection() },
                     modifier = Modifier
@@ -475,7 +501,7 @@ fun FridgeScanScreen(
                     }
                     Button(
                         onClick = {
-                            cameraLauncher.launch(null)
+                            launchCameraWithPermission()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {

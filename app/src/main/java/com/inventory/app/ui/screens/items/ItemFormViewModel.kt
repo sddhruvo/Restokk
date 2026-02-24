@@ -10,10 +10,6 @@ import com.inventory.app.data.local.entity.StorageLocationEntity
 import com.inventory.app.data.local.entity.SubcategoryEntity
 import com.inventory.app.data.local.entity.UnitEntity
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
 import android.util.Base64
 import android.util.Log
 import com.inventory.app.data.repository.CategoryRepository
@@ -167,10 +163,12 @@ class ItemFormViewModel @Inject constructor(
     private var smartDefaultJob: Job? = null
     private var suggestionJob: Job? = null
     private var subcategoryJob: Job? = null
+    private var regionCode: String = "US"
 
     init {
         viewModelScope.launch {
             val currency = settingsRepository.getCurrencySymbol()
+            regionCode = settingsRepository.getRegionCode()
             _uiState.update { it.copy(currencySymbol = currency) }
         }
         viewModelScope.launch {
@@ -318,8 +316,8 @@ class ItemFormViewModel @Inject constructor(
             try {
                 // Bitmap processing on background thread to avoid UI jank
                 val base64 = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                    // Step 1: Scale to readable resolution
-                    val maxDim = 1200
+                    // Scale to readable resolution (keep color — vision models handle it better)
+                    val maxDim = 1600
                     val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
                         val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
                         Bitmap.createScaledBitmap(
@@ -330,26 +328,11 @@ class ItemFormViewModel @Inject constructor(
                         ).also { if (it !== bitmap) bitmap.recycle() }
                     } else bitmap
 
-                    // Step 2: Document-style preprocessing — grayscale + high contrast
-                    val enhanced = Bitmap.createBitmap(scaled.width, scaled.height, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(enhanced)
-                    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-                    val contrast = 1.8f
-                    val translate = (-0.5f * contrast + 0.5f) * 255f
-                    paint.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
-                        0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
-                        0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
-                        0.299f * contrast, 0.587f * contrast, 0.114f * contrast, 0f, translate,
-                        0f, 0f, 0f, 1f, 0f
-                    )))
-                    canvas.drawBitmap(scaled, 0f, 0f, paint)
-                    if (scaled !== bitmap) scaled.recycle()
-
-                    // Step 3: Compress with higher quality for text readability
+                    // Compress — keep quality high for text readability
                     val stream = java.io.ByteArrayOutputStream()
-                    enhanced.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                    scaled.compress(Bitmap.CompressFormat.JPEG, 88, stream)
                     val result = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
-                    enhanced.recycle()
+                    if (scaled !== bitmap) scaled.recycle()
                     result
                 }
 
@@ -359,17 +342,30 @@ class ItemFormViewModel @Inject constructor(
                 }
 
                 val result = grokRepository.visionAnalysis(
-                    systemPrompt = """You extract expiry dates from product labels. The image has been preprocessed for clarity.
+                    systemPrompt = """You are an expert at reading expiry dates from product packaging photos.
 
-Rules:
-1. Look for keywords: "EXP", "USE BY", "BEST BEFORE", "BB", "BEST BY", "SELL BY", "EXPIRY", or date printed near these words.
-2. Do NOT return a manufacture date ("MFG", "MFD", "PROD", "PACKED") — only the expiry/use-by date.
-3. If you see a format like DD/MM/YYYY or DD-MM-YYYY, convert it to YYYY-MM-DD. If you see MM/YYYY, use the last day of that month.
-4. Return ONLY the date in YYYY-MM-DD format. Nothing else.
-5. If no expiry date is found, return NONE.""",
-                    userPrompt = "Extract the expiry date from this product label. The image is grayscale-enhanced for readability.",
+LOOK FOR these keywords near a date: "EXP", "USE BY", "BEST BEFORE", "BB", "BBE", "BBD", "BEST BY", "SELL BY", "EXPIRY", "CONSUME BY", "DRINK BY", "GOOD UNTIL", "BEST END", "DISPLAY UNTIL".
+
+IGNORE manufacture/production dates: "MFG", "MFD", "PROD", "PACKED", "PACK DATE", "LOT", "BATCH", "L:".
+
+DATE FORMATS you may see (convert ALL to YYYY-MM-DD):
+- DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY → e.g. 25/03/2026 → 2026-03-25
+- MM/DD/YYYY → e.g. 03/25/2026 → 2026-03-25
+- YYYY-MM-DD → already correct
+- DD MMM YYYY or MMM DD YYYY → e.g. 25 MAR 2026 → 2026-03-25
+- MMM YYYY or MM/YYYY → use last day of month, e.g. MAR 2026 → 2026-03-31
+- DD/MM/YY or DD.MM.YY → assume 20xx, e.g. 25/03/26 → 2026-03-25
+- MMM YY → e.g. MAR 26 → 2026-03-31
+- Compact DDMMYYYY or YYYYMMDD → parse accordingly
+
+If a date has no year, assume the next occurrence (current year or next year).
+If ambiguous between DD/MM and MM/DD, prefer DD/MM (non-US convention).
+
+Return ONLY the date in YYYY-MM-DD format. Nothing else. No explanation.
+If no expiry date found, return exactly: NONE""",
+                    userPrompt = "Extract the expiry date from this product label photo.",
                     imageBase64 = base64,
-                    maxTokens = 50
+                    maxTokens = 100
                 )
 
                 result.fold(
@@ -423,7 +419,7 @@ Rules:
      * unit, location, and expiry date — only for fields the user hasn't manually changed.
      */
     private fun applySmartDefaults(itemName: String) {
-        val defaults = SmartDefaults.lookup(itemName) ?: return
+        val defaults = SmartDefaults.lookup(itemName, regionCode) ?: return
 
         viewModelScope.launch {
             // Wait until categories/units/locations are loaded (they load async in init)
@@ -539,7 +535,7 @@ Rules:
     private fun applyCategoryDefaults(categoryId: Long) {
         val state = _uiState.value
         val category = state.categories.find { it.id == categoryId } ?: return
-        val catDefaults = SmartDefaults.getCategoryDefaults(category.name) ?: return
+        val catDefaults = SmartDefaults.getCategoryDefaults(category.name, regionCode) ?: return
 
         // Auto-fill location
         if (!userSetLocation && catDefaults.location != null) {

@@ -21,17 +21,37 @@ data class CategoryDefaults(
 
 object SmartDefaults {
 
+    // Regions that use imperial units (US, Liberia, Myanmar)
+    private val imperialRegions = setOf("US", "LR", "MM")
+
+    // Imperial → metric unit conversion
+    private val imperialToMetric = mapOf(
+        "gal" to "L",
+        "qt" to "L",
+        "lb" to "kg",
+        "oz" to "g",
+        "pt" to "mL"
+    )
+
+    private fun ItemDefaults.toMetricUnits(): ItemDefaults {
+        val metricUnit = imperialToMetric[unit] ?: return this
+        return copy(unit = metricUnit)
+    }
+
     /**
      * Look up an item name and return smart defaults.
      * Uses case-insensitive matching. Tries exact match first,
      * then longest keyword match.
+     * If regionCode is provided and non-imperial, converts units to metric.
      */
-    fun lookup(itemName: String): ItemDefaults? {
+    fun lookup(itemName: String, regionCode: String? = null): ItemDefaults? {
         val name = itemName.trim().lowercase()
         if (name.isBlank()) return null
 
+        val useMetric = regionCode != null && regionCode !in imperialRegions
+
         // Exact match first
-        itemMap[name]?.let { return it }
+        itemMap[name]?.let { return if (useMetric) it.toMetricUnits() else it }
 
         // Try longest matching keyword (prefer more specific matches)
         var bestMatch: ItemDefaults? = null
@@ -42,12 +62,12 @@ object SmartDefaults {
                 bestLength = keyword.length
             }
         }
-        if (bestMatch != null) return bestMatch
+        if (bestMatch != null) return if (useMetric) bestMatch.toMetricUnits() else bestMatch
 
         // Try if any keyword contains the input (for short names like "egg")
         for ((keyword, defaults) in itemMap) {
             if (keyword.contains(name) && name.length >= 3) {
-                return defaults
+                return if (useMetric) defaults.toMetricUnits() else defaults
             }
         }
 
@@ -55,10 +75,10 @@ object SmartDefaults {
         // Handles barcode-scanned names like "Maggi Instant Noodles" → matches "noodles"
         val words = name.split(" ", "-", "_").filter { it.length >= 3 }
         for (word in words) {
-            itemMap[word]?.let { return it }
+            itemMap[word]?.let { return if (useMetric) it.toMetricUnits() else it }
             // Also try without trailing 's' (plural → singular)
             if (word.endsWith("s") && word.length >= 4) {
-                itemMap[word.dropLast(1)]?.let { return it }
+                itemMap[word.dropLast(1)]?.let { return if (useMetric) it.toMetricUnits() else it }
             }
         }
 
@@ -68,9 +88,15 @@ object SmartDefaults {
     /**
      * Get default location and unit for a category.
      * Used when user manually selects a category.
+     * If regionCode is provided and non-imperial, converts units to metric.
      */
-    fun getCategoryDefaults(categoryName: String): CategoryDefaults? {
-        return categoryDefaultsMap[categoryName]
+    fun getCategoryDefaults(categoryName: String, regionCode: String? = null): CategoryDefaults? {
+        val defaults = categoryDefaultsMap[categoryName] ?: return null
+        if (regionCode != null && regionCode !in imperialRegions && defaults.unit != null) {
+            val metricUnit = imperialToMetric[defaults.unit]
+            if (metricUnit != null) return defaults.copy(unit = metricUnit)
+        }
+        return defaults
     }
 
     /**

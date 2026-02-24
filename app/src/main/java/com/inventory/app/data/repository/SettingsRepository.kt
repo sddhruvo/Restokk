@@ -24,6 +24,7 @@ class SettingsRepository @Inject constructor(
         const val KEY_EXPIRY_WARNING_DAYS = "expiry_warning_days"
 
         const val KEY_CURRENCY_SYMBOL = "currency_symbol"
+        const val KEY_REGION_CODE = "region_code"
         const val KEY_DEFAULT_QUANTITY = "default_quantity"
         const val KEY_DARK_MODE = "dark_mode"
         const val KEY_APP_THEME = "app_theme"
@@ -104,6 +105,7 @@ class SettingsRepository @Inject constructor(
 
     suspend fun getExpiryWarningDays(): Int = getInt(KEY_EXPIRY_WARNING_DAYS, 7)
     suspend fun getCurrencySymbol(): String = getString(KEY_CURRENCY_SYMBOL, FormatUtils.getDefaultCurrencySymbol())
+    suspend fun getRegionCode(): String = getString(KEY_REGION_CODE, "US")
 
     suspend fun getNotificationCountThisWeek(): Int {
         val raw = getString(KEY_NOTIF_SENT_TIMESTAMPS, "")

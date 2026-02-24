@@ -137,6 +137,12 @@ class OnboardingViewModel @Inject constructor(
                 "string",
                 "Currency symbol"
             )
+            settingsRepository.set(
+                SettingsRepository.KEY_REGION_CODE,
+                region.countryCode,
+                "string",
+                "Region country code"
+            )
         }
         nextPage()
     }
