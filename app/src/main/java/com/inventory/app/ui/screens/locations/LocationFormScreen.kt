@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.locations
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -21,18 +23,22 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.domain.model.TemperatureZone
 import com.inventory.app.ui.components.AnimatedSaveButton
 import com.inventory.app.ui.components.DropdownField
@@ -46,6 +52,36 @@ fun LocationFormScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    val isDirty = uiState.hasBeenTouched && !uiState.isSaved
+
+    // Guard bottom nav taps when form has unsaved changes
+    RegisterNavigationGuard(
+        shouldBlock = { isDirty },
+        message = { "You have unsaved changes. Discard and leave?" }
+    )
+
+    BackHandler(enabled = isDirty) {
+        showDiscardDialog = true
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard Changes?") },
+            text = { Text("You have unsaved changes. Are you sure you want to go back?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardDialog = false
+                    navController.popBackStack()
+                }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep Editing") }
+            }
+        )
+    }
 
     LaunchedEffect(locationId) {
         locationId?.let { viewModel.loadLocation(it) }
@@ -71,7 +107,10 @@ fun LocationFormScreen(
             TopAppBar(
                 title = { Text(if (locationId != null) "Edit Location" else "Add Location") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        if (isDirty) showDiscardDialog = true
+                        else navController.popBackStack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }

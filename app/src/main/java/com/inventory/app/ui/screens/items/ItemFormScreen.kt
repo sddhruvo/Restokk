@@ -1,9 +1,6 @@
 package com.inventory.app.ui.screens.items
 
-import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
@@ -25,7 +22,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -60,6 +56,8 @@ import com.inventory.app.ui.components.AutoCompleteTextField
 import com.inventory.app.ui.components.DatePickerField
 import com.inventory.app.ui.components.DropdownField
 import com.inventory.app.ui.components.ExpandableSection
+import com.inventory.app.ui.navigation.RegisterNavigationGuard
+import com.inventory.app.ui.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,11 +74,16 @@ fun ItemFormScreen(
     val isDirty by viewModel.isDirty.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Camera launcher for expiry date scanning
-    val expiryPhotoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        bitmap?.let { viewModel.scanExpiryDate(it) }
+    // Observe scanned expiry date result from ExpiryDateScannerScreen
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.getStateFlow<String?>("scannedExpiryDate", null)
+            ?.collect { date ->
+                if (date != null) {
+                    viewModel.updateExpiryDate(date)
+                    savedStateHandle.remove<String>("scannedExpiryDate")
+                }
+            }
     }
 
     LaunchedEffect(uiState.saveError) {
@@ -89,13 +92,13 @@ fun ItemFormScreen(
         }
     }
 
-    LaunchedEffect(uiState.expiryScanError) {
-        uiState.expiryScanError?.let {
-            snackbarHostState.showSnackbar(it)
-        }
-    }
-
     var showDiscardDialog by remember { mutableStateOf(false) }
+
+    // Guard bottom nav taps when form is dirty
+    RegisterNavigationGuard(
+        shouldBlock = { isDirty },
+        message = { "You have unsaved changes. Discard and leave?" }
+    )
 
     BackHandler(enabled = isDirty) {
         showDiscardDialog = true
@@ -310,24 +313,15 @@ fun ItemFormScreen(
                             isError = uiState.expiryDateError != null,
                             supportingText = uiState.expiryDateError?.let { { Text(it) } }
                         )
-                        if (uiState.isScanningExpiry) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .padding(top = 16.dp),
-                                strokeWidth = 2.dp
+                        IconButton(
+                            onClick = { navController.navigate(Screen.ExpiryDateScan.route) },
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.CameraAlt,
+                                contentDescription = "Scan expiry date",
+                                tint = MaterialTheme.colorScheme.primary
                             )
-                        } else {
-                            IconButton(
-                                onClick = { expiryPhotoLauncher.launch(null) },
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Filled.CameraAlt,
-                                    contentDescription = "Scan expiry date",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
                         }
                     }
                 }

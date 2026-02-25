@@ -30,9 +30,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,11 +70,21 @@ fun BarcodeScannerScreen(
     val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
     var lastDetectedBarcode by remember { mutableStateOf("") }
     val haptic = LocalHapticFeedback.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Quick add confirmation: haptic + snackbar
+    LaunchedEffect(uiState.quickAddDone) {
+        if (uiState.quickAddDone) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            snackbarHostState.showSnackbar("Item added to inventory!")
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Barcode Scanner") })
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier

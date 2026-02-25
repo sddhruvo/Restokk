@@ -15,7 +15,8 @@ data class SubcategoryFormUiState(
     val name: String = "",
     val description: String = "",
     val nameError: String? = null,
-    val isSaved: Boolean = false
+    val isSaved: Boolean = false,
+    val hasBeenTouched: Boolean = false
 )
 
 @HiltViewModel
@@ -50,11 +51,11 @@ class SubcategoryFormViewModel @Inject constructor(
     }
 
     fun updateName(value: String) {
-        _uiState.update { it.copy(name = value, nameError = null) }
+        _uiState.update { it.copy(name = value, nameError = null, hasBeenTouched = true) }
     }
 
     fun updateDescription(value: String) {
-        _uiState.update { it.copy(description = value) }
+        _uiState.update { it.copy(description = value, hasBeenTouched = true) }
     }
 
     fun save() {

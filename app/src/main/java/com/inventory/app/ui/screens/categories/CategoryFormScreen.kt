@@ -38,8 +38,14 @@ import androidx.compose.material.icons.filled.RiceBowl
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.inventory.app.ui.components.AnimatedSaveButton
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -135,6 +141,36 @@ fun CategoryFormScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    val isDirty = uiState.hasBeenTouched && !uiState.isSaved
+
+    // Guard bottom nav taps when form has unsaved changes
+    RegisterNavigationGuard(
+        shouldBlock = { isDirty },
+        message = { "You have unsaved changes. Discard and leave?" }
+    )
+
+    BackHandler(enabled = isDirty) {
+        showDiscardDialog = true
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard Changes?") },
+            text = { Text("You have unsaved changes. Are you sure you want to go back?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardDialog = false
+                    navController.popBackStack()
+                }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep Editing") }
+            }
+        )
+    }
 
     LaunchedEffect(categoryId) {
         categoryId?.let { viewModel.loadCategory(it) }
@@ -158,7 +194,10 @@ fun CategoryFormScreen(
             TopAppBar(
                 title = { Text(if (categoryId != null) "Edit Category" else "Add Category") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        if (isDirty) showDiscardDialog = true
+                        else navController.popBackStack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }

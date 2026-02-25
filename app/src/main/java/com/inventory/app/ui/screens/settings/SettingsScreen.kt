@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.settings
 
+import androidx.activity.compose.BackHandler
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
@@ -80,6 +81,7 @@ import com.inventory.app.ui.components.AnimatedSaveButton
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.BuildConfig
 import com.inventory.app.R
+import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.AppTheme
 
@@ -93,6 +95,36 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    val isDirty = uiState.hasBeenTouched && !uiState.isSaved
+
+    // Guard bottom nav taps when settings have unsaved changes
+    RegisterNavigationGuard(
+        shouldBlock = { isDirty },
+        message = { "You have unsaved settings changes. Discard and leave?" }
+    )
+
+    BackHandler(enabled = isDirty) {
+        showDiscardDialog = true
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard Changes?") },
+            text = { Text("You have unsaved settings changes. Are you sure you want to go back?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardDialog = false
+                    navController.popBackStack()
+                }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep Editing") }
+            }
+        )
+    }
 
     // Google Sign-In launcher
     val googleSignInLauncher = rememberLauncherForActivityResult(
@@ -138,7 +170,10 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        if (isDirty) showDiscardDialog = true
+                        else navController.popBackStack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }

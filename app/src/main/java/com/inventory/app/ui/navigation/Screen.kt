@@ -112,6 +112,9 @@ sealed class Screen(val route: String) {
     // My Saved Recipes
     data object SavedRecipes : Screen("saved-recipes")
 
+    // Expiry Date Scanner
+    data object ExpiryDateScan : Screen("expiry-date-scan")
+
     // Onboarding
     data object Onboarding : Screen("onboarding")
 

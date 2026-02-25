@@ -10,6 +10,7 @@ import com.inventory.app.data.repository.BarcodeResult
 import com.inventory.app.data.repository.ItemRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -103,6 +104,11 @@ class BarcodeScannerViewModel @Inject constructor(
                     )
                 }
                 _uiState.update { it.copy(quickAddDone = true) }
+                // Auto-reset after 2s so user can scan next item
+                delay(2000)
+                _uiState.update {
+                    it.copy(result = ScanResult.None, quickAddDone = false, scanningEnabled = true, manualBarcode = "")
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Failed to add item: ${e.message}") }
             }

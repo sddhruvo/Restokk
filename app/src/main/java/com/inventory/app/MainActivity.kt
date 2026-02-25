@@ -32,6 +32,8 @@ import com.inventory.app.data.repository.ShoppingListRepository
 import androidx.compose.runtime.CompositionLocalProvider
 import com.inventory.app.ui.navigation.AppNavigation
 import com.inventory.app.ui.navigation.BottomNavBar
+import com.inventory.app.ui.navigation.LocalNavigationGuard
+import com.inventory.app.ui.navigation.NavigationGuardState
 import com.inventory.app.ui.navigation.QuickAddMenuOverlay
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
@@ -177,10 +179,14 @@ class MainActivity : ComponentActivity() {
                         // Shopping sheet state
                         var sheetRequest by remember { mutableStateOf<SheetRequest?>(null) }
 
+                        // Navigation guard state (discard dialogs for bottom nav)
+                        val navigationGuardState = remember { NavigationGuardState() }
+
                         CompositionLocalProvider(
                             LocalShowAddShoppingSheet provides { itemId, shoppingItemId ->
                                 sheetRequest = SheetRequest(itemId, shoppingItemId)
-                            }
+                            },
+                            LocalNavigationGuard provides navigationGuardState
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 Scaffold(

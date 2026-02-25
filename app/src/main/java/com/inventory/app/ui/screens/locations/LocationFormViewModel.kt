@@ -22,7 +22,8 @@ data class LocationFormUiState(
     val isEditing: Boolean = false,
     val editingId: Long? = null,
     val isSaved: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val hasBeenTouched: Boolean = false
 )
 
 @HiltViewModel
@@ -51,11 +52,11 @@ class LocationFormViewModel @Inject constructor(
         }
     }
 
-    fun updateName(value: String) { _uiState.update { it.copy(name = value, nameError = null) } }
-    fun updateDescription(value: String) { _uiState.update { it.copy(description = value) } }
-    fun updateColor(value: String) { _uiState.update { it.copy(color = value) } }
-    fun updateTemperatureZone(value: TemperatureZone?) { _uiState.update { it.copy(temperatureZone = value) } }
-    fun updateIsActive(value: Boolean) { _uiState.update { it.copy(isActive = value) } }
+    fun updateName(value: String) { _uiState.update { it.copy(name = value, nameError = null, hasBeenTouched = true) } }
+    fun updateDescription(value: String) { _uiState.update { it.copy(description = value, hasBeenTouched = true) } }
+    fun updateColor(value: String) { _uiState.update { it.copy(color = value, hasBeenTouched = true) } }
+    fun updateTemperatureZone(value: TemperatureZone?) { _uiState.update { it.copy(temperatureZone = value, hasBeenTouched = true) } }
+    fun updateIsActive(value: Boolean) { _uiState.update { it.copy(isActive = value, hasBeenTouched = true) } }
 
     fun save() {
         val state = _uiState.value

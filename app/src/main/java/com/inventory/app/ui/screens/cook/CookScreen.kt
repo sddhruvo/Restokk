@@ -37,6 +37,7 @@ import androidx.navigation.NavController
 import com.inventory.app.domain.model.CuisineData
 import com.inventory.app.domain.model.RegionalCuisine
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
 
 private val CardShape = RoundedCornerShape(16.dp)
@@ -53,6 +54,15 @@ fun CookScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Guard bottom nav taps when recipes are showing or loading
+    RegisterNavigationGuard(
+        shouldBlock = { (uiState.showResults && uiState.recipes.isNotEmpty()) || uiState.isLoading },
+        message = {
+            if (uiState.isLoading) "Recipe generation is in progress. Leave anyway?"
+            else "Your recipe results will be lost. Leave anyway?"
+        }
+    )
 
     // System back key: return to configurator when showing results
     BackHandler(enabled = uiState.showResults) {

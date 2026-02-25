@@ -39,6 +39,7 @@ import com.inventory.app.ui.screens.settings.ExportImportScreen
 import com.inventory.app.ui.screens.settings.SettingsScreen
 import com.inventory.app.ui.screens.cook.CookScreen
 import com.inventory.app.ui.screens.cook.SavedRecipesScreen
+import com.inventory.app.ui.screens.items.ExpiryDateScannerScreen
 import com.inventory.app.ui.screens.onboarding.OnboardingScreen
 import com.inventory.app.ui.screens.shopping.ShoppingListScreen
 
@@ -421,6 +422,17 @@ fun AppNavigation(
             popExitTransition = { detailPopExitTransition() }
         ) {
             FridgeScanScreen(navController = navController)
+        }
+
+        // Expiry Date Scanner
+        composable(
+            Screen.ExpiryDateScan.route,
+            enterTransition = { detailEnterTransition() },
+            exitTransition = { detailExitTransition() },
+            popEnterTransition = { detailPopEnterTransition() },
+            popExitTransition = { detailPopExitTransition() }
+        ) {
+            ExpiryDateScannerScreen(navController = navController)
         }
 
         // Search

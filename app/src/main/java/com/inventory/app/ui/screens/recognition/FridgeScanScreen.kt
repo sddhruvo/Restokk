@@ -108,6 +108,7 @@ import com.inventory.app.ui.components.DropdownField
 import com.inventory.app.ui.components.InkBloomDot
 import com.inventory.app.ui.components.InkDotState
 import com.inventory.app.ui.components.InkProgressLine
+import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.util.CategoryVisuals
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -285,6 +286,15 @@ fun FridgeScanScreen(
     val hasResults = uiState.state is FridgeScanState.Review
     val isInTourIdle = uiState.isInTourMode && uiState.state is FridgeScanState.Idle
     var showDiscardDialog by remember { mutableStateOf(false) }
+
+    // Guard bottom nav taps when scan results or tour in progress
+    RegisterNavigationGuard(
+        shouldBlock = { hasResults || isInTourIdle },
+        message = {
+            if (uiState.isInTourMode) "Going back will discard results for this area."
+            else "Going back will discard all identified items."
+        }
+    )
 
     BackHandler(enabled = hasResults || isInTourIdle) {
         if (hasResults && uiState.isInTourMode) {

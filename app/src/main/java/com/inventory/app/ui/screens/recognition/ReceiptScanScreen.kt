@@ -116,6 +116,7 @@ import com.inventory.app.data.local.entity.UnitEntity
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.BarcodeCameraPreview
 import com.inventory.app.ui.components.DropdownField
+import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.util.FormatUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -202,6 +203,12 @@ fun ReceiptScanScreen(
     // Back confirmation when scan results would be lost
     val hasResults = uiState.state is ReceiptScanState.Review
     var showDiscardDialog by remember { mutableStateOf(false) }
+
+    // Guard bottom nav taps when scan results exist
+    RegisterNavigationGuard(
+        shouldBlock = { hasResults },
+        message = { "Going back will discard all scanned items. This cannot be undone." }
+    )
 
     BackHandler(enabled = hasResults) {
         showDiscardDialog = true

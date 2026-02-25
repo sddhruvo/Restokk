@@ -27,6 +27,7 @@ data class SettingsUiState(
     val autoClearDays: String = "",
     val isSaved: Boolean = false,
     val isLoading: Boolean = true,
+    val hasBeenTouched: Boolean = false,
     val expiryWarningDaysError: String? = null,
     val currencyError: String? = null,
     val defaultQuantityError: String? = null,
@@ -173,11 +174,11 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun updateExpiryWarningDays(v: String) { _uiState.update { it.copy(expiryWarningDays = v, isSaved = false, expiryWarningDaysError = null) } }
-    fun updateCurrencySymbol(v: String) { _uiState.update { it.copy(currencySymbol = v, isSaved = false, currencyError = null) } }
-    fun updateDefaultQuantity(v: String) { _uiState.update { it.copy(defaultQuantity = v, isSaved = false, defaultQuantityError = null) } }
-    fun updateShoppingBudget(v: String) { _uiState.update { it.copy(shoppingBudget = v, isSaved = false, shoppingBudgetError = null) } }
-    fun updateAutoClearDays(v: String) { _uiState.update { it.copy(autoClearDays = v, isSaved = false, autoClearDaysError = null) } }
+    fun updateExpiryWarningDays(v: String) { _uiState.update { it.copy(expiryWarningDays = v, isSaved = false, expiryWarningDaysError = null, hasBeenTouched = true) } }
+    fun updateCurrencySymbol(v: String) { _uiState.update { it.copy(currencySymbol = v, isSaved = false, currencyError = null, hasBeenTouched = true) } }
+    fun updateDefaultQuantity(v: String) { _uiState.update { it.copy(defaultQuantity = v, isSaved = false, defaultQuantityError = null, hasBeenTouched = true) } }
+    fun updateShoppingBudget(v: String) { _uiState.update { it.copy(shoppingBudget = v, isSaved = false, shoppingBudgetError = null, hasBeenTouched = true) } }
+    fun updateAutoClearDays(v: String) { _uiState.update { it.copy(autoClearDays = v, isSaved = false, autoClearDaysError = null, hasBeenTouched = true) } }
 
     fun toggleNotificationsEnabled(enabled: Boolean) {
         _uiState.update { it.copy(notificationsEnabled = enabled) }
@@ -256,7 +257,7 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.set(SettingsRepository.KEY_DEFAULT_QUANTITY, state.defaultQuantity)
             settingsRepository.set(SettingsRepository.KEY_SHOPPING_BUDGET, state.shoppingBudget)
             settingsRepository.set(SettingsRepository.KEY_AUTO_CLEAR_DAYS, state.autoClearDays)
-            _uiState.update { it.copy(isSaved = true) }
+            _uiState.update { it.copy(isSaved = true, hasBeenTouched = false) }
             delay(100)
             _uiState.update { it.copy(isSaved = false) }
         }
