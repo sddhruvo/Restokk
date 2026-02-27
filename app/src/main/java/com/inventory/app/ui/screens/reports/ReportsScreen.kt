@@ -26,6 +26,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,15 +36,62 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.inventory.app.data.repository.ItemRepository
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
+import com.inventory.app.ui.components.EmptyStateIllustration
 import com.inventory.app.ui.components.StaggeredAnimatedItem
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class ReportsViewModel @Inject constructor(
+    private val settingsRepository: SettingsRepository,
+    private val itemRepository: ItemRepository
+) : ViewModel() {
+    private val _totalItemCount = MutableStateFlow(0)
+    val totalItemCount = _totalItemCount.asStateFlow()
+
+    private val _userPreference = MutableStateFlow("INVENTORY")
+    val userPreference = _userPreference.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            itemRepository.getTotalItemCount().collect { count ->
+                _totalItemCount.value = count
+            }
+        }
+        viewModelScope.launch {
+            _userPreference.value = settingsRepository.getString(
+                OnboardingViewModel.KEY_USER_PREFERENCE, "INVENTORY"
+            )
+        }
+    }
+
+    fun markReportsViewed() {
+        viewModelScope.launch {
+            settingsRepository.setBoolean("reports_viewed", true)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(navController: NavController) {
+    val viewModel: ReportsViewModel = hiltViewModel()
+    val totalItems by viewModel.totalItemCount.collectAsState()
+    val preference by viewModel.userPreference.collectAsState()
+    LaunchedEffect(Unit) { viewModel.markReportsViewed() }
     val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
         topBar = {
@@ -56,6 +106,24 @@ fun ReportsScreen(navController: NavController) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
+        if (totalItems == 0) {
+            val emptyBody = when (preference) {
+                "WASTE" -> "Track your items for a few days and we'll show you what expires, what you waste, and how to save."
+                "COOK" -> "Use the app for a few days and we'll show you cooking patterns, favourite recipes, and kitchen insights."
+                else -> "Use the app for a few days and we'll show you patterns \u2014 what you spend, what expires, what you use most."
+            }
+            EmptyStateIllustration(
+                icon = Icons.Filled.Assessment,
+                headline = "Insights are brewing",
+                body = emptyBody,
+                ctaLabel = "Stock your shelves",
+                onCtaClick = { navController.navigate(Screen.KitchenMap.route) },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            )
+            return@Scaffold
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(16.dp),

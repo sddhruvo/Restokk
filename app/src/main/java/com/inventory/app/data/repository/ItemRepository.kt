@@ -114,6 +114,8 @@ class ItemRepository @Inject constructor(
 
     suspend fun getAllActiveNamesAndIds(): List<com.inventory.app.data.local.dao.InventoryNameId> = itemDao.getAllActiveNamesAndIds()
 
+    suspend fun getLastAddedItemId(): Long? = itemDao.getLastAddedItemId()
+
     suspend fun search(query: String): List<ItemEntity> = itemDao.search(query)
 
     suspend fun suggestNames(query: String, limit: Int = 5): List<String> = itemDao.suggestNames(query, limit)

@@ -37,8 +37,11 @@ import androidx.navigation.NavController
 import com.inventory.app.domain.model.CuisineData
 import com.inventory.app.domain.model.RegionalCuisine
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.EmptyStateIllustration
+import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.theme.PaperInkMotion
 
 private val CardShape = RoundedCornerShape(16.dp)
 private val ChipShape = RoundedCornerShape(20.dp)
@@ -128,6 +131,20 @@ fun CookScreen(
             ) { showResults ->
                 if (showResults) {
                     ResultsScreen(uiState, viewModel, navController)
+                } else if (uiState.inventoryItems.isEmpty()) {
+                    val emptyBody = when (uiState.userPreference) {
+                        "COOK" -> "This is where the magic happens. Add 5+ items and we'll find recipes you can make tonight."
+                        "WASTE" -> "Add items you want to use up and we'll suggest recipes before they expire."
+                        else -> "Add 5 or more items to your inventory and we'll show you what you can cook with what you have."
+                    }
+                    EmptyStateIllustration(
+                        icon = Icons.Filled.Restaurant,
+                        headline = "Recipes from YOUR kitchen",
+                        body = emptyBody,
+                        ctaLabel = "Add Items",
+                        onCtaClick = { navController.navigate(Screen.ItemForm.createRoute()) },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
                     ConfiguratorScreen(uiState, viewModel, navController)
                 }
@@ -153,6 +170,7 @@ fun CookScreen(
 @Composable
 private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, navController: NavController) {
     val listState = rememberLazyListState()
+    val aiGate = rememberAiSignInGate()
 
     // Section index: O(1) read from firstVisibleItemIndex
     val tipOffset = if (uiState.currentTip != null) 1 else 0
@@ -400,7 +418,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                             )
                         }
                         Button(
-                            onClick = { viewModel.cook() },
+                            onClick = { aiGate.requireSignIn("generate recipe suggestions") { viewModel.cook() } },
                             enabled = uiState.canCook,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1425,12 +1443,12 @@ private fun WriteInAnimatedItem(
 
     val offsetX by animateFloatAsState(
         targetValue = if (visible) 0f else -20f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f),
+        animationSpec = PaperInkMotion.BouncySpring,
         label = "writeIn_x"
     )
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = 1.0f, stiffness = 200f),
+        animationSpec = PaperInkMotion.GentleSpring,
         label = "writeIn_alpha"
     )
 
@@ -1480,7 +1498,7 @@ private fun AnimatedBookmarkIcon(
     var wasJustSaved by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (wasJustSaved) 1.3f else 1f,
-        animationSpec = spring(dampingRatio = 0.3f, stiffness = 200f),
+        animationSpec = PaperInkMotion.WobblySpring,
         finishedListener = { wasJustSaved = false },
         label = "bookmark_scale"
     )
@@ -1525,7 +1543,7 @@ private fun CookTipCard(
     LaunchedEffect(tip.id) { tipVisible = true }
     val tipOffsetY by animateFloatAsState(
         targetValue = if (tipVisible) 0f else -30f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 120f),
+        animationSpec = PaperInkMotion.SettleSpring,
         label = "tip_slide"
     )
     val tipAlpha by animateFloatAsState(

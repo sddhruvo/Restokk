@@ -39,8 +39,8 @@ android {
         applicationId = "com.restokk.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.2.2"
+        versionCode = 15
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

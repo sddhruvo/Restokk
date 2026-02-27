@@ -4,13 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.dao.ChartDataRow
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
-import com.inventory.app.data.repository.AuthRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.PantryHealthRepository
 import com.inventory.app.data.repository.SavedRecipeRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
 import com.inventory.app.domain.model.HomeScoreCalculator
+import com.inventory.app.domain.model.KitchenStoryMission
+import com.inventory.app.domain.model.KitchenStoryMissions
+import com.inventory.app.domain.model.KitchenStoryState
+import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,9 +45,8 @@ data class DashboardUiState(
     val shoppingActive: Int = 0,
     val shoppingPurchased: Int = 0,
     val savedRecipeCount: Int = 0,
-    val showBetaWelcome: Boolean = false,
-    val betaSignInLoading: Boolean = false,
-    val betaSignInError: String? = null
+    val userPreference: String = "INVENTORY",
+    val kitchenStory: KitchenStoryState = KitchenStoryState()
 )
 
 @HiltViewModel
@@ -53,59 +55,17 @@ class DashboardViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val shoppingListRepository: ShoppingListRepository,
     private val pantryHealthRepository: PantryHealthRepository,
-    private val savedRecipeRepository: SavedRecipeRepository,
-    private val authRepository: AuthRepository
+    private val savedRecipeRepository: SavedRecipeRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private var kitchenStoryJob: Job? = null
 
     init {
         loadData()
-        checkBetaWelcome()
-    }
-
-    private fun checkBetaWelcome() {
-        viewModelScope.launch {
-            val shown = settingsRepository.getBoolean("beta_welcome_shown", false)
-            if (shown) return@launch
-
-            // If user already signed in via Settings, silently set flag
-            val user = authRepository.currentUser
-            if (user != null && !user.isAnonymous) {
-                settingsRepository.setBoolean("beta_welcome_shown", true)
-                return@launch
-            }
-
-            _uiState.update { it.copy(showBetaWelcome = true) }
-        }
-    }
-
-    /** Dismiss for this session only — dialog will reappear next launch */
-    fun dismissBetaWelcomeForSession() {
-        _uiState.update { it.copy(showBetaWelcome = false, betaSignInError = null) }
-    }
-
-    fun onBetaSignInError(message: String) {
-        _uiState.update { it.copy(betaSignInError = message) }
-    }
-
-    /** Sign in with Google from beta dialog — sets flag permanently on success */
-    fun onBetaGoogleSignIn(idToken: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(betaSignInLoading = true, betaSignInError = null) }
-            val result = authRepository.signInWithGoogle(idToken)
-            if (result.isSuccess) {
-                settingsRepository.setBoolean("beta_welcome_shown", true)
-                _uiState.update { it.copy(showBetaWelcome = false, betaSignInLoading = false, betaSignInError = null) }
-            } else {
-                _uiState.update { it.copy(
-                    betaSignInLoading = false,
-                    betaSignInError = result.exceptionOrNull()?.message ?: "Sign-in failed"
-                ) }
-            }
-        }
+        loadKitchenStory()
     }
 
     private fun loadData() {
@@ -115,10 +75,12 @@ class DashboardViewModel @Inject constructor(
             val currency = settingsRepository.getCurrencySymbol()
             val lastItems = settingsRepository.getInt("last_scan_item_count", 0)
             val lastAreas = settingsRepository.getInt("last_scan_area_count", 0)
+            val preference = settingsRepository.getString(OnboardingViewModel.KEY_USER_PREFERENCE, "INVENTORY")
             _uiState.update { it.copy(
                 currencySymbol = currency,
                 lastScanItemCount = lastItems,
-                lastScanAreaCount = lastAreas
+                lastScanAreaCount = lastAreas,
+                userPreference = preference
             ) }
         }
         @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -268,6 +230,101 @@ class DashboardViewModel @Inject constructor(
             } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         }
         } // end loadJob
+    }
+
+    private fun loadKitchenStory() {
+        kitchenStoryJob?.cancel()
+        kitchenStoryJob = viewModelScope.launch {
+            val dismissed = settingsRepository.getBoolean(KitchenStoryMissions.KEY_DISMISSED, false)
+            val onboardingDone = settingsRepository.getBoolean(OnboardingViewModel.KEY_ONBOARDING_COMPLETED, false)
+            if (dismissed || !onboardingDone) {
+                _uiState.update { it.copy(kitchenStory = KitchenStoryState(isDismissed = dismissed, onboardingCompleted = onboardingDone)) }
+                return@launch
+            }
+
+            val preference = settingsRepository.getString(OnboardingViewModel.KEY_USER_PREFERENCE, "INVENTORY")
+            val definitions = KitchenStoryMissions.getOrderedMissions(preference)
+
+            // Reactive combine: item count, shopping count, recipe viewed, reports viewed, expiry count, smart defaults flag
+            combine(
+                itemRepository.getTotalItemCount(),
+                shoppingListRepository.getActiveCount(),
+                settingsRepository.getBooleanFlow("recipe_result_viewed", false),
+                settingsRepository.getBooleanFlow("reports_viewed", false),
+                itemRepository.getItemsWithExpiryCount(),
+                settingsRepository.getBooleanFlow(KitchenStoryMissions.KEY_SMART_DEFAULTS_SHOWN, false)
+            ) { values ->
+                val itemCount = values[0] as Int
+                val shoppingCount = values[1] as Int
+                val recipeViewed = values[2] as Boolean
+                val reportsViewed = values[3] as Boolean
+                val expiryCount = values[4] as Int
+                val smartDefaultsShown = values[5] as Boolean
+
+                val missions = definitions.mapIndexed { idx, def ->
+                    val alreadyDone = settingsRepository.getBoolean(def.settingsKey, false)
+                    val triggered = KitchenStoryMissions.evaluateTrigger(
+                        def.triggerType, itemCount, shoppingCount, recipeViewed, reportsViewed, expiryCount
+                    )
+                    val completed = alreadyDone || triggered
+                    // Auto-persist: one-way false→true
+                    if (triggered && !alreadyDone) {
+                        settingsRepository.setBoolean(def.settingsKey, true)
+                    }
+                    val subtitle = if (!completed) {
+                        KitchenStoryMissions.dynamicSubtitle(def.triggerType, itemCount, shoppingCount, expiryCount)
+                    } else null
+
+                    KitchenStoryMission(idx, def.text, completed, def.settingsKey, def.navTarget, subtitle)
+                }
+                val completedCount = missions.count { it.isCompleted }
+
+                // Show Smart Defaults education when mission 1 (Stock your shelves) first completes
+                val stockMissionComplete = missions.firstOrNull()?.isCompleted == true
+                val showSmartDefaults = stockMissionComplete && !smartDefaultsShown
+
+                KitchenStoryState(
+                    missions = missions,
+                    isDismissed = false,
+                    onboardingCompleted = true,
+                    cardSubtitle = KitchenStoryMissions.cardSubtitle(completedCount),
+                    showSmartDefaultsEducation = showSmartDefaults
+                )
+            }.collect { story ->
+                _uiState.update { it.copy(kitchenStory = story) }
+            }
+        }
+    }
+
+    fun dismissSmartDefaultsEducation() {
+        viewModelScope.launch {
+            settingsRepository.setBoolean(KitchenStoryMissions.KEY_SMART_DEFAULTS_SHOWN, true)
+            _uiState.update { it.copy(kitchenStory = it.kitchenStory.copy(showSmartDefaultsEducation = false)) }
+        }
+    }
+
+    /** Navigate to most recently added item in tour mode. Returns item ID or null. */
+    suspend fun startSmartDefaultsTour(): Long? {
+        val itemId = itemRepository.getLastAddedItemId() ?: return null
+        com.inventory.app.ui.screens.items.ItemFormViewModel.pendingTourMode = true
+        dismissSmartDefaultsEducation()
+        return itemId
+    }
+
+    fun dismissKitchenStory() {
+        kitchenStoryJob?.cancel() // Stop combine from overwriting isDismissed
+        _uiState.update { it.copy(kitchenStory = it.kitchenStory.copy(isDismissed = true)) }
+        viewModelScope.launch {
+            settingsRepository.setBoolean(KitchenStoryMissions.KEY_DISMISSED, true)
+        }
+    }
+
+    fun completeKitchenStory() {
+        kitchenStoryJob?.cancel()
+        _uiState.update { it.copy(kitchenStory = it.kitchenStory.copy(isDismissed = true)) }
+        viewModelScope.launch {
+            settingsRepository.setBoolean(KitchenStoryMissions.KEY_DISMISSED, true)
+        }
     }
 
     fun refresh() {

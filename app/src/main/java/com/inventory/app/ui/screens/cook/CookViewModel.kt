@@ -8,6 +8,7 @@ import com.google.gson.reflect.TypeToken
 import com.inventory.app.data.repository.GrokRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.SavedRecipeRepository
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
 import com.inventory.app.data.local.entity.SavedRecipeEntity
 import com.inventory.app.data.local.entity.ShoppingListItemEntity
@@ -15,6 +16,7 @@ import com.inventory.app.data.local.entity.relations.ItemWithDetails
 import com.inventory.app.domain.model.CuisineData
 import com.inventory.app.domain.model.RegionalCuisine
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -152,6 +154,8 @@ data class CookSettingsSnapshot(
 // ── UI State ───────────────────────────────────────────────────────────
 
 data class CookUiState(
+    // Preference
+    val userPreference: String = "INVENTORY",
     // Configurator
     val selectedMood: MealMood? = null,
     val selectedCuisine: RegionalCuisine? = null,
@@ -213,6 +217,7 @@ class CookViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
     private val savedRecipeRepository: SavedRecipeRepository,
     private val shoppingListRepository: ShoppingListRepository,
+    private val settingsRepository: SettingsRepository,
     private val gson: Gson
 ) : ViewModel() {
 
@@ -220,6 +225,7 @@ class CookViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        loadPreference()
         loadInventory()
         loadSavedRecipeState()
         // Consume "Cook Again" settings if pending
@@ -233,6 +239,15 @@ class CookViewModel @Inject constructor(
         super.onCleared()
         // Clear static holder to prevent leaking between navigations
         pendingCookAgainSettings = null
+    }
+
+    private fun loadPreference() {
+        viewModelScope.launch {
+            val pref = settingsRepository.getString(
+                OnboardingViewModel.KEY_USER_PREFERENCE, "INVENTORY"
+            )
+            _uiState.update { it.copy(userPreference = pref) }
+        }
     }
 
     private fun loadInventory() {
@@ -565,6 +580,7 @@ class CookViewModel @Inject constructor(
                                 }).takeLast(15)
                             )}
                             evaluateResultsTips()
+                            settingsRepository.setBoolean("recipe_result_viewed", true)
                         }
                     },
                     onFailure = { e ->

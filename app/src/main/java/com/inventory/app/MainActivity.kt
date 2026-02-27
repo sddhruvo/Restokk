@@ -30,6 +30,7 @@ import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.ShoppingListRepository
 import androidx.compose.runtime.CompositionLocalProvider
+import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.navigation.AppNavigation
 import com.inventory.app.ui.navigation.BottomNavBar
 import com.inventory.app.ui.navigation.LocalNavigationGuard
@@ -42,6 +43,8 @@ import com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet
 import com.inventory.app.ui.screens.shopping.SheetRequest
 import com.inventory.app.ui.theme.AppTheme
 import com.inventory.app.ui.theme.HomeInventoryTheme
+import com.inventory.app.ui.theme.LocalReduceMotion
+import com.inventory.app.ui.theme.rememberReduceMotion
 import com.inventory.app.worker.SmartNotificationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -139,6 +142,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            val reduceMotion = rememberReduceMotion()
+            CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
             HomeInventoryTheme(appTheme = appTheme) {
                 val navController = rememberNavController()
                 val currentRoute = navController.currentBackStackEntryAsState()
@@ -188,6 +193,8 @@ class MainActivity : ComponentActivity() {
                             },
                             LocalNavigationGuard provides navigationGuardState
                         ) {
+                            val aiGate = rememberAiSignInGate()
+
                             Box(modifier = Modifier.fillMaxSize()) {
                                 Scaffold(
                                     modifier = Modifier.fillMaxSize(),
@@ -217,9 +224,17 @@ class MainActivity : ComponentActivity() {
                                     onDismiss = { isQuickAddOpen = false },
                                     onItemClick = { menuItem ->
                                         isQuickAddOpen = false
+                                        val aiRoutes = setOf(Screen.FridgeScan.route, Screen.ReceiptScan.route)
                                         if (menuItem.route == Screen.AddShoppingItem.createRoute()) {
-                                            // Open bottom sheet instead of navigating
                                             sheetRequest = SheetRequest()
+                                        } else if (menuItem.route in aiRoutes) {
+                                            val desc = if (menuItem.route == Screen.FridgeScan.route)
+                                                "identify kitchen items" else "parse receipts"
+                                            aiGate.requireSignIn(desc) {
+                                                navController.navigate(menuItem.route) {
+                                                    launchSingleTop = true
+                                                }
+                                            }
                                         } else {
                                             navController.navigate(menuItem.route) {
                                                 launchSingleTop = true
@@ -240,6 +255,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+            } // CompositionLocalProvider(LocalReduceMotion)
         }
     }
 }

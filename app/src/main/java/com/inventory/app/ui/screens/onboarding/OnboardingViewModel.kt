@@ -20,9 +20,11 @@ class OnboardingViewModel @Inject constructor(
 
     companion object {
         const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        const val KEY_USER_PREFERENCE = "user_preference"
+        const val KEY_DATE_FORMAT = "date_format"
         private const val SS_PAGE_INDEX = "ss_page_index"
         private const val SS_REGION_CODE = "ss_region_code"
-        private const val SS_START_CHOICE = "ss_start_choice"
+        private const val SS_USER_PREFERENCE = "ss_user_preference"
         private const val SS_SHOW_REGION_PICKER = "ss_show_region_picker"
         private const val SS_CUSTOM_COUNTRY_NAME = "ss_custom_country_name"
         private const val SS_CUSTOM_CURRENCY = "ss_custom_currency"
@@ -33,14 +35,13 @@ class OnboardingViewModel @Inject constructor(
         val detectedRegion: RegionInfo = detectRegion(),
         val selectedRegion: RegionInfo = detectRegion(),
         val showRegionPicker: Boolean = false,
-        val startChoice: StartChoice? = null,
+        val userPreference: UserPreference? = null,
         val isCompleting: Boolean = false
     ) {
         val currentPage: OnboardingPage get() = onboardingPages[currentPageIndex]
         val pageCount: Int get() = onboardingPages.size
         val isFirstPage: Boolean get() = currentPageIndex == 0
         val isLastPage: Boolean get() = currentPageIndex == onboardingPages.lastIndex
-        val canSkip: Boolean get() = currentPage.canSkip
     }
 
     private val _uiState = MutableStateFlow(restoreState())
@@ -49,7 +50,7 @@ class OnboardingViewModel @Inject constructor(
     private fun restoreState(): UiState {
         val pageIndex = savedStateHandle.get<Int>(SS_PAGE_INDEX) ?: 0
         val regionCode = savedStateHandle.get<String>(SS_REGION_CODE)
-        val choiceName = savedStateHandle.get<String>(SS_START_CHOICE)
+        val prefName = savedStateHandle.get<String>(SS_USER_PREFERENCE)
         val showPicker = savedStateHandle.get<Boolean>(SS_SHOW_REGION_PICKER) ?: false
 
         val detected = detectRegion()
@@ -65,8 +66,8 @@ class OnboardingViewModel @Inject constructor(
             popularRegions.find { it.countryCode == regionCode } ?: detected
         } else detected
 
-        val choice = choiceName?.let {
-            try { StartChoice.valueOf(it) } catch (_: Exception) { null }
+        val pref = prefName?.let {
+            try { UserPreference.valueOf(it) } catch (_: Exception) { null }
         }
 
         return UiState(
@@ -74,14 +75,14 @@ class OnboardingViewModel @Inject constructor(
             detectedRegion = detected,
             selectedRegion = region,
             showRegionPicker = showPicker,
-            startChoice = choice
+            userPreference = pref
         )
     }
 
     private fun persist(state: UiState) {
         savedStateHandle[SS_PAGE_INDEX] = state.currentPageIndex
         savedStateHandle[SS_REGION_CODE] = state.selectedRegion.countryCode
-        savedStateHandle[SS_START_CHOICE] = state.startChoice?.name
+        savedStateHandle[SS_USER_PREFERENCE] = state.userPreference?.name
         savedStateHandle[SS_SHOW_REGION_PICKER] = state.showRegionPicker
         if (state.selectedRegion.countryCode == "CUSTOM") {
             savedStateHandle[SS_CUSTOM_COUNTRY_NAME] = state.selectedRegion.countryName
@@ -124,11 +125,13 @@ class OnboardingViewModel @Inject constructor(
         updateState { it.copy(showRegionPicker = !it.showRegionPicker) }
     }
 
-    fun setStartChoice(choice: StartChoice) {
-        updateState { it.copy(startChoice = choice) }
+    fun setPreference(pref: UserPreference) {
+        updateState { it.copy(userPreference = pref) }
     }
 
-    fun confirmRegionAndAdvance() {
+    /** Saves region + preference settings and advances to Act 2 (does NOT set onboarding_completed). */
+    fun saveSettingsAndContinue() {
+        val pref = _uiState.value.userPreference
         val region = _uiState.value.selectedRegion
         viewModelScope.launch {
             settingsRepository.set(
@@ -143,21 +146,25 @@ class OnboardingViewModel @Inject constructor(
                 "string",
                 "Region country code"
             )
+            settingsRepository.set(
+                KEY_DATE_FORMAT,
+                region.dateFormatPreview,
+                "string",
+                "Date format preview"
+            )
+            pref?.let {
+                settingsRepository.set(
+                    KEY_USER_PREFERENCE,
+                    it.name,
+                    "string",
+                    "User preference"
+                )
+            }
+            nextPage()
         }
-        nextPage()
     }
 
-    fun completeOnboarding(onComplete: (StartChoice?) -> Unit) {
-        if (_uiState.value.isCompleting) return
-        _uiState.update { it.copy(isCompleting = true) }
-        val choice = _uiState.value.startChoice
-        viewModelScope.launch {
-            settingsRepository.setBoolean(KEY_ONBOARDING_COMPLETED, true)
-            onComplete(choice)
-        }
-    }
-
-    fun skipOnboarding(onComplete: () -> Unit) {
+    fun completeOnboarding(onComplete: () -> Unit) {
         if (_uiState.value.isCompleting) return
         _uiState.update { it.copy(isCompleting = true) }
         viewModelScope.launch {
@@ -165,4 +172,5 @@ class OnboardingViewModel @Inject constructor(
             onComplete()
         }
     }
+
 }

@@ -64,4 +64,12 @@ object FormatUtils {
         val country = Locale.getDefault().country
         return if (country in setOf("US", "CA")) "MMM d" else "d MMM"
     }
+
+    // ── Shelf Life ────────────────────────────────────────────────────────
+
+    fun formatShelfLife(days: Int): String = when {
+        days >= 365 -> "~${days / 365} year${if (days >= 730) "s" else ""}"
+        days >= 30 -> "~${days / 30} month${if (days >= 60) "s" else ""}"
+        else -> "~$days day${if (days != 1) "s" else ""}"
+    }
 }

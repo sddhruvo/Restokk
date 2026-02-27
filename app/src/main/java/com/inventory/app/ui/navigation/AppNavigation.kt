@@ -88,12 +88,9 @@ fun AppNavigation(
             popExitTransition = { fadeOut(tween(300)) }
         ) {
             OnboardingScreen(
-                onComplete = { postRoute ->
+                onComplete = {
                     navController.navigate(Screen.Dashboard.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
-                    }
-                    postRoute?.let { route ->
-                        navController.navigate(route)
                     }
                 }
             )

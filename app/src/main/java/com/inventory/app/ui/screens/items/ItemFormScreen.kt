@@ -6,6 +6,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,17 +42,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.ui.components.AnimatedSaveButton
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.AutoCompleteTextField
 import com.inventory.app.ui.components.DatePickerField
 import com.inventory.app.ui.components.DropdownField
@@ -73,6 +79,16 @@ fun ItemFormScreen(
     val uiState by viewModel.uiState.collectAsState()
     val isDirty by viewModel.isDirty.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scrollState = rememberScrollState()
+    val aiGate = rememberAiSignInGate()
+
+    // Smart Defaults tour — read & clear one-shot flag
+    val tourMode = remember { ItemFormViewModel.pendingTourMode.also { ItemFormViewModel.pendingTourMode = false } }
+    var showTourOverlay by remember { mutableStateOf(tourMode) }
+    var tourStep by remember { mutableStateOf(TourStep.DONE) }
+    var categoryRowY by remember { mutableIntStateOf(0) }
+    var expiryRowY by remember { mutableIntStateOf(0) }
+    var scaffoldTopPadding by remember { mutableIntStateOf(0) }
 
     // Observe scanned expiry date result from ExpiryDateScannerScreen
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
@@ -207,11 +223,18 @@ fun ItemFormScreen(
             }
         }
     ) { padding ->
+        val density = LocalDensity.current
+        // Capture scaffold top padding in px for tour overlay positioning
+        LaunchedEffect(padding) {
+            scaffoldTopPadding = with(density) { padding.calculateTopPadding().toPx() }.toInt()
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -254,7 +277,16 @@ fun ItemFormScreen(
 
                     // Category + Location side by side
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { coords ->
+                                categoryRowY = coords.positionInParent().y.toInt()
+                            }
+                            .tourHighlight(
+                                active = tourStep == TourStep.CATEGORY_LOCATION,
+                                color = TourHighlightGreen
+                            )
+                            .padding(2.dp), // inset so border doesn't clip
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         DropdownField(
@@ -301,7 +333,16 @@ fun ItemFormScreen(
 
                     // Expiry date + camera scan
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { coords ->
+                                expiryRowY = coords.positionInParent().y.toInt()
+                            }
+                            .tourHighlight(
+                                active = tourStep == TourStep.EXPIRY,
+                                color = TourHighlightAmber
+                            )
+                            .padding(2.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.Top
                     ) {
@@ -314,7 +355,11 @@ fun ItemFormScreen(
                             supportingText = uiState.expiryDateError?.let { { Text(it) } }
                         )
                         IconButton(
-                            onClick = { navController.navigate(Screen.ExpiryDateScan.route) },
+                            onClick = {
+                                aiGate.requireSignIn("scan expiry dates") {
+                                    navController.navigate(Screen.ExpiryDateScan.route)
+                                }
+                            },
                             modifier = Modifier.padding(top = 8.dp)
                         ) {
                             Icon(
@@ -509,5 +554,23 @@ fun ItemFormScreen(
             // Bottom spacer for floating save button clearance
             Spacer(Modifier.height(80.dp))
         }
+
+        // Smart Defaults tour overlay — tourMode navigates to an existing item,
+        // so smartDefaultsApplied won't be set (it's only set for new items).
+        // We just need the tour flag — the item already has smart defaults from when it was created.
+        if (showTourOverlay) {
+            SmartDefaultsTourOverlay(
+                scrollState = scrollState,
+                categoryRowY = categoryRowY,
+                expiryRowY = expiryRowY,
+                scaffoldTopPadding = scaffoldTopPadding,
+                onStepChanged = { tourStep = it },
+                onDismiss = {
+                    tourStep = TourStep.DONE
+                    showTourOverlay = false
+                }
+            )
+        }
+        } // Box
     }
 }

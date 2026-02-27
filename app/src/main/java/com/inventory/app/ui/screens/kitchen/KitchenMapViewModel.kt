@@ -13,12 +13,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
 import com.inventory.app.data.repository.ItemRepository
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.StorageLocationRepository
+import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class KitchenZone(
@@ -34,13 +38,15 @@ data class KitchenZone(
 data class KitchenMapUiState(
     val zones: List<KitchenZone> = emptyList(),
     val totalItems: Int = 0,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val userPreference: String = "INVENTORY"
 )
 
 @HiltViewModel
 class KitchenMapViewModel @Inject constructor(
     itemRepository: ItemRepository,
-    storageLocationRepository: StorageLocationRepository
+    storageLocationRepository: StorageLocationRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     companion object {
@@ -89,10 +95,21 @@ class KitchenMapViewModel @Inject constructor(
         )
     }
 
+    private val _preference = MutableStateFlow("INVENTORY")
+
+    init {
+        viewModelScope.launch {
+            _preference.value = settingsRepository.getString(
+                OnboardingViewModel.KEY_USER_PREFERENCE, "INVENTORY"
+            )
+        }
+    }
+
     val uiState = combine(
         storageLocationRepository.getAllWithItemCount(),
-        itemRepository.getAllActiveWithDetails()
-    ) { locations, items ->
+        itemRepository.getAllActiveWithDetails(),
+        _preference
+    ) { locations, items, pref ->
         val itemsByLocationId = items.groupBy { it.item.storageLocationId }
 
         // Build a map of locationId → name for lookup
@@ -170,7 +187,8 @@ class KitchenMapViewModel @Inject constructor(
         KitchenMapUiState(
             zones = finalZones,
             totalItems = items.size,
-            isLoading = false
+            isLoading = false,
+            userPreference = pref
         )
     }.stateIn(
         scope = viewModelScope,

@@ -771,4 +771,9 @@ If no expiry date found, return exactly: NONE""",
         return if (this == this.toLong().toDouble()) this.toLong().toString()
         else "%.2f".format(this)
     }
+
+    companion object {
+        /** One-shot flag: set by Dashboard "Show me" → consumed by ItemFormScreen to show tour overlay */
+        var pendingTourMode: Boolean = false
+    }
 }

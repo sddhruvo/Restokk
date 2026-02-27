@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.inventory.app.BuildConfig
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.StaggeredAnimatedItem
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.CardBlue
@@ -66,6 +67,7 @@ import com.inventory.app.ui.theme.CardPurple
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(navController: NavController) {
+    val aiGate = rememberAiSignInGate()
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("More") })
@@ -128,7 +130,9 @@ fun MoreScreen(navController: NavController) {
                             },
                             { mod ->
                                 MoreActionCard(mod, "Kitchen Scan", Icons.Filled.PhotoCamera, CardGreen) {
-                                    navController.navigate(Screen.FridgeScan.route)
+                                    aiGate.requireSignIn("identify kitchen items") {
+                                        navController.navigate(Screen.FridgeScan.route)
+                                    }
                                 }
                             },
                             { mod ->
@@ -143,7 +147,9 @@ fun MoreScreen(navController: NavController) {
                             },
                             { mod ->
                                 MoreActionCard(mod, "Scan Receipt", Icons.Filled.Receipt, CardGreen) {
-                                    navController.navigate(Screen.ReceiptScan.route)
+                                    aiGate.requireSignIn("parse receipts") {
+                                        navController.navigate(Screen.ReceiptScan.route)
+                                    }
                                 }
                             }
                         )

@@ -87,7 +87,7 @@ import androidx.navigation.NavController
 import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.formatQty
-import com.inventory.app.ui.components.AnimatedEmptyState
+import com.inventory.app.ui.components.EmptyStateIllustration
 import com.inventory.app.ui.components.AnimatedFab
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.navigation.Screen
@@ -307,10 +307,13 @@ fun ItemListScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
                     uiState.isLoading -> LoadingState()
-                    uiState.items.isEmpty() -> AnimatedEmptyState(
+                    uiState.items.isEmpty() -> EmptyStateIllustration(
                         icon = Icons.Filled.Inventory2,
-                        title = "No Items",
-                        message = "Add your first inventory item"
+                        headline = "This is where everything lives",
+                        body = "Every item in your kitchen, organized and tracked. Let\u2019s add your first ones.",
+                        ctaLabel = "Add item",
+                        onCtaClick = { navController.navigate(Screen.ItemForm.createRoute()) },
+                        modifier = Modifier.fillMaxSize()
                     )
                     else -> {
                         Crossfade(

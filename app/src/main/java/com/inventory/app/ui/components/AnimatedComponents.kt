@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import com.inventory.app.ui.theme.PaperInkMotion
 import java.time.LocalTime
 import kotlin.math.PI
 import kotlin.math.cos
@@ -347,6 +348,7 @@ fun AnimatedFab(
 fun DashboardGreeting(
     totalItems: Int,
     expiringSoon: Int,
+    userPreference: String = "INVENTORY",
     modifier: Modifier = Modifier
 ) {
     val hour = LocalTime.now().hour
@@ -355,10 +357,15 @@ fun DashboardGreeting(
         hour < 17 -> "Good afternoon"
         else -> "Good evening"
     }
+    val prefTagline = when (userPreference) {
+        "WASTE" -> "Let's keep things fresh"
+        "COOK" -> "Ready to cook something great?"
+        else -> "Here's your kitchen at a glance"
+    }
     val subtitle = when {
         totalItems == 0 -> "Start by adding your first item"
-        expiringSoon > 0 -> "$expiringSoon item${if (expiringSoon != 1) "s" else ""} expiring soon"
-        else -> "Tracking $totalItems item${if (totalItems != 1) "s" else ""}"
+        expiringSoon > 0 -> "$prefTagline \u2014 $expiringSoon item${if (expiringSoon != 1) "s" else ""} expiring soon"
+        else -> "$prefTagline \u2014 tracking $totalItems item${if (totalItems != 1) "s" else ""}"
     }
 
     var visible by remember { mutableStateOf(false) }
@@ -506,17 +513,15 @@ fun InkBloomDot(
                 scale.snapTo(1f)
             }
             InkDotState.ACTIVE -> {
-                // Scale in with WobblySpring
                 scale.animateTo(
                     targetValue = 1f,
-                    animationSpec = spring(dampingRatio = 0.3f, stiffness = 200f)
+                    animationSpec = PaperInkMotion.WobblySpring
                 )
             }
             InkDotState.COMPLETED -> {
-                // Settle with SettleSpring
                 scale.animateTo(
                     targetValue = 1f,
-                    animationSpec = spring(dampingRatio = 0.5f, stiffness = 120f)
+                    animationSpec = PaperInkMotion.SettleSpring
                 )
                 // Draw checkmark
                 checkProgress.animateTo(
@@ -710,6 +715,29 @@ fun InkProgressLine(
                     )
                 }
             }
+        }
+    }
+}
+
+// ─── Ruled Lines Background ─────────────────────────────────────────────
+
+/**
+ * Paper & Ink ruled-lines background — faint horizontal lines like notebook paper.
+ * Shared composable to replace inline Canvas blocks across onboarding + dashboard.
+ */
+@Composable
+fun RuledLinesBackground(
+    modifier: Modifier = Modifier,
+    spacing: Dp = 24.dp,
+    alpha: Float = 0.05f
+) {
+    val lineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
+    Canvas(modifier = modifier) {
+        val spacingPx = spacing.toPx()
+        var y = spacingPx
+        while (y < size.height) {
+            drawLine(lineColor, Offset(0f, y), Offset(size.width, y), 1f)
+            y += spacingPx
         }
     }
 }

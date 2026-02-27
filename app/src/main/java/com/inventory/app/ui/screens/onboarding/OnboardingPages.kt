@@ -7,18 +7,16 @@ import java.util.Locale
 // To add a page: 1) Add a data object here  2) Add it to onboardingPages list
 // 3) Add a when-branch in OnboardingPageContent.kt  — done.
 
-sealed class OnboardingPage(val id: String, val canSkip: Boolean = true) {
-    data object Welcome : OnboardingPage("welcome", canSkip = false)
-    data object RegionSetup : OnboardingPage("region")
-    data object FirstItems : OnboardingPage("first_items")
-    data object AllSet : OnboardingPage("all_set", canSkip = false)
+sealed class OnboardingPage(val id: String) {
+    data object StoryOpens : OnboardingPage("story_opens")
+    data object YourKitchen : OnboardingPage("your_kitchen")
+    data object FirstMagic : OnboardingPage("first_magic")
 }
 
 val onboardingPages = listOf(
-    OnboardingPage.Welcome,
-    OnboardingPage.RegionSetup,
-    OnboardingPage.FirstItems,
-    OnboardingPage.AllSet,
+    OnboardingPage.StoryOpens,
+    OnboardingPage.YourKitchen,
+    OnboardingPage.FirstMagic,
 )
 
 // ─── Region data ────────────────────────────────────────────────────────
@@ -106,9 +104,10 @@ fun detectRegion(): RegionInfo {
     return RegionInfo(countryCode, countryName, currencySymbol, datePreview, "\uD83C\uDF10")
 }
 
-// ─── Post-onboarding route choice ───────────────────────────────────────
+// ─── User preference ────────────────────────────────────────────────────
 
-enum class StartChoice {
-    SCAN_KITCHEN,
-    ADD_MANUALLY
+enum class UserPreference(val label: String, val subtitle: String) {
+    WASTE("Never waste food", "Track expiry, reduce waste"),
+    INVENTORY("Always know what I have", "Full inventory at a glance"),
+    COOK("Cook with what's here", "Recipes from your kitchen")
 }

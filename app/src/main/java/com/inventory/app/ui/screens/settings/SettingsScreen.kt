@@ -83,6 +83,7 @@ import com.inventory.app.BuildConfig
 import com.inventory.app.R
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.screens.onboarding.UserPreference
 import com.inventory.app.ui.theme.AppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -464,6 +465,42 @@ fun SettingsScreen(
                                 isSelected = uiState.appTheme == theme,
                                 onClick = { viewModel.updateAppTheme(theme) }
                             )
+                        }
+                    }
+                }
+            }
+
+            // What Matters Most
+            Text("What Matters Most", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "This shapes your dashboard and suggestions",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    UserPreference.entries.forEach { pref ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.updateUserPreference(pref.name) }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = uiState.userPreference == pref.name,
+                                onClick = { viewModel.updateUserPreference(pref.name) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(pref.label, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    pref.subtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

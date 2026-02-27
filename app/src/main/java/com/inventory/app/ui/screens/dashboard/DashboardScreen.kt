@@ -1,8 +1,5 @@
 package com.inventory.app.ui.screens.dashboard
 
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -45,13 +42,10 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -82,10 +76,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.DashboardGreeting
 import com.inventory.app.ui.components.EmptyState
 import com.inventory.app.ui.components.ShimmerStatCard
@@ -101,12 +95,8 @@ import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.theme.ExpiryRed
 import com.inventory.app.ui.theme.StockGreen
 import com.inventory.app.ui.theme.StockYellow
+import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.ui.theme.scoreToColor
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import android.util.Log
-import com.google.android.gms.common.api.ApiException
-import com.inventory.app.R
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -124,29 +114,7 @@ fun DashboardScreen(
     val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    // Google Sign-In launcher for beta dialog
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        try {
-            val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                .getResult(ApiException::class.java)
-            val token = account.idToken
-            if (token != null) {
-                viewModel.onBetaGoogleSignIn(token)
-            } else {
-                viewModel.onBetaSignInError("Sign-in failed: no authentication token received. Please try again.")
-            }
-        } catch (e: ApiException) {
-            Log.e("DashboardScreen", "Google sign-in failed: status=${e.statusCode}", e)
-            // Status 12501 = user cancelled, don't show error
-            if (e.statusCode != 12501) {
-                viewModel.onBetaSignInError("Google sign-in failed (code ${e.statusCode}). Please try again.")
-            }
-        }
-    }
+    val aiGate = rememberAiSignInGate()
 
     val gridColumns = when (windowWidthSizeClass) {
         WindowWidthSizeClass.Expanded -> 4
@@ -195,88 +163,6 @@ fun DashboardScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        // Beta sign-in dialog — appears every launch until user signs in
-        if (uiState.showBetaWelcome) {
-            AlertDialog(
-                onDismissRequest = {
-                    if (!uiState.betaSignInLoading) viewModel.dismissBetaWelcomeForSession()
-                },
-                icon = {
-                    Icon(
-                        Icons.Filled.AutoAwesome,
-                        contentDescription = null,
-                        tint = CardGold,
-                        modifier = Modifier.size(32.dp)
-                    )
-                },
-                title = {
-                    Text(
-                        "Welcome to the Restokk Beta!",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            "Thank you for being an early tester! Please sign in with Google so we can identify beta testers and reach you if needed.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            "Your data stays on this device.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (uiState.betaSignInLoading) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                Text("Signing in...", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        uiState.betaSignInError?.let { error ->
-                            Text(
-                                error,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            try {
-                                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                    .requestIdToken(context.getString(R.string.default_web_client_id))
-                                    .requestEmail()
-                                    .build()
-                                val client = GoogleSignIn.getClient(context, gso)
-                                googleSignInLauncher.launch(client.signInIntent)
-                            } catch (e: Exception) {
-                                Log.e("DashboardScreen", "Failed to launch Google sign-in", e)
-                                viewModel.onBetaSignInError("Could not start Google sign-in: ${e.message}")
-                            }
-                        },
-                        enabled = !uiState.betaSignInLoading
-                    ) {
-                        Text("Sign in with Google")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { viewModel.dismissBetaWelcomeForSession() },
-                        enabled = !uiState.betaSignInLoading
-                    ) {
-                        Text("Maybe Later")
-                    }
-                }
-            )
-        }
-
         // Only animate on first entry; skip on back-navigation to preserve scroll
         var hasAnimated by rememberSaveable { mutableStateOf(false) }
         LaunchedEffect(Unit) {
@@ -298,38 +184,99 @@ fun DashboardScreen(
             AnimateOnce(index = 0, hasAnimated = hasAnimated) {
                 DashboardGreeting(
                     totalItems = uiState.totalItems,
-                    expiringSoon = uiState.expiringSoon
+                    expiringSoon = uiState.expiringSoon,
+                    userPreference = uiState.userPreference
                 )
             }
 
-            // Hero card — contextual insight based on state
+            // Kitchen Story Card — persistent onboarding missions
+            // rememberSaveable keeps card in composition during crumple exit animation
+            var showStoryCard by rememberSaveable { mutableStateOf(false) }
+            if (uiState.kitchenStory.isVisible && !showStoryCard) {
+                showStoryCard = true
+            }
+            // Safety: if ViewModel already dismissed but flag is stale (e.g. re-navigation during crumple)
+            if (!uiState.kitchenStory.isVisible && showStoryCard) {
+                showStoryCard = false
+            }
+            if (showStoryCard) {
+                KitchenStoryCard(
+                    state = uiState.kitchenStory,
+                    onMissionTap = { mission ->
+                        val target = mission.navTarget
+                        if (target != null) {
+                            navController.navigate(target)
+                        }
+                    },
+                    onDismiss = { /* dismiss persisted in onExitComplete */ },
+                    onAllComplete = { /* dismiss persisted in onExitComplete */ },
+                    onDismissSmartDefaults = { viewModel.dismissSmartDefaultsEducation() },
+                    onShowMeSmartDefaults = {
+                        scope.launch {
+                            val itemId = viewModel.startSmartDefaultsTour()
+                            if (itemId != null) {
+                                navController.navigate(Screen.ItemForm.createRoute(itemId = itemId))
+                            }
+                        }
+                    },
+                    onExitComplete = {
+                        showStoryCard = false
+                        viewModel.dismissKitchenStory()
+                    }
+                )
+            }
+
+            // Hero card — contextual insight based on state + user preference
             if (!uiState.isLoading) {
                 if (uiState.totalItems == 0) {
-                    KitchenScanHeroCard { navController.navigate(Screen.KitchenMap.route) }
-                } else if (uiState.expiringSoon > 0) {
-                    InsightCard(
-                        icon = Icons.Filled.Timer,
-                        iconTint = CardOrange,
-                        text = "${uiState.expiringSoon} item${if (uiState.expiringSoon != 1) "s" else ""} expiring soon — check them",
-                        actionLabel = "View",
-                        onClick = { navController.navigate(Screen.ExpiringReport.route) }
-                    )
-                } else if (uiState.shoppingActive > 0) {
-                    InsightCard(
-                        icon = Icons.Filled.ShoppingCart,
-                        iconTint = CardPurple,
-                        text = "Shopping list: ${uiState.shoppingActive} item${if (uiState.shoppingActive != 1) "s" else ""} to buy",
-                        actionLabel = "Shop",
-                        onClick = { navController.navigate(Screen.ShoppingList.route) }
-                    )
-                } else if (uiState.savedRecipeCount > 0) {
-                    InsightCard(
-                        icon = Icons.Filled.MenuBook,
-                        iconTint = CardGreen,
-                        text = "You have ${uiState.savedRecipeCount} saved recipe${if (uiState.savedRecipeCount != 1) "s" else ""} — time to cook?",
-                        actionLabel = "Cook",
-                        onClick = { navController.navigate(Screen.Cook.route) }
-                    )
+                    val heroSubtitle = when (uiState.userPreference) {
+                        "WASTE" -> "Start tracking expiry dates to reduce waste"
+                        "COOK" -> "Add ingredients to discover what you can cook"
+                        else -> "Scan your kitchen to see what you have"
+                    }
+                    KitchenScanHeroCard(subtitle = heroSubtitle) { navController.navigate(Screen.KitchenMap.route) }
+                } else {
+                    // Priority order changes by user preference
+                    val expiringInsight: (@Composable () -> Unit)? = if (uiState.expiringSoon > 0) { {
+                        InsightCard(
+                            icon = Icons.Filled.Timer, iconTint = CardOrange,
+                            text = "${uiState.expiringSoon} item${if (uiState.expiringSoon != 1) "s" else ""} expiring soon \u2014 check them",
+                            actionLabel = "View",
+                            onClick = { navController.navigate(Screen.ExpiringReport.route) }
+                        )
+                    } } else null
+                    val shoppingInsight: (@Composable () -> Unit)? = if (uiState.shoppingActive > 0) { {
+                        InsightCard(
+                            icon = Icons.Filled.ShoppingCart, iconTint = CardPurple,
+                            text = "Shopping list: ${uiState.shoppingActive} item${if (uiState.shoppingActive != 1) "s" else ""} to buy",
+                            actionLabel = "Shop",
+                            onClick = { navController.navigate(Screen.ShoppingList.route) }
+                        )
+                    } } else null
+                    val recipesInsight: (@Composable () -> Unit)? = if (uiState.savedRecipeCount > 0) { {
+                        InsightCard(
+                            icon = Icons.Filled.MenuBook, iconTint = CardGreen,
+                            text = "You have ${uiState.savedRecipeCount} saved recipe${if (uiState.savedRecipeCount != 1) "s" else ""} \u2014 time to cook?",
+                            actionLabel = "Cook",
+                            onClick = { navController.navigate(Screen.Cook.route) }
+                        )
+                    } } else null
+
+                    val inventoryInsight: (@Composable () -> Unit) = {
+                        InsightCard(
+                            icon = Icons.Filled.Inventory2, iconTint = CardBlue,
+                            text = "${uiState.totalItems} item${if (uiState.totalItems != 1) "s" else ""} in your kitchen \u2014 keep it stocked",
+                            actionLabel = "View",
+                            onClick = { navController.navigate(Screen.ItemList.createRoute()) }
+                        )
+                    }
+
+                    val ordered = when (uiState.userPreference) {
+                        "WASTE" -> listOfNotNull(expiringInsight, shoppingInsight, recipesInsight)
+                        "COOK" -> listOfNotNull(recipesInsight, expiringInsight, shoppingInsight)
+                        else -> listOfNotNull(inventoryInsight, expiringInsight, shoppingInsight, recipesInsight)
+                    }
+                    ordered.firstOrNull()?.invoke()
                 }
             }
 
@@ -382,7 +329,7 @@ fun DashboardScreen(
                         ) { navController.navigate(Screen.KitchenMap.route) } },
                         { mod -> QuickActionCard(mod, "Reports", Icons.Filled.Assessment, CardBlue) { navController.navigate(Screen.Reports.route) } },
                         { mod -> QuickActionCard(mod, "Scan", Icons.Filled.QrCodeScanner, CardGold) { navController.navigate(Screen.BarcodeScan.route) } },
-                        { mod -> QuickActionCard(mod, "Receipt", Icons.Filled.Receipt, CardGreen) { navController.navigate(Screen.ReceiptScan.route) } },
+                        { mod -> QuickActionCard(mod, "Receipt", Icons.Filled.Receipt, CardGreen) { aiGate.requireSignIn("parse receipts") { navController.navigate(Screen.ReceiptScan.route) } } },
                         { mod ->
                             val totalShopping = uiState.shoppingActive + uiState.shoppingPurchased
                             QuickActionCard(mod, "Shopping", Icons.Filled.ShoppingCart, CardPurple,
@@ -763,7 +710,10 @@ private fun HealthScoreCard(
 // ─── Kitchen Scan Hero Card (empty inventory) ──────────────────────────
 
 @Composable
-private fun KitchenScanHeroCard(onClick: () -> Unit) {
+private fun KitchenScanHeroCard(
+    subtitle: String = "Scan your kitchen to see what you have",
+    onClick: () -> Unit
+) {
     AppCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -785,6 +735,13 @@ private fun KitchenScanHeroCard(onClick: () -> Unit) {
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "Take photos of your fridge, pantry, and shelves. AI identifies every item and builds your inventory in minutes.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -847,7 +804,7 @@ private fun QuickActionCard(
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f),
+        animationSpec = PaperInkMotion.BouncySpring,
         label = "quickActionScale"
     )
     AppCard(

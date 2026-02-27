@@ -45,7 +45,8 @@ data class SettingsUiState(
     val notificationsEnabled: Boolean = true,
     val notifExpiryEnabled: Boolean = true,
     val notifRestockEnabled: Boolean = true,
-    val notifShoppingEnabled: Boolean = true
+    val notifShoppingEnabled: Boolean = true,
+    val userPreference: String = "INVENTORY"
 )
 
 @HiltViewModel
@@ -155,6 +156,7 @@ class SettingsViewModel @Inject constructor(
             val notifExpiry = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_EXPIRY_ENABLED, true)
             val notifRestock = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_RESTOCK_ENABLED, true)
             val notifShopping = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_SHOPPING_ENABLED, true)
+            val preference = settingsRepository.getString(OnboardingViewModel.KEY_USER_PREFERENCE, "INVENTORY")
 
             _uiState.update {
                 it.copy(
@@ -168,7 +170,8 @@ class SettingsViewModel @Inject constructor(
                     notificationsEnabled = notifEnabled,
                     notifExpiryEnabled = notifExpiry,
                     notifRestockEnabled = notifRestock,
-                    notifShoppingEnabled = notifShopping
+                    notifShoppingEnabled = notifShopping,
+                    userPreference = preference
                 )
             }
         }
@@ -195,6 +198,13 @@ class SettingsViewModel @Inject constructor(
     fun toggleNotifShopping(enabled: Boolean) {
         _uiState.update { it.copy(notifShoppingEnabled = enabled) }
         viewModelScope.launch { settingsRepository.setBoolean(SettingsRepository.KEY_NOTIF_SHOPPING_ENABLED, enabled) }
+    }
+
+    fun updateUserPreference(pref: String) {
+        _uiState.update { it.copy(userPreference = pref) }
+        viewModelScope.launch {
+            settingsRepository.set(OnboardingViewModel.KEY_USER_PREFERENCE, pref)
+        }
     }
 
     fun updateAppTheme(theme: AppTheme) {

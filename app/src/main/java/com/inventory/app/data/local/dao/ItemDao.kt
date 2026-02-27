@@ -314,6 +314,10 @@ interface ItemDao {
     @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND created_at >= :since")
     fun getRecentItemCount(since: Long): Flow<Int>
 
+    // Most recently added active item (for Smart Defaults tour)
+    @Query("SELECT id FROM items WHERE is_active = 1 ORDER BY id DESC LIMIT 1")
+    suspend fun getLastAddedItemId(): Long?
+
     // All active item names + IDs (lightweight, for AI matching context)
     @Query("SELECT id, name FROM items WHERE is_active = 1 ORDER BY name")
     suspend fun getAllActiveNamesAndIds(): List<InventoryNameId>

@@ -75,12 +75,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
-import com.inventory.app.ui.components.AnimatedEmptyState
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.EmptyStateIllustration
+import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.CardOrange
 import com.inventory.app.util.CategoryVisuals
+import com.inventory.app.ui.theme.PaperInkMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
@@ -88,12 +90,11 @@ import kotlin.math.sin
 
 private const val COLLAPSE_THRESHOLD = 8
 
-// ─── Paper & Ink Spring Presets ─────────────────────────────────────────
-private val BouncySpring = spring<Float>(dampingRatio = 0.5f, stiffness = 200f)
-private val GentleSpring = spring<Float>(dampingRatio = 1.0f, stiffness = 200f)
-private val WobblySpring = spring<Float>(dampingRatio = 0.3f, stiffness = 200f)
-private const val STAGGER_DELAY_MS = 70L
-private const val MAX_STAGGER_ITEMS = 5
+private val BouncySpring = PaperInkMotion.BouncySpring
+private val GentleSpring = PaperInkMotion.GentleSpring
+private val WobblySpring = PaperInkMotion.WobblySpring
+private const val STAGGER_DELAY_MS = PaperInkMotion.STAGGER_MS
+private const val MAX_STAGGER_ITEMS = PaperInkMotion.MAX_STAGGER_ITEMS
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -102,6 +103,7 @@ fun KitchenMapScreen(
     viewModel: KitchenMapViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val aiGate = rememberAiSignInGate()
 
     Scaffold(
         topBar = {
@@ -128,33 +130,25 @@ fun KitchenMapScreen(
             }
 
             uiState.totalItems == 0 -> {
-                Column(
+                val emptyBody = when (uiState.userPreference) {
+                    "WASTE" -> "Scan your kitchen to track what's fresh. We'll alert you before things expire."
+                    "COOK" -> "Map your kitchen and we'll know exactly what ingredients you have for recipes."
+                    else -> "Scan different areas and your items organize themselves by location. It's like a map of everything you have."
+                }
+                EmptyStateIllustration(
+                    icon = Icons.Filled.Inventory2,
+                    headline = "Your kitchen, mapped out",
+                    body = emptyBody,
+                    ctaLabel = "Start Kitchen Tour",
+                    onCtaClick = {
+                        aiGate.requireSignIn("identify kitchen items") {
+                            navController.navigate(Screen.FridgeScan.route)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    AnimatedEmptyState(
-                        icon = Icons.Filled.Inventory2,
-                        title = "Your Kitchen is Empty",
-                        message = "Scan your fridge, pantry, and shelves to see everything mapped here.",
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    FilledTonalButton(onClick = {
-                        navController.navigate(Screen.FridgeScan.route)
-                    }) {
-                        Icon(
-                            Icons.Filled.PhotoCamera,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Start Kitchen Tour")
-                    }
-                }
+                )
             }
 
             else -> {
@@ -169,7 +163,9 @@ fun KitchenMapScreen(
                     // Scan CTA card — Write-In entrance
                     WriteInAnimatedItem(index = 0) {
                         ScanCtaCard(onClick = {
-                            navController.navigate(Screen.FridgeScan.route)
+                            aiGate.requireSignIn("identify kitchen items") {
+                                navController.navigate(Screen.FridgeScan.route)
+                            }
                         })
                     }
 

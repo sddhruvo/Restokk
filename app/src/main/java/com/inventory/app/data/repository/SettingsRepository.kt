@@ -82,6 +82,9 @@ class SettingsRepository @Inject constructor(
     fun getIntFlow(key: String, default: Int = 0): Flow<Int> =
         settingsDao.getFlow(key).map { it?.value?.toIntOrNull() ?: default }
 
+    fun getBooleanFlow(key: String, default: Boolean = false): Flow<Boolean> =
+        settingsDao.getFlow(key).map { it?.value?.toBooleanStrictOrNull() ?: default }
+
     fun getAllSettings(): Flow<List<SettingsEntity>> = settingsDao.getAll()
 
     suspend fun set(key: String, value: String, valueType: String = "string", description: String? = null) {
