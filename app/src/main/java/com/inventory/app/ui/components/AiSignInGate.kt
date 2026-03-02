@@ -9,9 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
+import com.inventory.app.ui.components.ThemedButton
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,7 +35,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.inventory.app.R
 import com.inventory.app.data.repository.AuthRepository
-import com.inventory.app.ui.theme.CardGold
+import com.inventory.app.ui.theme.appColors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -123,7 +123,7 @@ fun rememberAiSignInGate(): AiSignInGateState {
 
     // Dialog
     if (showDialogState.value) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = {
                 if (!isLoading) {
                     showDialogState.value = false
@@ -132,10 +132,11 @@ fun rememberAiSignInGate(): AiSignInGateState {
                 }
             },
             icon = {
-                Icon(
-                    Icons.Filled.AutoAwesome,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.AutoAwesome,
+                    inkIconRes = R.drawable.ic_ink_sparkle,
                     contentDescription = null,
-                    tint = CardGold,
+                    tint = MaterialTheme.appColors.accentGold,
                     modifier = Modifier.size(32.dp)
                 )
             },
@@ -158,7 +159,7 @@ fun rememberAiSignInGate(): AiSignInGateState {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CircularProgressIndicator(
+                            ThemedCircularProgress(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp
                             )
@@ -175,7 +176,7 @@ fun rememberAiSignInGate(): AiSignInGateState {
                 }
             },
             confirmButton = {
-                Button(
+                ThemedButton(
                     onClick = {
                         try {
                             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)

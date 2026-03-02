@@ -1,0 +1,63 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+    <!-- Outer cabinet frame with wobble -->
+    <path
+        android:pathData="M4.2,3.2 Q12.0,2.9 19.8,3.1 Q20.2,8.4 19.9,12.0 Q20.1,16.3 19.8,20.8 Q12.0,21.1 4.2,20.9 Q3.9,16.2 4.1,12.0 Q3.9,8.0 4.2,3.2Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Horizontal shelf -->
+    <path
+        android:pathData="M4.1,12.1 Q8.3,11.9 12.0,12.0 Q16.2,12.2 19.9,11.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Top door knob: filled circle at (12,7.5) r=1.2 -->
+    <path
+        android:pathData="M12.0,6.3
+            C12.7,6.2 13.3,6.8 13.2,7.5
+            C13.1,8.2 12.5,8.7 11.8,8.6
+            C11.1,8.5 10.8,7.8 10.9,7.3
+            C11.0,6.7 11.4,6.3 12.0,6.3Z"
+        android:fillColor="#000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Bottom door knob: filled circle at (12,16.5) r=1.2 -->
+    <path
+        android:pathData="M12.0,15.3
+            C12.7,15.2 13.3,15.8 13.2,16.5
+            C13.1,17.2 12.5,17.7 11.8,17.6
+            C11.1,17.5 10.8,16.8 10.9,16.3
+            C11.0,15.7 11.4,15.3 12.0,15.3Z"
+        android:fillColor="#000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Top left hinge -->
+    <path
+        android:pathData="M5.0,5.1 Q5.5,4.9 6.1,5.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Top right hinge -->
+    <path
+        android:pathData="M18.0,5.1 Q18.5,4.9 19.1,5.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+</vector>

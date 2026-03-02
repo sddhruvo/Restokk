@@ -6,6 +6,7 @@ import com.inventory.app.data.local.db.InventoryDatabase
 import com.inventory.app.data.repository.AuthRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.ui.theme.AppTheme
+import com.inventory.app.ui.theme.VisualStyle
 import com.inventory.app.util.FormatUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
@@ -23,6 +24,7 @@ data class SettingsUiState(
     val currencySymbol: String = "",
     val defaultQuantity: String = "1",
     val appTheme: AppTheme = AppTheme.CLASSIC_GREEN,
+    val visualStyle: VisualStyle = VisualStyle.MODERN,
     val shoppingBudget: String = "",
     val autoClearDays: String = "",
     val isSaved: Boolean = false,
@@ -151,6 +153,9 @@ class SettingsViewModel @Inject constructor(
                 themeKey = migrated.key
             }
 
+            // Visual style
+            val visualStyleKey = settingsRepository.getString(SettingsRepository.KEY_VISUAL_STYLE, VisualStyle.MODERN.key)
+
             // Notification settings (default: all enabled)
             val notifEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIFICATIONS_ENABLED, true)
             val notifExpiry = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_EXPIRY_ENABLED, true)
@@ -164,6 +169,7 @@ class SettingsViewModel @Inject constructor(
                     currencySymbol = currency,
                     defaultQuantity = defaultQty,
                     appTheme = AppTheme.fromKey(themeKey),
+                    visualStyle = VisualStyle.fromKey(visualStyleKey),
                     shoppingBudget = budget,
                     autoClearDays = autoClear,
                     isLoading = false,
@@ -211,6 +217,13 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(appTheme = theme) }
         viewModelScope.launch {
             settingsRepository.set(SettingsRepository.KEY_APP_THEME, theme.key)
+        }
+    }
+
+    fun updateVisualStyle(style: VisualStyle) {
+        _uiState.update { it.copy(visualStyle = style) }
+        viewModelScope.launch {
+            settingsRepository.set(SettingsRepository.KEY_VISUAL_STYLE, style.key)
         }
     }
 

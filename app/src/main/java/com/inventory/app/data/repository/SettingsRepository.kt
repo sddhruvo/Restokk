@@ -28,6 +28,7 @@ class SettingsRepository @Inject constructor(
         const val KEY_DEFAULT_QUANTITY = "default_quantity"
         const val KEY_DARK_MODE = "dark_mode"
         const val KEY_APP_THEME = "app_theme"
+        const val KEY_VISUAL_STYLE = "visual_style"
         const val KEY_GROK_API_KEY = "grok_api_key"
         const val KEY_OPENAI_API_KEY = "openai_api_key"
         const val KEY_SHOPPING_BUDGET = "shopping_budget"

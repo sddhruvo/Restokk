@@ -12,8 +12,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-
-private val CookAccentGuide = Color(0xFFE85D3A)
+import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.appColors
 
 // ── Inline section dot (renders inside LazyColumn items) ─────────────────
 
@@ -41,14 +41,14 @@ fun InlineSectionDot(
     }
     val animatedSize by animateFloatAsState(
         targetValue = targetSize,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f),
+        animationSpec = PaperInkMotion.BouncySpring,
         label = "dot_size"
     )
 
     val color = when (state) {
-        DotState.PAST -> CookAccentGuide.copy(alpha = 0.5f)
-        DotState.ACTIVE -> CookAccentGuide
-        DotState.VISIBLE -> CookAccentGuide.copy(alpha = 0.7f)
+        DotState.PAST -> MaterialTheme.appColors.cookAccent.copy(alpha = 0.5f)
+        DotState.ACTIVE -> MaterialTheme.appColors.cookAccent
+        DotState.VISIBLE -> MaterialTheme.appColors.cookAccent.copy(alpha = 0.7f)
         DotState.FUTURE -> Color.Gray.copy(alpha = 0.3f)
     }
 

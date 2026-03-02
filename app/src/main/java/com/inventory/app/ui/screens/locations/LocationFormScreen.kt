@@ -1,5 +1,7 @@
 package com.inventory.app.ui.screens.locations
 
+import com.inventory.app.ui.components.ThemedTextField
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.selection.toggleable
@@ -11,20 +13,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
+import com.inventory.app.ui.components.ThemedSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,6 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.domain.model.TemperatureZone
 import com.inventory.app.ui.components.AnimatedSaveButton
@@ -67,7 +70,7 @@ fun LocationFormScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard Changes?") },
             text = { Text("You have unsaved changes. Are you sure you want to go back?") },
@@ -101,18 +104,16 @@ fun LocationFormScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ThemedScaffold(
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(if (locationId != null) "Edit Location" else "Add Location") },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         if (isDirty) showDiscardDialog = true
                         else navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    })
                 }
             )
         }
@@ -125,7 +126,7 @@ fun LocationFormScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.name,
                 onValueChange = { viewModel.updateName(it) },
                 label = { Text("Name *") },
@@ -134,7 +135,7 @@ fun LocationFormScreen(
                 supportingText = uiState.nameError?.let { { Text(it) } }
             )
 
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.description,
                 onValueChange = { viewModel.updateDescription(it) },
                 label = { Text("Description") },
@@ -151,7 +152,7 @@ fun LocationFormScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.color,
                 onValueChange = { viewModel.updateColor(it) },
                 label = { Text("Color (hex)") },
@@ -171,7 +172,7 @@ fun LocationFormScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Active")
-                Switch(
+                ThemedSwitch(
                     checked = uiState.isActive,
                     onCheckedChange = null
                 )

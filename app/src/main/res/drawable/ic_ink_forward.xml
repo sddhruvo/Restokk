@@ -1,0 +1,35 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+
+    <!-- Chevron: upper arm, tip at (17,12) pointing right -->
+    <path
+        android:pathData="M8.9,5.2 Q12.8,8.3 17.0,12.1"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Chevron: lower arm from tip -->
+    <path
+        android:pathData="M17.0,12.1 Q13.0,15.8 9.0,19.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Horizontal tail from left to tip -->
+    <path
+        android:pathData="M4.0,12.1 Q10.6,11.8 17.0,12.1"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+</vector>

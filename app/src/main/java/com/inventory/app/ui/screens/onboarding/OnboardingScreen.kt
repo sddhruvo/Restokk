@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.inventory.app.ui.theme.PaperInkMotion
 
 @Composable
 fun OnboardingScreen(
@@ -31,11 +32,11 @@ fun OnboardingScreen(
             targetState = state.currentPageIndex,
             transitionSpec = {
                 if (targetState > initialState) {
-                    (slideInHorizontally { it / 3 } + fadeIn(tween(300))) togetherWith
-                        (slideOutHorizontally { -it / 3 } + fadeOut(tween(300)))
+                    (slideInHorizontally { it / 3 } + fadeIn(tween(PaperInkMotion.DurationMedium))) togetherWith
+                        (slideOutHorizontally { -it / 3 } + fadeOut(tween(PaperInkMotion.DurationMedium)))
                 } else {
-                    (slideInHorizontally { -it / 3 } + fadeIn(tween(300))) togetherWith
-                        (slideOutHorizontally { it / 3 } + fadeOut(tween(300)))
+                    (slideInHorizontally { -it / 3 } + fadeIn(tween(PaperInkMotion.DurationMedium))) togetherWith
+                        (slideOutHorizontally { it / 3 } + fadeOut(tween(PaperInkMotion.DurationMedium)))
                 }
             },
             modifier = Modifier

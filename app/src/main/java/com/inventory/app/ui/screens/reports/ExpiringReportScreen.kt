@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.reports
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,19 +11,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import com.inventory.app.ui.components.ThemedFilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,11 +34,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.LoadingState
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.theme.ExpiryOrange
-import com.inventory.app.ui.theme.ExpiryRed
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.appColors
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -59,38 +62,36 @@ fun ExpiringReportScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ThemedScaffold(
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Expiring Items Report") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         }
     ) { padding ->
         if (uiState.isLoading) {
             LoadingState(modifier = Modifier.padding(padding))
-            return@Scaffold
+            return@ThemedScaffold
         }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = Dimens.spacingLg),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
         ) {
             // Filter chips
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                 ) {
                     listOf(3, 7, 14, 30).forEach { days ->
-                        FilterChip(
+                        ThemedFilterChip(
                             selected = uiState.warningDays == days,
                             onClick = { viewModel.updateWarningDays(days) },
                             label = { Text("${days}d") }
@@ -103,13 +104,13 @@ fun ExpiringReportScreen(
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                 ) {
                     AppCard(
                         modifier = Modifier.weight(1f),
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text("${uiState.expiredCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                             Text("Expired", style = MaterialTheme.typography.bodySmall)
                         }
@@ -118,7 +119,7 @@ fun ExpiringReportScreen(
                         modifier = Modifier.weight(1f),
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text("${uiState.expiringCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                             Text("Expiring Soon", style = MaterialTheme.typography.bodySmall)
                         }
@@ -129,7 +130,7 @@ fun ExpiringReportScreen(
             // Expired items
             if (uiState.expiredItems.isNotEmpty()) {
                 item {
-                    Text("Expired", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = ExpiryRed)
+                    Text("Expired", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.appColors.statusExpired)
                 }
                 items(uiState.expiredItems, key = { it.item.id }) { item ->
                     val daysAgo = item.item.expiryDate?.let { ChronoUnit.DAYS.between(it, LocalDate.now()) }
@@ -138,15 +139,16 @@ fun ExpiringReportScreen(
                         supportingContent = {
                             Text(
                                 if (daysAgo != null) "Expired $daysAgo days ago" else "",
-                                color = ExpiryRed
+                                color = MaterialTheme.appColors.statusExpired
                             )
                         },
                         trailingContent = {
                             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                 item.category?.let { Text(it.name, style = MaterialTheme.typography.labelSmall) }
                                 IconButton(onClick = { showShoppingSheet(item.item.id, null) }) {
-                                    Icon(
-                                        Icons.Filled.AddShoppingCart,
+                                    ThemedIcon(
+                                        materialIcon = Icons.Filled.AddShoppingCart,
+                                        inkIconRes = R.drawable.ic_ink_add_to_cart,
                                         contentDescription = "Add to shopping list",
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -167,7 +169,7 @@ fun ExpiringReportScreen(
                         "Expiring within ${uiState.warningDays} days",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = ExpiryOrange
+                        color = MaterialTheme.appColors.statusExpiring
                     )
                 }
                 items(uiState.expiringItems, key = { it.item.id }) { item ->
@@ -181,15 +183,16 @@ fun ExpiringReportScreen(
                                     daysLeft == 0L -> "Expires today"
                                     else -> "Expires in $daysLeft days"
                                 },
-                                color = ExpiryOrange
+                                color = MaterialTheme.appColors.statusExpiring
                             )
                         },
                         trailingContent = {
                             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                 item.category?.let { Text(it.name, style = MaterialTheme.typography.labelSmall) }
                                 IconButton(onClick = { showShoppingSheet(item.item.id, null) }) {
-                                    Icon(
-                                        Icons.Filled.AddShoppingCart,
+                                    ThemedIcon(
+                                        materialIcon = Icons.Filled.AddShoppingCart,
+                                        inkIconRes = R.drawable.ic_ink_add_to_cart,
                                         contentDescription = "Add to shopping list",
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -211,7 +214,7 @@ fun ExpiringReportScreen(
                     ) {
                         Text(
                             "No items expiring within ${uiState.warningDays} days",
-                            modifier = Modifier.padding(24.dp),
+                            modifier = Modifier.padding(Dimens.spacingXl),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }

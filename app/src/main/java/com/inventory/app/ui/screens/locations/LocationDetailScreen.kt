@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.locations
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,11 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,9 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.EmptyState
 import com.inventory.app.ui.components.LoadingState
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,22 +54,20 @@ fun LocationDetailScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ThemedScaffold(
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(uiState.locationName ?: "Location") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 },
                 actions = {
                     if (viewModel.locationId > 0L) {
                         IconButton(onClick = {
                             navController.navigate(Screen.LocationForm.createRoute(viewModel.locationId))
                         }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit location")
+                            ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit location")
                         }
                     }
                 }

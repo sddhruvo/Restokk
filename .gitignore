@@ -91,14 +91,19 @@ screenshot*.png
 shop*.png
 uidump.xml
 
+# Icon style guide (internal design bible)
+icon-style-guide.md
+
 # Project planning / tracking files (not source code)
 FUTURE_IMPROVEMENTS.md
 COMPLETED_WORK.md
 Features.md
 bugreport.md
 themereview.md
+ThemeArchitecture.md
 ui-audit.md
 polish-audit.md
+ink-theme-audit.md
 memory/
 
 # Stray images / design files at root

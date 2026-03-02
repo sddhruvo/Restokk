@@ -31,7 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,10 +70,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inventory.app.domain.model.KitchenStoryMission
 import com.inventory.app.domain.model.KitchenStoryState
+import com.inventory.app.R
 import com.inventory.app.ui.components.InkProgressLine
 import com.inventory.app.ui.components.InkStrikethrough
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.theme.LocalReduceMotion
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.visuals
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
@@ -235,7 +238,7 @@ fun KitchenStoryCard(
                 },
             color = paperColor,
             shape = tornPaperShape,
-            tonalElevation = 1.dp
+            tonalElevation = if (MaterialTheme.visuals.useElevation) 1.dp else 0.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -287,7 +290,7 @@ fun KitchenStoryCard(
 
     // Dismiss dialog
     if (showDismissDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDismissDialog = false },
             title = { Text("Done exploring?") },
             text = { Text("You've completed ${state.completedCount} of ${state.totalCount} missions. The card won't come back.") },
@@ -320,7 +323,7 @@ private fun KitchenStoryHeader(
     LaunchedEffect(chapterNumber) {
         if (chapterNumber > 1) {
             chapterRotation.snapTo(0f)
-            chapterRotation.animateTo(360f, tween(300))
+            chapterRotation.animateTo(360f, tween(PaperInkMotion.DurationMedium))
         }
     }
 
@@ -352,8 +355,9 @@ private fun KitchenStoryHeader(
                 onClick = onDismissClick,
                 modifier = Modifier.size(32.dp)
             ) {
-                Icon(
-                    Icons.Filled.Close,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.Close,
+                    inkIconRes = R.drawable.ic_ink_close,
                     contentDescription = "Dismiss kitchen story",
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -457,8 +461,9 @@ private fun MissionRow(
 
         // Arrow for any tappable mission
         if (onClick != null) {
-            Icon(
-                Icons.Filled.ArrowForward,
+            ThemedIcon(
+                materialIcon = Icons.Filled.ArrowForward,
+                inkIconRes = R.drawable.ic_ink_chevron_right,
                 contentDescription = "Go",
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = if (isCurrent) 0.7f else 0.4f)
@@ -734,7 +739,7 @@ private fun KitchenStoryCompletion() {
     val alpha = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        launch { alpha.animateTo(1f, tween(300)) }
+        launch { alpha.animateTo(1f, tween(PaperInkMotion.DurationMedium)) }
         scale.animateTo(1f, BouncySpring)
         delay(1800L)
         alpha.animateTo(0f, tween(400))

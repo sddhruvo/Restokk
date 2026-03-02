@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.reports
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,17 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import com.inventory.app.ui.components.ThemedFilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,8 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.LoadingState
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.domain.model.UsageType
 
@@ -52,22 +55,20 @@ fun UsageReportScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ThemedScaffold(
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Usage Report") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         }
     ) { padding ->
         if (uiState.isLoading) {
             LoadingState()
-            return@Scaffold
+            return@ThemedScaffold
         }
         LazyColumn(
             modifier = Modifier
@@ -83,7 +84,7 @@ fun UsageReportScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SpendingPeriod.entries.forEach { period ->
-                        FilterChip(
+                        ThemedFilterChip(
                             selected = uiState.selectedPeriod == period,
                             onClick = { viewModel.updatePeriod(period) },
                             label = { Text(period.label) }
@@ -133,7 +134,7 @@ fun UsageReportScreen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
-                            LinearProgressIndicator(
+                            ThemedProgressBar(
                                 progress = { (row.totalQuantity / totalByType).toFloat() },
                                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                                 color = MaterialTheme.colorScheme.primary
@@ -159,7 +160,7 @@ fun UsageReportScreen(
                                 Text(row.itemName, style = MaterialTheme.typography.bodyMedium)
                                 Text(row.totalQuantity.formatQty(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                             }
-                            LinearProgressIndicator(
+                            ThemedProgressBar(
                                 progress = { (row.totalQuantity / maxConsumed).toFloat() },
                                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                 color = MaterialTheme.colorScheme.tertiary
@@ -185,7 +186,7 @@ fun UsageReportScreen(
                                 Text(row.itemName, style = MaterialTheme.typography.bodyMedium)
                                 Text(row.totalQuantity.formatQty(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                             }
-                            LinearProgressIndicator(
+                            ThemedProgressBar(
                                 progress = { (row.totalQuantity / maxWasted).toFloat() },
                                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                 color = MaterialTheme.colorScheme.error

@@ -1,0 +1,35 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+
+    <!-- Paper plane: main triangle body -->
+    <path
+        android:pathData="M3.2,3.0 Q12.5,7.0 21.0,3.2 Q14.5,8.0 10.0,12.0 Q6.5,8.5 3.2,3.0Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Lower wing -->
+    <path
+        android:pathData="M3.2,3.0 Q7.0,14.0 10.0,12.0 Q8.5,16.5 8.0,21.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Fold crease -->
+    <path
+        android:pathData="M10.0,12.0 Q15.5,8.0 21.0,3.2"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+</vector>

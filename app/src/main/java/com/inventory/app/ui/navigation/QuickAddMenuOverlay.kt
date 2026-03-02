@@ -22,10 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.inventory.app.ui.components.ThemedIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.visuals
 import kotlinx.coroutines.delay
 
 @Composable
@@ -85,7 +87,7 @@ fun QuickAddMenuOverlay(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 120.dp) // above nav bar + FAB
+                .padding(bottom = 88.dp) // above floating pill + FAB
                 .padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -104,8 +106,8 @@ fun QuickAddMenuOverlay(
                     ) + fadeIn(animationSpec = tween(200)),
                     exit = slideOutVertically(
                         targetOffsetY = { it / 2 },
-                        animationSpec = tween(150)
-                    ) + fadeOut(animationSpec = tween(150))
+                        animationSpec = tween(PaperInkMotion.DurationShort)
+                    ) + fadeOut(animationSpec = tween(PaperInkMotion.DurationShort))
                 ) {
                     Surface(
                         modifier = Modifier
@@ -113,10 +115,10 @@ fun QuickAddMenuOverlay(
                             .clickable {
                                 onItemClick(item)
                             },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 4.dp,
-                        tonalElevation = 2.dp
+                        shadowElevation = if (MaterialTheme.visuals.useElevation) 4.dp else 0.dp,
+                        tonalElevation = if (MaterialTheme.visuals.useElevation) 2.dp else 0.dp
                     ) {
                         Row(
                             modifier = Modifier
@@ -124,8 +126,9 @@ fun QuickAddMenuOverlay(
                                 .padding(horizontal = 20.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                item.icon,
+                            ThemedIcon(
+                                materialIcon = item.icon,
+                                inkIconRes = item.inkIcon,
                                 contentDescription = item.label,
                                 modifier = Modifier.size(24.dp),
                                 tint = MaterialTheme.colorScheme.primary

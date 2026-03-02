@@ -10,13 +10,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import com.inventory.app.ui.components.ThemedBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,8 +33,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.inventory.app.domain.model.Priority
+import com.inventory.app.R
 import com.inventory.app.ui.components.AutoCompleteTextField
 import com.inventory.app.ui.components.DropdownField
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedIcon
+import com.inventory.app.ui.components.ThemedTextField
 
 data class SheetRequest(
     val itemId: Long? = null,
@@ -78,7 +82,7 @@ fun AddShoppingItemSheet(
     val title = if (isEditMode) "Edit Shopping Item" else "Add to Shopping List"
     val buttonText = if (isEditMode) "Save Changes" else "Add to Shopping List"
 
-    ModalBottomSheet(
+    ThemedBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
@@ -101,13 +105,13 @@ fun AddShoppingItemSheet(
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Filled.Close, contentDescription = "Close")
+                    ThemedIcon(materialIcon = Icons.Filled.Close, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Close")
                 }
             }
 
             // Item name field
             if (request.itemId != null || (isEditMode && uiState.itemId != null)) {
-                OutlinedTextField(
+                ThemedTextField(
                     value = uiState.itemName,
                     onValueChange = {},
                     label = { Text("Item") },
@@ -130,7 +134,7 @@ fun AddShoppingItemSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
+                ThemedTextField(
                     value = uiState.quantity,
                     onValueChange = { viewModel.updateQuantity(it) },
                     label = { Text("Quantity") },
@@ -159,7 +163,7 @@ fun AddShoppingItemSheet(
             )
 
             // Notes
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.notes,
                 onValueChange = { viewModel.updateNotes(it) },
                 label = { Text("Notes") },
@@ -168,7 +172,7 @@ fun AddShoppingItemSheet(
             )
 
             // Save button
-            Button(
+            ThemedButton(
                 onClick = { viewModel.save() },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = request.itemId != null || uiState.customName.isNotBlank() || uiState.itemId != null
@@ -185,11 +189,12 @@ internal fun WasteWarningDialog(
     onDismiss: () -> Unit,
     onAddAnyway: () -> Unit
 ) {
-    AlertDialog(
+    ThemedAlertDialog(
         onDismissRequest = onDismiss,
         icon = {
-            Icon(
-                Icons.Filled.Warning,
+            ThemedIcon(
+                materialIcon = Icons.Filled.Warning,
+                inkIconRes = R.drawable.ic_ink_warning,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(32.dp)

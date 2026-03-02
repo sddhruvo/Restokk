@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.categories
 
+import com.inventory.app.ui.components.ThemedTextField
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,17 +8,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -29,6 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +59,7 @@ fun SubcategoryFormScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard Changes?") },
             text = { Text("You have unsaved changes. Are you sure you want to go back?") },
@@ -79,17 +83,15 @@ fun SubcategoryFormScreen(
         if (uiState.isSaved) navController.popBackStack()
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(if (subcategoryId != null) "Edit Subcategory" else "Add Subcategory") },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         if (isDirty) showDiscardDialog = true
                         else navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    })
                 }
             )
         }
@@ -101,7 +103,7 @@ fun SubcategoryFormScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.name,
                 onValueChange = { viewModel.updateName(it) },
                 label = { Text("Name *") },
@@ -110,7 +112,7 @@ fun SubcategoryFormScreen(
                 supportingText = uiState.nameError?.let { { Text(it) } }
             )
 
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.description,
                 onValueChange = { viewModel.updateDescription(it) },
                 label = { Text("Description") },
@@ -118,7 +120,7 @@ fun SubcategoryFormScreen(
                 minLines = 2
             )
 
-            Button(
+            ThemedButton(
                 onClick = { viewModel.save() },
                 modifier = Modifier.fillMaxWidth()
             ) {

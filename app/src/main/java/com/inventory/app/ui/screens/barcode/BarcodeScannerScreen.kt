@@ -1,5 +1,7 @@
 package com.inventory.app.ui.screens.barcode
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
+import com.inventory.app.ui.components.ThemedTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,17 +25,16 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,10 +56,14 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.BarcodeCameraPreview
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.theme.StockGreen
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.appColors
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -80,19 +85,19 @@ fun BarcodeScannerScreen(
         }
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(title = { Text("Barcode Scanner") })
+            ThemedTopAppBar(title = { Text("Barcode Scanner") })
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(Dimens.spacingLg),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
             // Camera section
             if (cameraPermissionState.status.isGranted) {
@@ -122,13 +127,14 @@ fun BarcodeScannerScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            Icons.Filled.CameraAlt,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.CameraAlt,
+                            inkIconRes = R.drawable.ic_ink_camera,
                             contentDescription = "Camera preview",
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(Dimens.iconSizeXl),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingSm))
                         if (cameraPermissionState.status.shouldShowRationale) {
                             Text(
                                 "Camera access is needed to scan product barcodes and auto-fill item details. Your camera is only used for scanning — no images are stored.",
@@ -142,10 +148,10 @@ fun BarcodeScannerScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
-                            Icon(Icons.Filled.CameraAlt, contentDescription = "Open camera", modifier = Modifier.size(18.dp))
-                            Text("Grant Camera Permission", modifier = Modifier.padding(start = 4.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingMd))
+                        ThemedButton(onClick = { cameraPermissionState.launchPermissionRequest() }) {
+                            ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = "Open camera", modifier = Modifier.size(Dimens.iconSizeSm))
+                            Text("Grant Camera Permission", modifier = Modifier.padding(start = Dimens.spacingXs))
                         }
                     }
                 }
@@ -160,22 +166,22 @@ fun BarcodeScannerScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
+                ThemedTextField(
                     value = uiState.manualBarcode,
                     onValueChange = { viewModel.updateManualBarcode(it) },
                     label = { Text("Enter barcode") },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
-                Button(
+                ThemedButton(
                     onClick = { viewModel.lookupBarcode(uiState.manualBarcode) },
                     enabled = uiState.manualBarcode.isNotBlank() && !uiState.isLookingUp
                 ) {
-                    Icon(Icons.Filled.Search, contentDescription = "Look up barcode", modifier = Modifier.size(18.dp))
-                    Text("Look Up", modifier = Modifier.padding(start = 4.dp))
+                    ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Look up barcode", modifier = Modifier.size(Dimens.iconSizeSm))
+                    Text("Look Up", modifier = Modifier.padding(start = Dimens.spacingXs))
                 }
             }
 
@@ -185,12 +191,12 @@ fun BarcodeScannerScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(Dimens.spacingXl),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Text("Looking up barcode...", modifier = Modifier.padding(start = 12.dp))
+                        ThemedCircularProgress(modifier = Modifier.size(Dimens.iconSizeMd))
+                        Text("Looking up barcode...", modifier = Modifier.padding(start = Dimens.spacingMd))
                     }
                 }
             }
@@ -200,19 +206,19 @@ fun BarcodeScannerScreen(
                 is ScanResult.ExistingItem -> {
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = StockGreen.copy(alpha = 0.1f)
+                        containerColor = MaterialTheme.appColors.statusInStock.copy(alpha = 0.1f)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.CheckCircle, contentDescription = "Item found", tint = StockGreen)
+                                ThemedIcon(materialIcon = Icons.Filled.CheckCircle, inkIconRes = R.drawable.ic_ink_check_circle, contentDescription = "Item found", tint = MaterialTheme.appColors.statusInStock)
                                 Text(
                                     "Item Found in Inventory",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(start = 8.dp)
+                                    modifier = Modifier.padding(start = Dimens.spacingSm)
                                 )
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimens.spacingSm))
                             Text(result.item.name, style = MaterialTheme.typography.bodyLarge)
                             result.item.brand?.let { Text("Brand: $it", style = MaterialTheme.typography.bodyMedium) }
                             Text("Quantity: ${result.item.quantity}", style = MaterialTheme.typography.bodyMedium)
@@ -220,20 +226,20 @@ fun BarcodeScannerScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    .padding(top = Dimens.spacingMd),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                             ) {
-                                Button(onClick = {
+                                ThemedButton(onClick = {
                                     navController.navigate(Screen.ItemDetail.createRoute(result.item.id))
                                 }) {
-                                    Icon(Icons.Filled.Visibility, contentDescription = "View item", modifier = Modifier.size(18.dp))
-                                    Text("View Item", modifier = Modifier.padding(start = 4.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.Visibility, inkIconRes = R.drawable.ic_ink_eye, contentDescription = "View item", modifier = Modifier.size(Dimens.iconSizeSm))
+                                    Text("View Item", modifier = Modifier.padding(start = Dimens.spacingXs))
                                 }
                                 OutlinedButton(onClick = {
                                     viewModel.quickAdd(result.item.barcode ?: "", result.item.name, result.item.brand)
                                 }) {
-                                    Icon(Icons.Filled.Add, contentDescription = "Add item", modifier = Modifier.size(18.dp))
-                                    Text("+1", modifier = Modifier.padding(start = 4.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add item", modifier = Modifier.size(Dimens.iconSizeSm))
+                                    Text("+1", modifier = Modifier.padding(start = Dimens.spacingXs))
                                 }
                             }
                         }
@@ -242,14 +248,14 @@ fun BarcodeScannerScreen(
 
                 is ScanResult.NewProduct -> {
                     AppCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text(
                                 "Product Found",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
                             result.barcodeResult.imageUrl?.let { url ->
                                 AsyncImage(
@@ -260,7 +266,7 @@ fun BarcodeScannerScreen(
                                         .height(150.dp),
                                     contentScale = ContentScale.Fit
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(Dimens.spacingSm))
                             }
 
                             result.barcodeResult.productName?.let {
@@ -279,10 +285,10 @@ fun BarcodeScannerScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    .padding(top = Dimens.spacingMd),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                             ) {
-                                Button(onClick = {
+                                ThemedButton(onClick = {
                                     viewModel.quickAdd(
                                         result.barcode,
                                         result.barcodeResult.productName ?: "Unknown",
@@ -300,8 +306,8 @@ fun BarcodeScannerScreen(
                                         )
                                     )
                                 }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit details", modifier = Modifier.size(18.dp))
-                                    Text("Add with Details", modifier = Modifier.padding(start = 4.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit details", modifier = Modifier.size(Dimens.iconSizeSm))
+                                    Text("Add with Details", modifier = Modifier.padding(start = Dimens.spacingXs))
                                 }
                             }
                         }
@@ -313,7 +319,7 @@ fun BarcodeScannerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text(
                                 "Product Not Found",
                                 style = MaterialTheme.typography.titleSmall,
@@ -324,11 +330,11 @@ fun BarcodeScannerScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
-                            Button(
+                            ThemedButton(
                                 onClick = {
                                     navController.navigate(Screen.ItemForm.createRoute(barcode = result.barcode))
                                 },
-                                modifier = Modifier.padding(top = 8.dp)
+                                modifier = Modifier.padding(top = Dimens.spacingSm)
                             ) {
                                 Text("Add Manually")
                             }
@@ -342,8 +348,8 @@ fun BarcodeScannerScreen(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     ) {
                         Row(modifier = Modifier.padding(16.dp)) {
-                            Icon(Icons.Filled.Error, contentDescription = "Error", tint = MaterialTheme.colorScheme.error)
-                            Text(result.message, modifier = Modifier.padding(start = 8.dp))
+                            ThemedIcon(materialIcon = Icons.Filled.Error, inkIconRes = R.drawable.ic_ink_error, contentDescription = "Error", tint = MaterialTheme.colorScheme.error)
+                            Text(result.message, modifier = Modifier.padding(start = Dimens.spacingSm))
                         }
                     }
                 }
@@ -355,14 +361,14 @@ fun BarcodeScannerScreen(
             if (uiState.quickAddDone) {
                 AppCard(
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = StockGreen.copy(alpha = 0.1f)
+                    containerColor = MaterialTheme.appColors.statusInStock.copy(alpha = 0.1f)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.CheckCircle, contentDescription = "Success", tint = StockGreen)
-                        Text("Item added successfully!", modifier = Modifier.padding(start = 8.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.CheckCircle, inkIconRes = R.drawable.ic_ink_check_circle, contentDescription = "Success", tint = MaterialTheme.appColors.statusInStock)
+                        Text("Item added successfully!", modifier = Modifier.padding(start = Dimens.spacingSm))
                     }
                 }
             }
@@ -373,8 +379,8 @@ fun BarcodeScannerScreen(
                     onClick = { viewModel.scanAgain() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan again", modifier = Modifier.size(18.dp))
-                    Text("Scan Again", modifier = Modifier.padding(start = 8.dp))
+                    ThemedIcon(materialIcon = Icons.Filled.QrCodeScanner, inkIconRes = R.drawable.ic_ink_barcode, contentDescription = "Scan again", modifier = Modifier.size(Dimens.iconSizeSm))
+                    Text("Scan Again", modifier = Modifier.padding(start = Dimens.spacingSm))
                 }
             }
 
@@ -383,7 +389,7 @@ fun BarcodeScannerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                     Text("Tips", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text("- Point camera at barcode to scan automatically", style = MaterialTheme.typography.bodySmall)
                     Text("- Or type the barcode number manually above", style = MaterialTheme.typography.bodySmall)

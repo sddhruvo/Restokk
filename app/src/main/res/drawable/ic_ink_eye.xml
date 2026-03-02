@@ -1,0 +1,45 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+    <!-- Eye outline: almond shape, top curve -->
+    <path
+        android:pathData="M2.0,12.0 Q4.5,8.5 7.0,7.0 Q9.5,5.8 12.0,6.0 Q14.5,5.8 17.0,7.0 Q19.5,8.5 22.0,12.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Eye outline: almond shape, bottom curve -->
+    <path
+        android:pathData="M2.0,12.0 Q4.5,15.5 7.0,17.0 Q9.5,18.2 12.0,18.0 Q14.5,18.2 17.0,17.0 Q19.5,15.5 22.0,12.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Iris: circle at (12,12) radius ~4 -->
+    <path
+        android:pathData="M12.0,8.0 Q16.2,8.2 16.0,12.0 Q16.2,15.8 12.0,16.0 Q7.8,15.8 8.0,12.0 Q7.8,8.2 12.0,8.0Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Pupil: filled circle at (12,12) radius ~2 -->
+    <path
+        android:pathData="M12.0,10.0 Q14.2,10.2 14.0,12.0 Q14.2,13.8 12.0,14.0 Q9.8,13.8 10.0,12.0 Q9.8,10.2 12.0,10.0Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#000000"/>
+    <!-- Catch light: tiny gap/highlight at (10,10) -->
+    <path
+        android:pathData="M10.2,10.2 Q10.8,10.0 10.8,10.8 Q10.0,10.8 10.2,10.2Z"
+        android:strokeColor="@android:color/transparent"
+        android:strokeWidth="0"
+        android:fillColor="@android:color/white"/>
+</vector>

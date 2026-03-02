@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.settings
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,22 +15,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,7 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,18 +78,16 @@ fun ExportImportScreen(
         }
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Export / Import") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -112,7 +112,7 @@ fun ExportImportScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isExporting
                     ) {
-                        Icon(Icons.Filled.Download, contentDescription = "Export CSV", modifier = Modifier.size(20.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Download, inkIconRes = R.drawable.ic_ink_download, contentDescription = "Export CSV", modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Export as CSV")
                     }
@@ -122,7 +122,7 @@ fun ExportImportScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isExporting
                     ) {
-                        Icon(Icons.Filled.Download, contentDescription = "Export JSON", modifier = Modifier.size(20.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Download, inkIconRes = R.drawable.ic_ink_download, contentDescription = "Export JSON", modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Export as JSON")
                     }
@@ -132,7 +132,7 @@ fun ExportImportScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            CircularProgressIndicator()
+                            ThemedCircularProgress()
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Exporting items...", style = MaterialTheme.typography.bodySmall)
                         }
@@ -160,7 +160,7 @@ fun ExportImportScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isImporting
                     ) {
-                        Icon(Icons.Filled.Upload, contentDescription = "Import CSV", modifier = Modifier.size(20.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Upload, inkIconRes = R.drawable.ic_ink_upload, contentDescription = "Import CSV", modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Import CSV")
                     }
@@ -170,7 +170,7 @@ fun ExportImportScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isImporting
                     ) {
-                        Icon(Icons.Filled.Upload, contentDescription = "Import JSON", modifier = Modifier.size(20.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Upload, inkIconRes = R.drawable.ic_ink_upload, contentDescription = "Import JSON", modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Import JSON")
                     }
@@ -180,7 +180,7 @@ fun ExportImportScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            CircularProgressIndicator()
+                            ThemedCircularProgress()
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Importing items... This may take a moment.", style = MaterialTheme.typography.bodySmall)
                         }

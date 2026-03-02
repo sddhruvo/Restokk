@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.inventory.app.R
 import com.inventory.app.data.local.dao.PurchaseWithItemDetails
 import com.inventory.app.util.FormatUtils
 import java.time.LocalDate
@@ -64,7 +64,7 @@ internal fun TimelineDateHeader(date: LocalDate) {
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(8.dp))
-        HorizontalDivider(modifier = Modifier.weight(1f))
+        ThemedDivider(modifier = Modifier.weight(1f))
     }
 }
 
@@ -169,8 +169,9 @@ internal fun TimelinePurchaseItem(
                 purchase.storeName?.let { store ->
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.Store,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.Store,
+                            inkIconRes = R.drawable.ic_ink_store,
                             contentDescription = "Store",
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant

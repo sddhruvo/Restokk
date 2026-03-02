@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.reports
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,18 +20,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import com.inventory.app.ui.components.ThemedFilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,12 +45,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.drawInkHatchedBar
+import com.inventory.app.ui.theme.ProgressStyle
+import com.inventory.app.ui.theme.visuals
+import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ChartEntry
 import com.inventory.app.ui.components.DailyChartEntry
 import com.inventory.app.ui.components.HorizontalBarChart
 import com.inventory.app.ui.components.SpendingLineChart
 import com.inventory.app.ui.components.TimelineDateHeader
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.TimelinePurchaseItem
 import com.inventory.app.ui.navigation.Screen
 import java.time.LocalDate
@@ -72,15 +78,13 @@ fun SpendingReportScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ThemedScaffold(
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Spending Report") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         }
@@ -103,7 +107,7 @@ fun SpendingReportScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SpendingPeriod.entries.forEach { period ->
-                        FilterChip(
+                        ThemedFilterChip(
                             selected = uiState.selectedPeriod == period,
                             onClick = { viewModel.updatePeriod(period) },
                             label = { Text(period.label) }
@@ -295,7 +299,7 @@ fun SpendingReportScreen(
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Surface(
-                                        shape = RoundedCornerShape(4.dp),
+                                        shape = MaterialTheme.shapes.extraSmall,
                                         color = MaterialTheme.colorScheme.secondaryContainer
                                     ) {
                                         Text(
@@ -401,7 +405,7 @@ private fun SummaryStatCard(
                 val isNegative = changePercent <= 0
                 val changeText = "${if (changePercent >= 0) "+" else ""}${String.format("%.1f", changePercent)}%"
                 Surface(
-                    shape = RoundedCornerShape(4.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     color = if (isNegative)
                         MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
                     else
@@ -467,6 +471,8 @@ private fun BarWithLabel(
     formattedValue: String,
     color: androidx.compose.ui.graphics.Color
 ) {
+    val progressStyle = MaterialTheme.visuals.progressStyle
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -480,11 +486,25 @@ private fun BarWithLabel(
         Box(modifier = Modifier.weight(1f).height(16.dp)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val fraction = if (maxValue > 0) (value / maxValue).toFloat().coerceIn(0f, 1f) else 0f
-                drawRoundRect(
-                    color = color,
-                    size = Size(size.width * fraction, size.height),
-                    cornerRadius = CornerRadius(4.dp.toPx())
-                )
+                val fillWidth = size.width * fraction
+                when (progressStyle) {
+                    is ProgressStyle.InkHatched -> {
+                        drawInkHatchedBar(
+                            fillWidth = fillWidth,
+                            color = color,
+                            trackColor = trackColor,
+                            style = progressStyle,
+                            wobbleSeed = label.hashCode().toFloat(),
+                        )
+                    }
+                    is ProgressStyle.Standard -> {
+                        drawRoundRect(
+                            color = color,
+                            size = Size(fillWidth, size.height),
+                            cornerRadius = CornerRadius(4.dp.toPx())
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.width(8.dp))

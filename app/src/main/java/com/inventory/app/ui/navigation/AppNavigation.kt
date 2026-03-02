@@ -42,30 +42,31 @@ import com.inventory.app.ui.screens.cook.SavedRecipesScreen
 import com.inventory.app.ui.screens.items.ExpiryDateScannerScreen
 import com.inventory.app.ui.screens.onboarding.OnboardingScreen
 import com.inventory.app.ui.screens.shopping.ShoppingListScreen
+import com.inventory.app.ui.theme.PaperInkMotion
 
 // Bottom nav tab transitions (subtle fade)
 private fun tabEnterTransition(): EnterTransition =
-    fadeIn(animationSpec = tween(300))
+    fadeIn(animationSpec = tween(PaperInkMotion.DurationMedium))
 
 private fun tabExitTransition(): ExitTransition =
-    fadeOut(animationSpec = tween(300))
+    fadeOut(animationSpec = tween(PaperInkMotion.DurationMedium))
 
 // Detail/form screen transitions (slide + fade)
 private fun detailEnterTransition(): EnterTransition =
-    slideInHorizontally(initialOffsetX = { it / 3 }, animationSpec = tween(300)) +
-            fadeIn(animationSpec = tween(300))
+    slideInHorizontally(initialOffsetX = { it / 3 }, animationSpec = tween(PaperInkMotion.DurationMedium)) +
+            fadeIn(animationSpec = tween(PaperInkMotion.DurationMedium))
 
 private fun detailExitTransition(): ExitTransition =
-    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(300)) +
-            fadeOut(animationSpec = tween(300))
+    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(PaperInkMotion.DurationMedium)) +
+            fadeOut(animationSpec = tween(PaperInkMotion.DurationMedium))
 
 private fun detailPopEnterTransition(): EnterTransition =
-    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(300)) +
-            fadeIn(animationSpec = tween(300))
+    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(PaperInkMotion.DurationMedium)) +
+            fadeIn(animationSpec = tween(PaperInkMotion.DurationMedium))
 
 private fun detailPopExitTransition(): ExitTransition =
-    slideOutHorizontally(targetOffsetX = { it / 3 }, animationSpec = tween(300)) +
-            fadeOut(animationSpec = tween(300))
+    slideOutHorizontally(targetOffsetX = { it / 3 }, animationSpec = tween(PaperInkMotion.DurationMedium)) +
+            fadeOut(animationSpec = tween(PaperInkMotion.DurationMedium))
 
 @Composable
 fun AppNavigation(
@@ -82,10 +83,10 @@ fun AppNavigation(
         // Onboarding
         composable(
             Screen.Onboarding.route,
-            enterTransition = { fadeIn(tween(300)) },
-            exitTransition = { fadeOut(tween(300)) },
-            popEnterTransition = { fadeIn(tween(300)) },
-            popExitTransition = { fadeOut(tween(300)) }
+            enterTransition = { fadeIn(tween(PaperInkMotion.DurationMedium)) },
+            exitTransition = { fadeOut(tween(PaperInkMotion.DurationMedium)) },
+            popEnterTransition = { fadeIn(tween(PaperInkMotion.DurationMedium)) },
+            popExitTransition = { fadeOut(tween(PaperInkMotion.DurationMedium)) }
         ) {
             OnboardingScreen(
                 onComplete = {

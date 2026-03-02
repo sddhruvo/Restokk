@@ -1,6 +1,7 @@
 package com.inventory.app.ui.navigation
 
 import android.net.Uri
+import androidx.annotation.DrawableRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.inventory.app.R
 
 sealed class Screen(val route: String) {
     // Bottom nav destinations
@@ -126,26 +128,29 @@ sealed class Screen(val route: String) {
 data class BottomNavItem(
     val screen: Screen,
     val label: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    @DrawableRes val inkIcon: Int = 0,
+    val breathePersonality: com.inventory.app.ui.components.InkPersonality = com.inventory.app.ui.components.InkPersonality.BREATHE
 )
 
 val bottomNavItems = listOf(
-    BottomNavItem(Screen.Dashboard, "Home", Icons.Filled.Home),
-    BottomNavItem(Screen.Cook, "Cook", Icons.Filled.Restaurant),
+    BottomNavItem(Screen.Dashboard, "Home", Icons.Filled.Home, R.drawable.ic_ink_home, com.inventory.app.ui.components.InkPersonality.SETTLE),
+    BottomNavItem(Screen.Cook, "Cook", Icons.Filled.Restaurant, R.drawable.ic_ink_cook, com.inventory.app.ui.components.InkPersonality.SIMMER),
     // Center slot is reserved for the Quick Add FAB (no nav item here)
-    BottomNavItem(Screen.ShoppingList, "Shopping", Icons.Filled.ShoppingCart),
-    BottomNavItem(Screen.More, "More", Icons.Filled.MoreHoriz)
+    BottomNavItem(Screen.ShoppingList, "Shopping", Icons.Filled.ShoppingCart, R.drawable.ic_ink_shopping, com.inventory.app.ui.components.InkPersonality.SWAY),
+    BottomNavItem(Screen.More, "More", Icons.Filled.MoreHoriz, R.drawable.ic_ink_more, com.inventory.app.ui.components.InkPersonality.BREATHE)
 )
 
 data class QuickAddMenuItem(
     val label: String,
     val icon: ImageVector,
+    @DrawableRes val inkIcon: Int = 0,
     val route: String
 )
 
 val quickAddMenuItems = listOf(
-    QuickAddMenuItem("Add Item", Icons.Filled.AddShoppingCart, Screen.AddShoppingItem.createRoute()),
-    QuickAddMenuItem("Scan Barcode", Icons.Filled.QrCodeScanner, Screen.BarcodeScan.route),
-    QuickAddMenuItem("Kitchen Scan", Icons.Filled.PhotoCamera, Screen.FridgeScan.route),
-    QuickAddMenuItem("Scan Receipt", Icons.Filled.Receipt, Screen.ReceiptScan.route)
+    QuickAddMenuItem("Add Item", Icons.Filled.AddShoppingCart, R.drawable.ic_ink_add_to_cart, Screen.AddShoppingItem.createRoute()),
+    QuickAddMenuItem("Scan Barcode", Icons.Filled.QrCodeScanner, R.drawable.ic_ink_barcode, Screen.BarcodeScan.route),
+    QuickAddMenuItem("Kitchen Scan", Icons.Filled.PhotoCamera, R.drawable.ic_ink_camera, Screen.FridgeScan.route),
+    QuickAddMenuItem("Scan Receipt", Icons.Filled.Receipt, R.drawable.ic_ink_receipt, Screen.ReceiptScan.route)
 )

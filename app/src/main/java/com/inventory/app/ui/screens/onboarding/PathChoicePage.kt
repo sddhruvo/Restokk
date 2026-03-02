@@ -93,11 +93,11 @@ fun PathChoicePage(
                 else -> true
             }
             if (isForward) {
-                (slideInHorizontally { it / 3 } + fadeIn(tween(300))) togetherWith
-                    (slideOutHorizontally { -it / 3 } + fadeOut(tween(300)))
+                (slideInHorizontally { it / 3 } + fadeIn(tween(PaperInkMotion.DurationMedium))) togetherWith
+                    (slideOutHorizontally { -it / 3 } + fadeOut(tween(PaperInkMotion.DurationMedium)))
             } else {
-                (slideInHorizontally { -it / 3 } + fadeIn(tween(300))) togetherWith
-                    (slideOutHorizontally { it / 3 } + fadeOut(tween(300)))
+                (slideInHorizontally { -it / 3 } + fadeIn(tween(PaperInkMotion.DurationMedium))) togetherWith
+                    (slideOutHorizontally { it / 3 } + fadeOut(tween(PaperInkMotion.DurationMedium)))
             }
         },
         modifier = Modifier.fillMaxSize(),
@@ -211,7 +211,7 @@ private fun PathSelectionContent(
     )
     val promptAlpha by animateFloatAsState(
         targetValue = if (promptReady) 1f else 0f,
-        animationSpec = tween(300), label = "promptAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "promptAlpha"
     )
 
     // Skip link: Fade Up
@@ -221,7 +221,7 @@ private fun PathSelectionContent(
     )
     val skipAlpha by animateFloatAsState(
         targetValue = if (skipReady) 1f else 0f,
-        animationSpec = tween(300), label = "skipAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "skipAlpha"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -379,7 +379,7 @@ private fun PathCard(
                 scaleX = landScale; scaleY = landScale
                 alpha = landAlpha * disabledAlpha
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -422,7 +422,7 @@ private fun PathCard(
             if (isRecommended) {
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(0.dp)
@@ -466,7 +466,7 @@ internal fun AddMoreContent(
 
     val fadeAlpha by animateFloatAsState(
         targetValue = if (contentReady) 1f else 0f,
-        animationSpec = tween(300), label = "addMoreFade"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "addMoreFade"
     )
     val riseY by animateFloatAsState(
         targetValue = if (contentReady) 0f else 20f,
@@ -500,7 +500,7 @@ internal fun AddMoreContent(
             OutlinedButton(
                 onClick = onAddAnother,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             ) {
                 Text("Add another", style = MaterialTheme.typography.titleMedium)
             }

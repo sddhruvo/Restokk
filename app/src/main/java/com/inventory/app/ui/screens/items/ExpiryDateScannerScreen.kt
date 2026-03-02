@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
@@ -25,9 +24,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,8 +42,12 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ExpiryDateCameraPreview
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedIcon
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -57,14 +60,12 @@ fun ExpiryDateScannerScreen(
     var detectedDate by remember { mutableStateOf<String?>(null) }
     var isScanning by remember { mutableStateOf(true) }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Scan Expiry Date") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         }
@@ -102,8 +103,9 @@ fun ExpiryDateScannerScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Filled.CalendarMonth,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.CalendarMonth,
+                                    inkIconRes = R.drawable.ic_ink_calendar,
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -131,8 +133,9 @@ fun ExpiryDateScannerScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            Icons.Filled.CameraAlt,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.CameraAlt,
+                            inkIconRes = R.drawable.ic_ink_camera,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -148,8 +151,8 @@ fun ExpiryDateScannerScreen(
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
-                            Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        ThemedButton(onClick = { cameraPermissionState.launchPermissionRequest() }) {
+                            ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(18.dp))
                             Text("Grant Camera Permission", modifier = Modifier.padding(start = 4.dp))
                         }
                     }
@@ -184,7 +187,7 @@ fun ExpiryDateScannerScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(
+                                ThemedButton(
                                     onClick = {
                                         navController.previousBackStackEntry
                                             ?.savedStateHandle
@@ -193,7 +196,7 @@ fun ExpiryDateScannerScreen(
                                     },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.Check, inkIconRes = R.drawable.ic_ink_check, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Text("Use This Date", modifier = Modifier.padding(start = 4.dp))
                                 }
                                 OutlinedButton(
@@ -203,7 +206,7 @@ fun ExpiryDateScannerScreen(
                                     },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.Refresh, inkIconRes = R.drawable.ic_ink_refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Text("Scan Again", modifier = Modifier.padding(start = 4.dp))
                                 }
                             }

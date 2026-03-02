@@ -1,5 +1,8 @@
 package com.inventory.app.ui.screens.items
 
+import com.inventory.app.ui.components.ThemedDropdownMenu
+import com.inventory.app.ui.components.ThemedFilterChip
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -44,25 +47,24 @@ import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.ViewList
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
+import com.inventory.app.ui.components.ThemedDivider
+import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -84,17 +86,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.components.EmptyStateIllustration
 import com.inventory.app.ui.components.AnimatedFab
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.theme.ExpiryOrange
-import com.inventory.app.ui.theme.ExpiryRed
-import com.inventory.app.ui.theme.StockGreen
-import com.inventory.app.ui.theme.StockYellow
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.appColors
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -126,7 +129,7 @@ fun ItemListScreen(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     if (showDeleteConfirmation) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             title = { Text("Delete Items") },
             text = { Text("Are you sure you want to delete ${uiState.selectedIds.size} selected item(s)?") },
@@ -158,11 +161,11 @@ fun ItemListScreen(
         )
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ThemedScaffold(
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         topBar = {
             if (uiState.selectionMode) {
-                TopAppBar(
+                ThemedTopAppBar(
                     title = {
                         AnimatedContent(
                             targetState = uiState.selectedIds.size,
@@ -177,19 +180,20 @@ fun ItemListScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.exitSelectionMode() }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+                            ThemedIcon(materialIcon = Icons.Filled.Close, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Cancel selection")
                         }
                     },
                     actions = {
                         IconButton(onClick = { viewModel.selectAll() }) {
-                            Icon(Icons.Filled.SelectAll, contentDescription = "Select all")
+                            ThemedIcon(materialIcon = Icons.Filled.SelectAll, inkIconRes = R.drawable.ic_ink_select_all, contentDescription = "Select all")
                         }
                         IconButton(
                             onClick = { showDeleteConfirmation = true },
                             enabled = uiState.selectedIds.isNotEmpty()
                         ) {
-                            Icon(
-                                Icons.Filled.Delete,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.Delete,
+                                inkIconRes = R.drawable.ic_ink_delete,
                                 contentDescription = "Delete selected",
                                 tint = if (uiState.selectedIds.isNotEmpty()) MaterialTheme.colorScheme.error
                                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -201,16 +205,16 @@ fun ItemListScreen(
                     )
                 )
             } else {
-                TopAppBar(
+                ThemedTopAppBar(
                     title = { Text("Items") },
                     actions = {
                         IconButton(onClick = { searchActive = !searchActive }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Search")
+                            ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search")
                         }
                         IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Filled.Sort, contentDescription = "Sort")
+                            ThemedIcon(materialIcon = Icons.Filled.Sort, inkIconRes = R.drawable.ic_ink_sort, contentDescription = "Sort")
                         }
-                        DropdownMenu(
+                        ThemedDropdownMenu(
                             expanded = showSortMenu,
                             onDismissRequest = { showSortMenu = false }
                         ) {
@@ -242,7 +246,7 @@ fun ItemListScreen(
         floatingActionButton = {
             AnimatedFab(
                 onClick = { navController.navigate(Screen.ItemForm.createRoute()) },
-                icon = { Icon(Icons.Filled.Add, contentDescription = "Add Item") },
+                icon = { ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add Item") },
                 visible = !uiState.selectionMode
             )
         }
@@ -268,13 +272,13 @@ fun ItemListScreen(
                     trailingIcon = {
                         if (uiState.searchQuery.isNotEmpty()) {
                             IconButton(onClick = { viewModel.updateSearch("") }) {
-                                Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                                ThemedIcon(materialIcon = Icons.Filled.Clear, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Clear")
                             }
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm)
                 ) {}
             }
 
@@ -286,11 +290,11 @@ fun ItemListScreen(
             ) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                    modifier = Modifier.padding(bottom = Dimens.spacingSm)
                 ) {
                     items(uiState.categories) { category ->
-                        FilterChip(
+                        ThemedFilterChip(
                             selected = uiState.selectedCategoryId == category.id,
                             onClick = {
                                 viewModel.selectCategory(
@@ -318,7 +322,7 @@ fun ItemListScreen(
                     else -> {
                         Crossfade(
                             targetState = uiState.viewMode,
-                            animationSpec = tween(300),
+                            animationSpec = tween(PaperInkMotion.DurationMedium),
                             label = "viewModeTransition"
                         ) { viewMode ->
                             when (viewMode) {
@@ -327,8 +331,8 @@ fun ItemListScreen(
                                     LazyVerticalGrid(
                                         columns = GridCells.Fixed(2),
                                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
+                                        verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                                     ) {
                                         items(activeItems, key = { it.id }) { item ->
                                             ItemGridCard(
@@ -358,17 +362,17 @@ fun ItemListScreen(
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(top = 8.dp, bottom = 4.dp),
+                                                        .padding(top = Dimens.spacingSm, bottom = Dimens.spacingXs),
                                                     verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                                                 ) {
-                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                    ThemedDivider(modifier = Modifier.weight(1f))
                                                     Text(
                                                         "Paused (${pausedItems.size})",
                                                         style = MaterialTheme.typography.labelMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
-                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                    ThemedDivider(modifier = Modifier.weight(1f))
                                                 }
                                             }
                                             items(pausedItems, key = { it.id }) { item ->
@@ -430,17 +434,17 @@ fun ItemListScreen(
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                        .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm),
                                                     verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                                                 ) {
-                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                    ThemedDivider(modifier = Modifier.weight(1f))
                                                     Text(
                                                         "Paused (${pausedItems.size})",
                                                         style = MaterialTheme.typography.labelMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
-                                                    HorizontalDivider(modifier = Modifier.weight(1f))
+                                                    ThemedDivider(modifier = Modifier.weight(1f))
                                                 }
                                             }
                                             items(pausedItems, key = { it.id }) { item ->
@@ -501,19 +505,20 @@ private fun ItemGridCard(
     val effectiveMin = if (item.minQuantity > 0) item.minQuantity else item.smartMinQuantity
     val hasEffectiveMin = effectiveMin > 0
     val stockRatio = if (hasEffectiveMin) (item.quantity / effectiveMin).toFloat().coerceIn(0f, 1f) else 1f
+    val appColors = MaterialTheme.appColors
     val stockColor = when {
         !hasEffectiveMin -> null
-        item.quantity <= 0 -> ExpiryRed
-        stockRatio < 0.3f -> ExpiryRed
-        stockRatio < 0.6f -> StockYellow
-        else -> StockGreen
+        item.quantity <= 0 -> appColors.statusExpired
+        stockRatio < 0.3f -> appColors.statusExpired
+        stockRatio < 0.6f -> appColors.statusLowStock
+        else -> appColors.statusInStock
     }
 
     val statusColor = when {
-        item.expiryDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }?.let { it < 0 } == true -> ExpiryRed
-        item.expiryDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }?.let { it <= item.expiryWarningDays } == true -> ExpiryOrange
-        stockColor == ExpiryRed -> ExpiryRed
-        stockColor == StockYellow -> StockYellow
+        item.expiryDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }?.let { it < 0 } == true -> appColors.statusExpired
+        item.expiryDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }?.let { it <= item.expiryWarningDays } == true -> appColors.statusExpiring
+        stockColor == appColors.statusExpired -> appColors.statusExpired
+        stockColor == appColors.statusLowStock -> appColors.statusLowStock
         else -> null
     }
 
@@ -532,7 +537,7 @@ private fun ItemGridCard(
                 if (statusColor != null) Modifier.border(
                     width = 1.5.dp,
                     color = statusColor.copy(alpha = 0.25f),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = MaterialTheme.shapes.large
                 ) else Modifier
             ),
         containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else null
@@ -581,8 +586,9 @@ private fun ItemGridCard(
                         onClick = onFavorite,
                         modifier = Modifier.size(22.dp)
                     ) {
-                        Icon(
-                            if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        ThemedIcon(
+                            materialIcon = if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            inkIconRes = if (item.isFavorite) R.drawable.ic_ink_heart else R.drawable.ic_ink_heart_outline,
                             contentDescription = "Favorite",
                             modifier = Modifier.size(16.dp),
                             tint = if (item.isFavorite) MaterialTheme.colorScheme.error
@@ -624,23 +630,24 @@ private fun ItemGridCard(
                             onClick = onAddToShopping,
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(
-                                Icons.Filled.AddShoppingCart,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.AddShoppingCart,
+                                inkIconRes = R.drawable.ic_ink_add_to_cart,
                                 contentDescription = "Add to shopping list",
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(Dimens.iconSizeSm),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                LinearProgressIndicator(
+                Spacer(modifier = Modifier.height(Dimens.spacingXs))
+                ThemedProgressBar(
                     progress = { stockRatio },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = stockColor ?: StockGreen,
+                    color = stockColor ?: appColors.statusInStock,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             } else {
@@ -663,10 +670,11 @@ private fun ItemGridCard(
                             onClick = onAddToShopping,
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(
-                                Icons.Filled.AddShoppingCart,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.AddShoppingCart,
+                                inkIconRes = R.drawable.ic_ink_add_to_cart,
                                 contentDescription = "Add to shopping list",
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(Dimens.iconSizeSm),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                         }
@@ -680,19 +688,19 @@ private fun ItemGridCard(
             if (expiry != null) {
                 val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
                 if (daysUntil < 0) {
-                    expiryChips.add("Expired" to ExpiryRed)
+                    expiryChips.add("Expired" to appColors.statusExpired)
                 } else if (daysUntil <= item.expiryWarningDays) {
-                    expiryChips.add("${daysUntil}d left" to ExpiryOrange)
+                    expiryChips.add("${daysUntil}d left" to appColors.statusExpiring)
                 }
             }
             // Only show "Out of stock" chip — low stock is handled by progress bar
             if (hasEffectiveMin && item.quantity <= 0) {
-                expiryChips.add("Out of stock" to ExpiryRed)
+                expiryChips.add("Out of stock" to appColors.statusExpired)
             }
 
             if (expiryChips.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                     expiryChips.forEach { (text, color) ->
                         StatusChip(text = text, color = color)
                     }
@@ -725,12 +733,13 @@ private fun ItemListRow(
     val effectiveMin = if (item.minQuantity > 0) item.minQuantity else item.smartMinQuantity
     val hasEffectiveMin = effectiveMin > 0
     val stockRatio = if (hasEffectiveMin) (item.quantity / effectiveMin).toFloat().coerceIn(0f, 1f) else 1f
+    val appColors = MaterialTheme.appColors
     val stockColor = when {
         !hasEffectiveMin -> null
-        item.quantity <= 0 -> ExpiryRed
-        stockRatio < 0.3f -> ExpiryRed
-        stockRatio < 0.6f -> StockYellow
-        else -> StockGreen
+        item.quantity <= 0 -> appColors.statusExpired
+        stockRatio < 0.3f -> appColors.statusExpired
+        stockRatio < 0.6f -> appColors.statusLowStock
+        else -> appColors.statusInStock
     }
 
     ListItem(
@@ -780,14 +789,14 @@ private fun ItemListRow(
 
                 // Stock progress bar
                 if (hasEffectiveMin) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
+                    Spacer(modifier = Modifier.height(Dimens.spacingXs))
+                    ThemedProgressBar(
                         progress = { stockRatio },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(3.dp)
                             .clip(RoundedCornerShape(1.5.dp)),
-                        color = stockColor ?: StockGreen,
+                        color = stockColor ?: appColors.statusInStock,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 }
@@ -798,17 +807,17 @@ private fun ItemListRow(
                 if (expiry != null) {
                     val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
                     if (daysUntil < 0) {
-                        expiryChips.add("Expired" to ExpiryRed)
+                        expiryChips.add("Expired" to appColors.statusExpired)
                     } else if (daysUntil <= item.expiryWarningDays) {
-                        expiryChips.add("${daysUntil}d left" to ExpiryOrange)
+                        expiryChips.add("${daysUntil}d left" to appColors.statusExpiring)
                     }
                 }
                 if (hasEffectiveMin && item.quantity <= 0) {
-                    expiryChips.add("Out of stock" to ExpiryRed)
+                    expiryChips.add("Out of stock" to appColors.statusExpired)
                 }
                 if (expiryChips.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Spacer(modifier = Modifier.height(Dimens.spacingXs))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                         expiryChips.forEach { (text, color) ->
                             StatusChip(text = text, color = color)
                         }
@@ -830,17 +839,19 @@ private fun ItemListRow(
             if (!selectionMode) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onAddToShopping, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            Icons.Filled.AddShoppingCart,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.AddShoppingCart,
+                            inkIconRes = R.drawable.ic_ink_add_to_cart,
                             contentDescription = "Add to shopping list",
                             modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(onClick = onFavorite, modifier = Modifier.size(24.dp)) {
-                        Icon(
-                            if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    Spacer(modifier = Modifier.width(Dimens.spacingXs))
+                    IconButton(onClick = onFavorite, modifier = Modifier.size(Dimens.iconSizeMd)) {
+                        ThemedIcon(
+                            materialIcon = if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            inkIconRes = if (item.isFavorite) R.drawable.ic_ink_heart else R.drawable.ic_ink_heart_outline,
                             contentDescription = "Favorite",
                             modifier = Modifier.size(16.dp),
                             tint = if (item.isFavorite) MaterialTheme.colorScheme.error

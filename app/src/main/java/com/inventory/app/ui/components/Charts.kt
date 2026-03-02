@@ -31,9 +31,62 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-import com.inventory.app.ui.theme.ExpiryRed
-import com.inventory.app.ui.theme.StockGreen
-import com.inventory.app.ui.theme.StockYellow
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
+import com.inventory.app.ui.theme.ProgressStyle
+import com.inventory.app.ui.theme.appColors
+import com.inventory.app.ui.theme.visuals
+import kotlin.math.sin
+
+/**
+ * Draws an ink-hatched bar inside a DrawScope.
+ * Reusable helper for any Canvas-based bar that needs Paper & Ink treatment.
+ */
+fun DrawScope.drawInkHatchedBar(
+    fillWidth: Float,
+    color: Color,
+    trackColor: Color,
+    style: ProgressStyle.InkHatched,
+    wobbleSeed: Float,
+) {
+    val h = size.height
+    val cornerRadius = h / 2f
+    val cr = androidx.compose.ui.geometry.CornerRadius(cornerRadius, cornerRadius)
+
+    // Track background
+    drawRoundRect(color = trackColor, cornerRadius = cr)
+
+    if (fillWidth > 0f) {
+        clipRect(right = fillWidth) {
+            // Subtle wash
+            drawRoundRect(color = color.copy(alpha = style.washAlpha), cornerRadius = cr)
+
+            // Diagonal hatch strokes
+            val baseSpacing = h * style.baseSpacing
+            val baseStrokeWidth = h * style.strokeThickness
+            var x = -h * 1.5f
+            var lineIndex = 0
+            while (x < fillWidth + h) {
+                val s = wobbleSeed + lineIndex * 7.13f
+                val spacingJitter = 0.85f + (sin(s * 1.3).toFloat() + 1f) * 0.15f
+                val thicknessJitter = 0.7f + (sin(s * 2.7 + 1.0).toFloat() + 1f) * 0.25f
+                val angleJitter = sin(s * 3.1 + 2.0).toFloat() * h * 0.2f
+                val wobX = sin(s * 1.7).toFloat() * (h * 0.10f)
+                val wobY = sin(s * 2.3 + 0.5).toFloat() * (h * 0.08f)
+                drawLine(
+                    color = color,
+                    start = Offset(x + wobX, h + wobY),
+                    end = Offset(x + h * 1.4f + wobX + angleJitter, -wobY),
+                    strokeWidth = baseStrokeWidth * thicknessJitter,
+                    cap = StrokeCap.Round
+                )
+                x += baseSpacing * spacingJitter
+                lineIndex++
+            }
+        }
+    }
+}
 
 private val chartColors = listOf(
     Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800), Color(0xFF9C27B0),
@@ -107,12 +160,14 @@ fun HorizontalBarChart(
     val maxValue = entries.maxOf { it.value }
     if (maxValue <= 0f) return
     val barBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    val progressStyle = MaterialTheme.visuals.progressStyle
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         entries.forEachIndexed { index, entry ->
+            val wobbleSeed = remember(index) { (index * 137.5f + 42f) }
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -132,18 +187,30 @@ fun HorizontalBarChart(
                         .padding(top = 4.dp)
                 ) {
                     val barWidth = (entry.value / maxValue) * size.width
-                    // Background
-                    drawRoundRect(
-                        color = barBackground,
-                        size = Size(size.width, size.height),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
-                    )
-                    // Bar
-                    drawRoundRect(
-                        color = chartColors[index % chartColors.size],
-                        size = Size(barWidth, size.height),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
-                    )
+                    val barColor = chartColors[index % chartColors.size]
+                    when (progressStyle) {
+                        is ProgressStyle.InkHatched -> {
+                            drawInkHatchedBar(
+                                fillWidth = barWidth,
+                                color = barColor,
+                                trackColor = barBackground,
+                                style = progressStyle,
+                                wobbleSeed = wobbleSeed,
+                            )
+                        }
+                        is ProgressStyle.Standard -> {
+                            drawRoundRect(
+                                color = barBackground,
+                                size = Size(size.width, size.height),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
+                            )
+                            drawRoundRect(
+                                color = barColor,
+                                size = Size(barWidth, size.height),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -162,6 +229,7 @@ fun SpendingLineChart(
 
     val lineColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val themeFontFamily = MaterialTheme.typography.bodyLarge.fontFamily
     val textMeasurer = rememberTextMeasurer()
 
     val maxValue = entries.maxOf { it.value }.coerceAtLeast(1f)
@@ -169,12 +237,14 @@ fun SpendingLineChart(
 
     val labelStyle = TextStyle(
         fontSize = 10.sp,
-        color = onSurfaceColor.copy(alpha = 0.6f)
+        color = onSurfaceColor.copy(alpha = 0.6f),
+        fontFamily = themeFontFamily
     )
     val peakStyle = TextStyle(
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = lineColor
+        color = lineColor,
+        fontFamily = themeFontFamily
     )
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -279,17 +349,21 @@ fun ScoreLineChart(
 ) {
     if (entries.size < 2) return
 
+    val appColors = MaterialTheme.appColors
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val themeFontFamily = MaterialTheme.typography.bodyLarge.fontFamily
     val textMeasurer = rememberTextMeasurer()
 
     val labelStyle = TextStyle(
         fontSize = 10.sp,
-        color = onSurfaceColor.copy(alpha = 0.6f)
+        color = onSurfaceColor.copy(alpha = 0.6f),
+        fontFamily = themeFontFamily
     )
     val refLineStyle = TextStyle(
         fontSize = 9.sp,
-        color = onSurfaceColor.copy(alpha = 0.4f)
+        color = onSurfaceColor.copy(alpha = 0.4f),
+        fontFamily = themeFontFamily
     )
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -335,9 +409,9 @@ fun ScoreLineChart(
             // Color based on last score
             val lastScore = entries.last().value
             val lineColor = when {
-                lastScore >= 80 -> StockGreen
-                lastScore >= 50 -> StockYellow
-                else -> ExpiryRed
+                lastScore >= 80 -> appColors.statusInStock
+                lastScore >= 50 -> appColors.statusLowStock
+                else -> appColors.statusExpired
             }
 
             // Gradient fill

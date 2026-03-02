@@ -43,7 +43,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -63,10 +62,12 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
+import com.inventory.app.ui.components.ThemedDropdownMenu
+import com.inventory.app.ui.components.ThemedTextField
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -75,10 +76,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -103,8 +104,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.DropdownField
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.InkBloomDot
 import com.inventory.app.ui.components.InkDotState
 import com.inventory.app.ui.components.InkProgressLine
@@ -128,6 +133,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import com.inventory.app.ui.components.AnimatedCounter
 import com.inventory.app.ui.components.InkFireworks
+import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.util.CategoryVisual
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -208,8 +214,9 @@ private fun PulsingQuestionMark(
         ),
         label = "questionAlpha"
     )
-    Icon(
-        Icons.Filled.HelpOutline,
+    ThemedIcon(
+        materialIcon = Icons.Filled.HelpOutline,
+        inkIconRes = R.drawable.ic_ink_help,
         contentDescription = "Uncertain",
         modifier = modifier
             .size(14.dp)
@@ -309,7 +316,7 @@ fun FridgeScanScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text(if (uiState.isInTourMode) "Return to areas?" else "Discard scan results?") },
             text = { Text(
@@ -346,20 +353,18 @@ fun FridgeScanScreen(
         else -> "Kitchen Scan"
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         when {
                             hasResults -> showDiscardDialog = true
                             isInTourIdle -> viewModel.returnToAreaSelection()
                             else -> navController.popBackStack()
                         }
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    })
                 },
                 actions = {
                     if (uiState.state is FridgeScanState.Review) {
@@ -439,7 +444,7 @@ fun FridgeScanScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator()
+                    ThemedCircularProgress()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         "Adding item ${state.current} of ${state.total}...",
@@ -494,7 +499,7 @@ fun FridgeScanScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Error, null, tint = MaterialTheme.colorScheme.error)
+                                ThemedIcon(materialIcon = Icons.Filled.Error, inkIconRes = R.drawable.ic_ink_error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                                 Text(
                                     "Scan Failed",
                                     style = MaterialTheme.typography.titleSmall,
@@ -509,13 +514,13 @@ fun FridgeScanScreen(
                             )
                         }
                     }
-                    Button(
+                    ThemedButton(
                         onClick = {
                             launchCameraWithPermission()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Filled.CameraAlt, null, Modifier.size(18.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text("Try Again", Modifier.padding(start = 8.dp))
                     }
                     if (uiState.isInTourMode) {
@@ -563,8 +568,10 @@ private fun AreaSelectionContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.AutoAwesome, null,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.AutoAwesome,
+                        inkIconRes = R.drawable.ic_ink_sparkle,
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(28.dp)
                     )
@@ -600,7 +607,7 @@ private fun AreaSelectionContent(
                         )
                     },
                     leadingIcon = {
-                        Icon(Icons.Filled.CheckCircle, null, Modifier.size(16.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.CheckCircle, inkIconRes = R.drawable.ic_ink_check_circle, contentDescription = null, modifier = Modifier.size(16.dp))
                     }
                 )
             }
@@ -647,20 +654,20 @@ private fun AreaSelectionContent(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
         ) {
-            Icon(Icons.Filled.CameraAlt, null, Modifier.size(16.dp))
+            ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(16.dp))
             Text("Quick Scan (skip area selection)", Modifier.padding(start = 8.dp))
         }
 
         // Finish tour button (if areas completed)
         if (completedAreas.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
-            Button(
+            ThemedButton(
                 onClick = onFinishTour,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp))
+                ThemedIcon(materialIcon = Icons.Filled.CheckCircle, inkIconRes = R.drawable.ic_ink_check_circle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text("Done - View Summary", Modifier.padding(start = 8.dp))
             }
         }
@@ -722,8 +729,10 @@ private fun AreaCard(
 
             // Checkmark overlay
             if (isCompleted) {
-                Icon(
-                    Icons.Filled.CheckCircle, null,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.CheckCircle,
+                    inkIconRes = R.drawable.ic_ink_check_circle,
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .size(20.dp)
@@ -757,8 +766,10 @@ private fun IdleContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.AutoAwesome, null,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.AutoAwesome,
+                        inkIconRes = R.drawable.ic_ink_sparkle,
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(28.dp)
                     )
@@ -779,11 +790,11 @@ private fun IdleContent(
             }
         }
 
-        Button(
+        ThemedButton(
             onClick = onTakePhoto,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Filled.CameraAlt, null, Modifier.size(18.dp))
+            ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(18.dp))
             Text("Take Photo", Modifier.padding(start = 8.dp))
         }
 
@@ -791,7 +802,7 @@ private fun IdleContent(
             onClick = onPickGallery,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(18.dp))
+            ThemedIcon(materialIcon = Icons.Filled.PhotoLibrary, inkIconRes = R.drawable.ic_ink_photo_library, contentDescription = null, modifier = Modifier.size(18.dp))
             Text("Pick from Gallery", Modifier.padding(start = 8.dp))
         }
     }
@@ -923,13 +934,13 @@ private fun ProcessingContent(
                             launch {
                                 translateX.animateTo(
                                     targetValue = 0f,
-                                    animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f)
+                                    animationSpec = PaperInkMotion.BouncySpring
                                 )
                             }
                             launch {
                                 alphaAnim.animateTo(
                                     targetValue = 1f,
-                                    animationSpec = spring(dampingRatio = 1.0f, stiffness = 200f)
+                                    animationSpec = PaperInkMotion.GentleSpring
                                 )
                             }
                         }
@@ -1006,8 +1017,10 @@ private fun ReviewContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.CameraAlt, null,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.CameraAlt,
+                            inkIconRes = R.drawable.ic_ink_camera,
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(24.dp)
                         )
@@ -1038,11 +1051,11 @@ private fun ReviewContent(
                     }
                 }
             }
-            Button(
+            ThemedButton(
                 onClick = onRetake,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Filled.CameraAlt, null, Modifier.size(18.dp))
+                ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text("Try Again", Modifier.padding(start = 8.dp))
             }
             OutlinedButton(
@@ -1217,7 +1230,7 @@ private fun ReviewContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Button(
+            ThemedButton(
                 onClick = onAddAll,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = activeItems.isNotEmpty()
@@ -1239,7 +1252,7 @@ private fun ReviewCategoryHeader(
 ) {
     val chevronRotation by animateFloatAsState(
         targetValue = if (isExpanded) 180f else 0f,
-        animationSpec = tween(300),
+        animationSpec = tween(PaperInkMotion.DurationMedium),
         label = "chevronRotation"
     )
 
@@ -1249,7 +1262,7 @@ private fun ReviewCategoryHeader(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(150))
+        enter = fadeIn(tween(PaperInkMotion.DurationShort))
     ) {
         Row(
             modifier = modifier
@@ -1286,8 +1299,9 @@ private fun ReviewCategoryHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             // Chevron
-            Icon(
-                Icons.Filled.KeyboardArrowDown,
+            ThemedIcon(
+                materialIcon = Icons.Filled.KeyboardArrowDown,
+                inkIconRes = R.drawable.ic_ink_arrow_down,
                 contentDescription = if (isExpanded) "Collapse" else "Expand",
                 modifier = Modifier
                     .size(20.dp)
@@ -1316,13 +1330,13 @@ private fun ReviewItemWithAnimation(
                 launch {
                     translateX.animateTo(
                         targetValue = 0f,
-                        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f)
+                        animationSpec = PaperInkMotion.BouncySpring
                     )
                 }
                 launch {
                     alphaAnim.animateTo(
                         targetValue = 1f,
-                        animationSpec = spring(dampingRatio = 1.0f, stiffness = 200f)
+                        animationSpec = PaperInkMotion.GentleSpring
                     )
                 }
             }
@@ -1372,7 +1386,7 @@ private fun ReviewItemCard(
                     width = 1.dp,
                     color = if (item.confidence == "low") MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
                             else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
             else Modifier
         )
@@ -1401,8 +1415,10 @@ private fun ReviewItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        Icons.Filled.Warning, null,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.Warning,
+                        inkIconRes = R.drawable.ic_ink_warning,
+                        contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.tertiary
                     )
@@ -1458,15 +1474,15 @@ private fun ReviewItemCard(
                 // Match badge
                 when (item.matchType) {
                     FridgeMatchType.CREATE_NEW -> {
-                        Icon(Icons.Filled.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                         Text("New", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
                     FridgeMatchType.UPDATE_EXISTING -> {
-                        Icon(Icons.Filled.Inventory2, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(14.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(14.dp))
                         Text("Exists", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                     }
                     FridgeMatchType.SKIP -> {
-                        Icon(Icons.Filled.Block, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Block, inkIconRes = R.drawable.ic_ink_block, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
                         Text("Skip", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -1484,16 +1500,16 @@ private fun ReviewItemCard(
                 var showMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { showMenu = true }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Filled.MoreVert, "Options", modifier = Modifier.size(18.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.MoreVert, inkIconRes = R.drawable.ic_ink_more_vert, contentDescription = "Options", modifier = Modifier.size(18.dp))
                     }
-                    DropdownMenu(
+                    ThemedDropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
                             text = { Text("Create new") },
                             onClick = { onMatchTypeChange(FridgeMatchType.CREATE_NEW, null); showMenu = false },
-                            leadingIcon = { Icon(Icons.Filled.Add, null, Modifier.size(18.dp)) }
+                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = null, modifier = Modifier.size(18.dp)) }
                         )
                         if (item.inventoryCandidates.isNotEmpty()) {
                             item.inventoryCandidates.forEach { candidate ->
@@ -1505,19 +1521,19 @@ private fun ReviewItemCard(
                                         Text("Update \"${candidate.name}\" ($qtyStr)")
                                     },
                                     onClick = { onMatchTypeChange(FridgeMatchType.UPDATE_EXISTING, candidate.id); showMenu = false },
-                                    leadingIcon = { Icon(Icons.Filled.Inventory2, null, Modifier.size(18.dp)) }
+                                    leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box, contentDescription = null, modifier = Modifier.size(18.dp)) }
                                 )
                             }
                         }
                         DropdownMenuItem(
                             text = { Text("Skip") },
                             onClick = { onMatchTypeChange(FridgeMatchType.SKIP, null); showMenu = false },
-                            leadingIcon = { Icon(Icons.Filled.Block, null, Modifier.size(18.dp)) }
+                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Block, inkIconRes = R.drawable.ic_ink_block, contentDescription = null, modifier = Modifier.size(18.dp)) }
                         )
                         DropdownMenuItem(
                             text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
                             onClick = { onRemove(); showMenu = false },
-                            leadingIcon = { Icon(Icons.Filled.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) }
+                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Delete, inkIconRes = R.drawable.ic_ink_delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) }
                         )
                     }
                 }
@@ -1525,7 +1541,7 @@ private fun ReviewItemCard(
 
             if (!isSkipped) {
                 // Row 2: Name
-                OutlinedTextField(
+                ThemedTextField(
                     value = item.name,
                     onValueChange = onNameChange,
                     label = { Text("Item name") },
@@ -1538,7 +1554,7 @@ private fun ReviewItemCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    ThemedTextField(
                         value = item.quantity,
                         onValueChange = onQuantityChange,
                         label = { Text("Qty") },
@@ -1597,8 +1613,10 @@ private fun AreaSuccessContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            Icons.Filled.CheckCircle, null,
+        ThemedIcon(
+            materialIcon = Icons.Filled.CheckCircle,
+            inkIconRes = R.drawable.ic_ink_check_circle,
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(64.dp)
         )
@@ -1623,7 +1641,7 @@ private fun AreaSuccessContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         if (isInTourMode) {
-            Button(
+            ThemedButton(
                 onClick = onScanNextArea,
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Scan Next Area") }
@@ -1632,11 +1650,11 @@ private fun AreaSuccessContent(
                 onClick = onViewSummary,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Filled.CheckCircle, null, Modifier.size(18.dp))
+                ThemedIcon(materialIcon = Icons.Filled.CheckCircle, inkIconRes = R.drawable.ic_ink_check_circle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text("Done - View Summary", Modifier.padding(start = 8.dp))
             }
         } else {
-            Button(
+            ThemedButton(
                 onClick = onScanNextArea,
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Scan Another Area") }
@@ -1714,10 +1732,10 @@ private fun TourSummaryContent(
     LaunchedEffect(showHeadline) {
         if (showHeadline) {
             launch {
-                headlineTranslateX.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 200f))
+                headlineTranslateX.animateTo(0f, PaperInkMotion.BouncySpring)
             }
             launch {
-                headlineAlpha.animateTo(1f, spring(dampingRatio = 1.0f, stiffness = 200f))
+                headlineAlpha.animateTo(1f, PaperInkMotion.GentleSpring)
             }
         }
     }
@@ -1726,7 +1744,7 @@ private fun TourSummaryContent(
     val areaCardAlpha = remember { Animatable(0f) }
     LaunchedEffect(showAreaCard) {
         if (showAreaCard) {
-            areaCardAlpha.animateTo(1f, tween(300))
+            areaCardAlpha.animateTo(1f, tween(PaperInkMotion.DurationMedium))
         }
     }
 
@@ -1859,8 +1877,10 @@ private fun TourSummaryContent(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                Icons.Filled.CheckCircle, null,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.CheckCircle,
+                                inkIconRes = R.drawable.ic_ink_check_circle,
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -1883,7 +1903,7 @@ private fun TourSummaryContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // 8. Done button
-        Button(
+        ThemedButton(
             onClick = onDone,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1956,7 +1976,7 @@ private fun CategoryPill(
     LaunchedEffect(visible) {
         if (visible) {
             delay(staggerIndex * 70L)
-            scale.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 200f))
+            scale.animateTo(1f, PaperInkMotion.BouncySpring)
         }
     }
 
@@ -1968,7 +1988,7 @@ private fun CategoryPill(
             }
             .background(
                 dotColor.copy(alpha = 0.10f),
-                RoundedCornerShape(12.dp)
+                MaterialTheme.shapes.medium
             )
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {

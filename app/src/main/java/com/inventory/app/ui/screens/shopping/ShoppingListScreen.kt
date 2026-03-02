@@ -1,5 +1,7 @@
 package com.inventory.app.ui.screens.shopping
 
+import com.inventory.app.ui.components.ThemedCheckbox
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import android.content.Intent
 import com.inventory.app.ui.components.CelebrationType
 import androidx.activity.compose.BackHandler
@@ -79,21 +81,21 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
+import com.inventory.app.ui.components.ThemedDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.ThemedTextField
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
@@ -101,7 +103,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -139,14 +141,17 @@ import com.inventory.app.domain.model.Priority
 import com.inventory.app.ui.components.AllDoneCelebration
 import com.inventory.app.ui.components.CategoryStat
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.R
 import com.inventory.app.ui.components.InkStrikethrough
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.InkWashSwipeBackground
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.theme.ExpiryOrange
-import com.inventory.app.ui.theme.ExpiryRed
-import com.inventory.app.ui.theme.StockYellow
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.appColors
+import com.inventory.app.ui.theme.visuals
 import com.inventory.app.util.CategoryVisuals
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -186,7 +191,7 @@ fun ShoppingListScreen(
     var showSwipeHintText by rememberSaveable { mutableStateOf(true) }
 
     if (showClearConfirmation) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showClearConfirmation = false },
             title = { Text("Clear Purchased Items") },
             text = { Text("Are you sure you want to remove all ${uiState.purchasedItems.size} purchased item(s) from the list?") },
@@ -259,9 +264,9 @@ fun ShoppingListScreen(
         "name" -> "A-Z"; "quantity" -> "Qty"; else -> "Priority"
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Shopping List")
@@ -293,8 +298,9 @@ fun ShoppingListScreen(
                                 isSearchVisible = !isSearchVisible
                                 if (!isSearchVisible) searchQuery = ""
                             }) {
-                                Icon(
-                                    Icons.Filled.Search,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.Search,
+                                    inkIconRes = R.drawable.ic_ink_search,
                                     contentDescription = if (isSearchVisible) "Hide search" else "Search",
                                     tint = if (isSearchVisible) MaterialTheme.colorScheme.primary
                                            else MaterialTheme.colorScheme.onSurface
@@ -321,7 +327,7 @@ fun ShoppingListScreen(
                                     }
                                     context.startActivity(Intent.createChooser(sendIntent, "Share Shopping List"))
                                 }) {
-                                    Icon(Icons.Filled.Share, contentDescription = "Share list")
+                                    ThemedIcon(materialIcon = Icons.Filled.Share, inkIconRes = R.drawable.ic_ink_share, contentDescription = "Share list")
                                 }
                             }
                         }
@@ -374,7 +380,7 @@ fun ShoppingListScreen(
                 focusRequester = quickAddFocusRequester
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState()
@@ -421,16 +427,16 @@ fun ShoppingListScreen(
                         LaunchedEffect(Unit) {
                             searchFocusRequester.requestFocus()
                         }
-                        OutlinedTextField(
+                        ThemedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             placeholder = { Text("Search shopping list...") },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm)
                                 .focusRequester(searchFocusRequester),
                             singleLine = true,
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search") },
                             trailingIcon = {
                                 IconButton(onClick = {
                                     if (searchQuery.isNotEmpty()) {
@@ -439,7 +445,7 @@ fun ShoppingListScreen(
                                         isSearchVisible = false
                                     }
                                 }) {
-                                    Icon(Icons.Filled.Clear, contentDescription = "Clear search")
+                                    ThemedIcon(materialIcon = Icons.Filled.Clear, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Clear search")
                                 }
                             }
                         )
@@ -532,13 +538,13 @@ fun ShoppingListScreen(
                             AppCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm),
                                 containerColor = cardColor
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                        .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingMd)
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -567,13 +573,13 @@ fun ShoppingListScreen(
                                         }
                                     }
                                     if (hasBudget) {
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.height(Dimens.spacingSm))
                                         val barColor = when {
                                             overBudget -> MaterialTheme.colorScheme.error
-                                            budgetRatio > 0.8f -> StockYellow
-                                            else -> Color(0xFF4CAF50)
+                                            budgetRatio > 0.8f -> MaterialTheme.appColors.statusLowStock
+                                            else -> MaterialTheme.appColors.statusInStock
                                         }
-                                        LinearProgressIndicator(
+                                        ThemedProgressBar(
                                             progress = { budgetRatio },
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -601,7 +607,7 @@ fun ShoppingListScreen(
                             }
                             AnimatedVisibility(
                                 visible = showSwipeHintText,
-                                exit = fadeOut(tween(500)) + shrinkVertically(tween(300))
+                                exit = fadeOut(tween(PaperInkMotion.DurationLong)) + shrinkVertically(tween(PaperInkMotion.DurationMedium))
                             ) {
                                 Text(
                                     "Swipe left to delete \u00B7 right to mark done",
@@ -610,7 +616,7 @@ fun ShoppingListScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                                        .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingXs)
                                 )
                             }
                         }
@@ -629,9 +635,9 @@ fun ShoppingListScreen(
                                 val catVisual = CategoryVisuals.get(categoryName)
                                 item(key = "cat_header_${categoryName}") {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                        modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                                     ) {
                                         Icon(
                                             catVisual.icon,
@@ -672,7 +678,7 @@ fun ShoppingListScreen(
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm)
                                 )
                             }
                             items(filteredActive, key = { "active_${it.shoppingItem.id}" }) { item ->
@@ -702,7 +708,7 @@ fun ShoppingListScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { isPurchasedCollapsed = !isPurchasedCollapsed }
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -813,8 +819,8 @@ private fun MorphingOverflowBar(
                     dampingRatio = Spring.DampingRatioMediumBouncy,
                     stiffness = Spring.StiffnessMedium
                 )
-            ) + fadeIn(tween(150)),
-            exit = shrinkHorizontally(animationSpec = tween(150)) + fadeOut(tween(150))
+            ) + fadeIn(tween(PaperInkMotion.DurationShort)),
+            exit = shrinkHorizontally(animationSpec = tween(PaperInkMotion.DurationShort)) + fadeOut(tween(PaperInkMotion.DurationShort))
         ) {
             Row {
                 OverflowPill(
@@ -824,7 +830,7 @@ private fun MorphingOverflowBar(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(Dimens.spacingXs))
             }
         }
 
@@ -836,8 +842,8 @@ private fun MorphingOverflowBar(
                     dampingRatio = Spring.DampingRatioMediumBouncy,
                     stiffness = Spring.StiffnessMedium
                 )
-            ) + fadeIn(tween(150)),
-            exit = shrinkHorizontally(animationSpec = tween(150)) + fadeOut(tween(150))
+            ) + fadeIn(tween(PaperInkMotion.DurationShort)),
+            exit = shrinkHorizontally(animationSpec = tween(PaperInkMotion.DurationShort)) + fadeOut(tween(PaperInkMotion.DurationShort))
         ) {
             Row {
                 OverflowPill(
@@ -847,7 +853,7 @@ private fun MorphingOverflowBar(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(Dimens.spacingXs))
             }
         }
 
@@ -859,8 +865,8 @@ private fun MorphingOverflowBar(
                     dampingRatio = Spring.DampingRatioMediumBouncy,
                     stiffness = Spring.StiffnessMedium
                 )
-            ) + fadeIn(tween(150)),
-            exit = shrinkHorizontally(animationSpec = tween(150)) + fadeOut(tween(150))
+            ) + fadeIn(tween(PaperInkMotion.DurationShort)),
+            exit = shrinkHorizontally(animationSpec = tween(PaperInkMotion.DurationShort)) + fadeOut(tween(PaperInkMotion.DurationShort))
         ) {
             Row {
                 OverflowPill(
@@ -870,7 +876,7 @@ private fun MorphingOverflowBar(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(Dimens.spacingXs))
             }
         }
 
@@ -892,10 +898,19 @@ private fun MorphingOverflowBar(
                     animationSpec = tween(200),
                     label = "overflowIcon"
                 ) { expanded ->
-                    Icon(
-                        if (expanded) Icons.Filled.Close else Icons.Filled.MoreVert,
-                        contentDescription = if (expanded) "Close menu" else "More options"
-                    )
+                    if (expanded) {
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.Close,
+                            inkIconRes = R.drawable.ic_ink_close,
+                            contentDescription = "Close menu"
+                        )
+                    } else {
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.MoreVert,
+                            inkIconRes = R.drawable.ic_ink_more_vert,
+                            contentDescription = "More options"
+                        )
+                    }
                 }
             }
         }
@@ -913,12 +928,12 @@ private fun OverflowPill(
     Surface(
         onClick = onClick,
         color = containerColor,
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
             Icon(
                 icon,
@@ -942,7 +957,7 @@ private fun BatchAddDialog(
     onAdd: (String) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
-    AlertDialog(
+    ThemedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Quick Add Items") },
         text = {
@@ -957,8 +972,8 @@ private fun BatchAddDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                ThemedTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -1013,12 +1028,12 @@ private fun SwipeableShoppingRow(
             // Phase 1: Peek right → reveal green cart strip on left
             peekOffsetPx.animateTo(targetPx, tween(300, easing = FastOutSlowInEasing))
             delay(350)
-            peekOffsetPx.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 200f))
+            peekOffsetPx.animateTo(0f, PaperInkMotion.BouncySpring)
             delay(150)
             // Phase 2: Peek left → reveal red delete strip on right
             peekOffsetPx.animateTo(-targetPx, tween(300, easing = FastOutSlowInEasing))
             delay(350)
-            peekOffsetPx.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 200f))
+            peekOffsetPx.animateTo(0f, PaperInkMotion.BouncySpring)
             onPeekComplete()
         }
     }
@@ -1179,7 +1194,7 @@ private fun ShoppingListRow(
         },
         supportingContent = {
             Column {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                     val qty = item.shoppingItem.quantity
                     val unit = item.unit?.abbreviation ?: ""
                     // Only show quantity in supporting text if stepper buttons aren't visible
@@ -1199,7 +1214,7 @@ private fun ShoppingListRow(
                     if (priority != Priority.NORMAL && !isPurchased) {
                         Text(
                             priority.label,
-                            color = if (priority == Priority.URGENT) ExpiryRed else ExpiryOrange,
+                            color = if (priority == Priority.URGENT) MaterialTheme.appColors.statusExpired else MaterialTheme.appColors.statusExpiring,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -1229,7 +1244,7 @@ private fun ShoppingListRow(
         },
         leadingContent = {
             Box(modifier = Modifier.scale(checkScale)) {
-                Checkbox(
+                ThemedCheckbox(
                     checked = isPurchased || isAnimatingInk,
                     onCheckedChange = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1248,14 +1263,14 @@ private fun ShoppingListRow(
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { onQuantityChange(-1.0) }, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Filled.Remove, contentDescription = "Decrease", modifier = Modifier.size(20.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Remove, inkIconRes = R.drawable.ic_ink_minus, contentDescription = "Decrease", modifier = Modifier.size(20.dp))
                     }
                     AnimatedQuantityDisplay(
                         quantity = item.shoppingItem.quantity,
                         categoryColor = inkColor
                     )
                     IconButton(onClick = { onQuantityChange(1.0) }, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Filled.Add, contentDescription = "Increase", modifier = Modifier.size(20.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Increase", modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -1275,12 +1290,13 @@ private fun PredictionChipRibbon(
             .padding(top = 4.dp, bottom = 4.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingXs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                Icons.Filled.TrendingDown,
+            ThemedIcon(
+                materialIcon = Icons.Filled.TrendingDown,
+                inkIconRes = R.drawable.ic_ink_trending_down,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.tertiary
@@ -1294,7 +1310,7 @@ private fun PredictionChipRibbon(
         }
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             items(predictions, key = { it.itemId }) { prediction ->
                 PredictionChip(prediction = prediction, onClick = { onAdd(prediction) })
@@ -1314,12 +1330,13 @@ private fun BuyAgainRibbon(
             .padding(top = 4.dp, bottom = 4.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingXs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                Icons.Filled.Refresh,
+            ThemedIcon(
+                materialIcon = Icons.Filled.Refresh,
+                inkIconRes = R.drawable.ic_ink_refresh,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.secondary
@@ -1333,7 +1350,7 @@ private fun BuyAgainRibbon(
         }
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             items(items, key = { it.itemId }) { item ->
                 BuyAgainChip(item = item, onClick = { onAdd(item) })
@@ -1351,15 +1368,16 @@ private fun BuyAgainChip(
         onClick = onClick,
         modifier = Modifier,
         containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
-        shape = RoundedCornerShape(20.dp)
+        shape = MaterialTheme.shapes.extraLarge
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
-            Icon(
-                Icons.Filled.Add,
+            ThemedIcon(
+                materialIcon = Icons.Filled.Add,
+                inkIconRes = R.drawable.ic_ink_add,
                 contentDescription = "Add",
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.secondary
@@ -1385,8 +1403,8 @@ private fun PredictionChip(
     onClick: () -> Unit
 ) {
     val urgencyColor = when {
-        prediction.daysRemaining <= 1 -> ExpiryRed
-        prediction.daysRemaining <= 3 -> ExpiryOrange
+        prediction.daysRemaining <= 1 -> MaterialTheme.appColors.statusExpired
+        prediction.daysRemaining <= 3 -> MaterialTheme.appColors.statusExpiring
         else -> MaterialTheme.colorScheme.tertiary
     }
     val containerColor = when {
@@ -1399,15 +1417,16 @@ private fun PredictionChip(
         onClick = onClick,
         modifier = Modifier,
         containerColor = containerColor,
-        shape = RoundedCornerShape(20.dp)
+        shape = MaterialTheme.shapes.extraLarge
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
-            Icon(
-                Icons.Filled.AddCircle,
+            ThemedIcon(
+                materialIcon = Icons.Filled.AddCircle,
+                inkIconRes = R.drawable.ic_ink_add,
                 contentDescription = "Add",
                 modifier = Modifier.size(16.dp),
                 tint = urgencyColor
@@ -1437,22 +1456,23 @@ private fun PredictionListContent(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp),
+                    .padding(vertical = Dimens.spacingLg),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    Icons.Filled.TrendingDown,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.TrendingDown,
+                    inkIconRes = R.drawable.ic_ink_trending_down,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.tertiary
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingSm))
                 Text(
                     "Running Low Soon",
                     style = MaterialTheme.typography.titleMedium,
@@ -1477,8 +1497,8 @@ private fun PredictionListItem(
     onAdd: () -> Unit
 ) {
     val urgencyColor = when {
-        prediction.daysRemaining <= 1 -> ExpiryRed
-        prediction.daysRemaining <= 3 -> ExpiryOrange
+        prediction.daysRemaining <= 1 -> MaterialTheme.appColors.statusExpired
+        prediction.daysRemaining <= 3 -> MaterialTheme.appColors.statusExpiring
         else -> MaterialTheme.colorScheme.tertiary
     }
 
@@ -1488,7 +1508,7 @@ private fun PredictionListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingMd),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1498,7 +1518,7 @@ private fun PredictionListItem(
                     fontWeight = FontWeight.Medium
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -1518,10 +1538,11 @@ private fun PredictionListItem(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingSm))
             IconButton(onClick = onAdd) {
-                Icon(
-                    Icons.Filled.AddCircle,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.AddCircle,
+                    inkIconRes = R.drawable.ic_ink_add,
                     contentDescription = "Add to shopping list",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp)
@@ -1550,12 +1571,12 @@ private fun ShoppingListEmptyState(
     // Icon: "Land" entrance — scale 0.3→1.0 with BouncySpring
     val iconScale by animateFloatAsState(
         targetValue = if (visible) 1f else 0.3f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f),
+        animationSpec = PaperInkMotion.BouncySpring,
         label = "icon_scale"
     )
     val iconOffsetY by animateFloatAsState(
         targetValue = if (visible) 0f else -30f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f),
+        animationSpec = PaperInkMotion.BouncySpring,
         label = "icon_offset"
     )
 
@@ -1606,7 +1627,7 @@ private fun ShoppingListEmptyState(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         // --- Icon + Tagline ---
         item(key = "empty_hero") {
@@ -1629,12 +1650,12 @@ private fun ShoppingListEmptyState(
                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
                 // Rotating tagline with crossfade
                 AnimatedVisibility(
                     visible = showTagline,
-                    enter = fadeIn(tween(300)) + slideInVertically(
+                    enter = fadeIn(tween(PaperInkMotion.DurationMedium)) + slideInVertically(
                         initialOffsetY = { it / 3 },
                         animationSpec = spring(dampingRatio = 1f, stiffness = 200f)
                     )
@@ -1643,7 +1664,7 @@ private fun ShoppingListEmptyState(
                         targetState = taglineIndex,
                         transitionSpec = {
                             (fadeIn(tween(400)) + slideInVertically { -it / 4 })
-                                .togetherWith(fadeOut(tween(300)) + slideOutVertically { it / 4 })
+                                .togetherWith(fadeOut(tween(PaperInkMotion.DurationMedium)) + slideOutVertically { it / 4 })
                         },
                         label = "tagline"
                     ) { index ->
@@ -1663,7 +1684,7 @@ private fun ShoppingListEmptyState(
             item(key = "empty_buyagain") {
                 AnimatedVisibility(
                     visible = showBuyAgain,
-                    enter = fadeIn(tween(300)) + slideInVertically(
+                    enter = fadeIn(tween(PaperInkMotion.DurationMedium)) + slideInVertically(
                         initialOffsetY = { it / 3 },
                         animationSpec = spring(dampingRatio = 1f, stiffness = 200f)
                     )
@@ -1672,12 +1693,13 @@ private fun ShoppingListEmptyState(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(vertical = 8.dp),
+                            modifier = Modifier.padding(vertical = Dimens.spacingSm),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(
-                                Icons.Filled.Refresh,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.Refresh,
+                                inkIconRes = R.drawable.ic_ink_refresh,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.secondary
@@ -1690,8 +1712,8 @@ private fun ShoppingListEmptyState(
                             )
                         }
                         FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                         ) {
                             buyAgainItems.take(5).forEachIndexed { index, item ->
                                 // Stagger cascade: 70ms per item
@@ -1720,7 +1742,7 @@ private fun ShoppingListEmptyState(
             item(key = "empty_predictions") {
                 AnimatedVisibility(
                     visible = showPredictions,
-                    enter = fadeIn(tween(300)) + slideInVertically(
+                    enter = fadeIn(tween(PaperInkMotion.DurationMedium)) + slideInVertically(
                         initialOffsetY = { it / 3 },
                         animationSpec = spring(dampingRatio = 1f, stiffness = 200f)
                     )
@@ -1729,12 +1751,13 @@ private fun ShoppingListEmptyState(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(vertical = 8.dp),
+                            modifier = Modifier.padding(vertical = Dimens.spacingSm),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(
-                                Icons.Filled.TrendingDown,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.TrendingDown,
+                                inkIconRes = R.drawable.ic_ink_trending_down,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.tertiary
@@ -1747,8 +1770,8 @@ private fun ShoppingListEmptyState(
                             )
                         }
                         FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                         ) {
                             predictions.take(4).forEachIndexed { index, prediction ->
                                 var chipVisible by remember { mutableStateOf(false) }
@@ -1775,7 +1798,7 @@ private fun ShoppingListEmptyState(
         item(key = "empty_actions") {
             AnimatedVisibility(
                 visible = showActions,
-                enter = fadeIn(tween(300)) + slideInVertically(
+                enter = fadeIn(tween(PaperInkMotion.DurationMedium)) + slideInVertically(
                     initialOffsetY = { it / 3 },
                     animationSpec = spring(dampingRatio = 1f, stiffness = 200f)
                 )
@@ -1783,28 +1806,29 @@ private fun ShoppingListEmptyState(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp),
+                        .padding(top = Dimens.spacingLg),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Thin divider line — pen stroke feel
-                    HorizontalDivider(
+                    ThemedDivider(
                         modifier = Modifier
                             .fillMaxWidth(0.4f)
-                            .padding(bottom = 12.dp),
+                            .padding(bottom = Dimens.spacingMd),
                         thickness = 1.dp,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                     )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = onQuickAddFocus) {
-                            Icon(
-                                Icons.Filled.Edit,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.Edit,
+                                inkIconRes = R.drawable.ic_ink_edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(Dimens.spacingXs))
                             Text("Quick Add", style = MaterialTheme.typography.labelMedium)
                         }
                         Text(
@@ -1813,12 +1837,13 @@ private fun ShoppingListEmptyState(
                             style = MaterialTheme.typography.bodyLarge
                         )
                         TextButton(onClick = onGenerateFromLowStock) {
-                            Icon(
-                                Icons.Filled.AutoAwesome,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.AutoAwesome,
+                                inkIconRes = R.drawable.ic_ink_sparkle,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(Dimens.spacingXs))
                             Text("Restock", style = MaterialTheme.typography.labelMedium)
                         }
                         Text(
@@ -1827,12 +1852,13 @@ private fun ShoppingListEmptyState(
                             style = MaterialTheme.typography.bodyLarge
                         )
                         TextButton(onClick = onBatchAdd) {
-                            Icon(
-                                Icons.Filled.ContentPaste,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.ContentPaste,
+                                inkIconRes = R.drawable.ic_ink_paste,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(Dimens.spacingXs))
                             Text("Paste List", style = MaterialTheme.typography.labelMedium)
                         }
                     }
@@ -1869,10 +1895,10 @@ private fun QuickAddBar(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-                tonalElevation = 3.dp
+                tonalElevation = if (MaterialTheme.visuals.useElevation) 3.dp else 0.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    ThemedDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     suggestions.forEach { suggestion ->
                         val categoryColor = suggestion.categoryName?.let {
                             CategoryVisuals.get(it).color
@@ -1912,8 +1938,9 @@ private fun QuickAddBar(
                                 }
                             }
                             // Add icon
-                            Icon(
-                                Icons.Filled.Add,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.Add,
+                                inkIconRes = R.drawable.ic_ink_add,
                                 contentDescription = "Add ${suggestion.name}",
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -1928,14 +1955,14 @@ private fun QuickAddBar(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-            tonalElevation = 3.dp
+            tonalElevation = if (MaterialTheme.visuals.useElevation) 3.dp else 0.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = Dimens.spacingSm, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
             ) {
                 OutlinedTextField(
                     value = text,
@@ -1969,8 +1996,9 @@ private fun QuickAddBar(
                                 onTextChange("")
                                 onDismissSuggestions()
                             }, modifier = Modifier.size(20.dp)) {
-                                Icon(
-                                    Icons.Filled.Clear,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.Clear,
+                                    inkIconRes = R.drawable.ic_ink_close,
                                     contentDescription = "Clear",
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1985,8 +2013,9 @@ private fun QuickAddBar(
                         onClick = onSubmit,
                         modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.Send,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.Send,
+                            inkIconRes = R.drawable.ic_ink_send,
                             contentDescription = "Add",
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -1998,8 +2027,9 @@ private fun QuickAddBar(
                     onClick = onFullFormClick,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(
-                        Icons.Filled.Tune,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.Tune,
+                        inkIconRes = R.drawable.ic_ink_tune,
                         contentDescription = "Full add form",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -1,5 +1,7 @@
 package com.inventory.app.ui.screens.categories
 
+import com.inventory.app.ui.components.ThemedTextField
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Blender
 import androidx.compose.material.icons.filled.BreakfastDining
@@ -39,7 +40,7 @@ import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.activity.compose.BackHandler
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -51,12 +52,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
+import com.inventory.app.ui.components.ThemedSwitch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -76,6 +76,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.inventory.app.util.CategoryVisuals
 import androidx.navigation.NavController
+import com.inventory.app.R
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedIcon
 
 private val presetColors = listOf(
     "#F44336" to "Red",
@@ -156,7 +159,7 @@ fun CategoryFormScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard Changes?") },
             text = { Text("You have unsaved changes. Are you sure you want to go back?") },
@@ -189,21 +192,19 @@ fun CategoryFormScreen(
         }
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(if (categoryId != null) "Edit Category" else "Add Category") },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         if (isDirty) showDiscardDialog = true
                         else navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    })
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -213,7 +214,7 @@ fun CategoryFormScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.name,
                 onValueChange = { viewModel.updateName(it) },
                 label = { Text("Name *") },
@@ -222,7 +223,7 @@ fun CategoryFormScreen(
                 supportingText = uiState.nameError?.let { { Text(it) } }
             )
 
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.description,
                 onValueChange = { viewModel.updateDescription(it) },
                 label = { Text("Description") },
@@ -299,8 +300,9 @@ fun CategoryFormScreen(
                         ) {
                             if (isSelected) {
                                 val swatchColor = parseHexColor(hex) ?: Color.Gray
-                                Icon(
-                                    Icons.Filled.Category,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.Category,
+                                    inkIconRes = R.drawable.ic_ink_category,
                                     contentDescription = name,
                                     modifier = Modifier.size(18.dp),
                                     tint = CategoryVisuals.contrastColor(swatchColor)
@@ -310,7 +312,7 @@ fun CategoryFormScreen(
                     }
                 }
             }
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.color,
                 onValueChange = { viewModel.updateColor(it) },
                 label = { Text("Custom color (hex)") },
@@ -318,7 +320,7 @@ fun CategoryFormScreen(
                 placeholder = { Text("#6c757d") }
             )
 
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.sortOrder.toString(),
                 onValueChange = { viewModel.updateSortOrder(it.toIntOrNull() ?: 0) },
                 label = { Text("Sort Order") },
@@ -338,7 +340,7 @@ fun CategoryFormScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Active")
-                Switch(
+                ThemedSwitch(
                     checked = uiState.isActive,
                     onCheckedChange = null
                 )

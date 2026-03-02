@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.RuledLinesBackground
 import com.inventory.app.ui.theme.LocalReduceMotion
 import com.inventory.app.ui.theme.PaperInkMotion
@@ -47,7 +48,7 @@ internal fun CameraProcessingPage(
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (contentReady) 1f else 0f,
-        animationSpec = tween(300), label = "camAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "camAlpha"
     )
     val contentY by animateFloatAsState(
         targetValue = if (contentReady) 0f else 20f,
@@ -90,7 +91,7 @@ internal fun CameraProcessingPage(
     }
     val btnAlpha by animateFloatAsState(
         targetValue = if (buttonsReady) 1f else 0f,
-        animationSpec = tween(300), label = "failBtnAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "failBtnAlpha"
     )
     val btnY by animateFloatAsState(
         targetValue = if (buttonsReady) 0f else 16f,
@@ -172,17 +173,17 @@ internal fun CameraProcessingPage(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = MaterialTheme.shapes.large
                     ) {
                         Text("Try another photo")
                     }
 
-                    Button(
+                    ThemedButton(
                         onClick = onFallbackToType,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = MaterialTheme.shapes.large
                     ) {
                         Text("Type it instead")
                     }

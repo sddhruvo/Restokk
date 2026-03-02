@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.search
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Inventory2
@@ -19,12 +20,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,7 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.EmptyState
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,18 +63,16 @@ fun GlobalSearchScreen(
         } catch (_: Exception) { }
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Search") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -90,11 +90,11 @@ fun GlobalSearchScreen(
                 active = false,
                 onActiveChange = { },
                 placeholder = { Text("Search items, categories, locations...") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+                leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search") },
                 trailingIcon = {
                     if (uiState.query.isNotEmpty()) {
                         IconButton(onClick = { viewModel.updateQuery("") }) {
-                            Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                            ThemedIcon(materialIcon = Icons.Filled.Clear, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Clear")
                         }
                     }
                 },
@@ -134,8 +134,7 @@ fun GlobalSearchScreen(
                                     Text(parts.joinToString(" | "))
                                 },
                                 leadingContent = {
-                                    Icon(Icons.Filled.Inventory2, contentDescription = "Item",
-                                        tint = MaterialTheme.colorScheme.primary)
+                                    ThemedIcon(materialIcon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box, contentDescription = "Item", tint = MaterialTheme.colorScheme.primary)
                                 },
                                 modifier = Modifier.clickable {
                                     navController.navigate(Screen.ItemDetail.createRoute(item.id))
@@ -159,8 +158,7 @@ fun GlobalSearchScreen(
                                 headlineContent = { Text(category.name) },
                                 supportingContent = { category.description?.let { Text(it) } },
                                 leadingContent = {
-                                    Icon(Icons.Filled.Category, contentDescription = "Category",
-                                        tint = MaterialTheme.colorScheme.secondary)
+                                    ThemedIcon(materialIcon = Icons.Filled.Category, inkIconRes = R.drawable.ic_ink_category, contentDescription = "Category", tint = MaterialTheme.colorScheme.secondary)
                                 },
                                 modifier = Modifier.clickable {
                                     navController.navigate(Screen.SubcategoryList.createRoute(category.id))
@@ -184,8 +182,7 @@ fun GlobalSearchScreen(
                                 headlineContent = { Text(location.name) },
                                 supportingContent = { location.description?.let { Text(it) } },
                                 leadingContent = {
-                                    Icon(Icons.Filled.Place, contentDescription = "Location",
-                                        tint = MaterialTheme.colorScheme.tertiary)
+                                    ThemedIcon(materialIcon = Icons.Filled.Place, inkIconRes = R.drawable.ic_ink_location, contentDescription = "Location", tint = MaterialTheme.colorScheme.tertiary)
                                 },
                                 modifier = Modifier.clickable {
                                     navController.navigate(Screen.LocationDetail.createRoute(location.id))

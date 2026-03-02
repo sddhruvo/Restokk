@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import com.inventory.app.ui.components.ThemedButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +52,7 @@ fun EmptyStateIllustration(
     )
     val landAlpha by animateFloatAsState(
         targetValue = if (landed) 1f else 0f,
-        animationSpec = tween(300),
+        animationSpec = tween(PaperInkMotion.DurationMedium),
         label = "emptyFade"
     )
 
@@ -108,7 +109,7 @@ fun EmptyStateIllustration(
 
         if (ctaLabel != null && onCtaClick != null) {
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onCtaClick) {
+            ThemedButton(onClick = onCtaClick) {
                 Text(ctaLabel)
             }
         }

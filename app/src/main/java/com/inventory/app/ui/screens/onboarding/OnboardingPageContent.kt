@@ -40,7 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.inventory.app.R
+import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.RuledLinesBackground
+import com.inventory.app.ui.components.ThemedIcon
+import com.inventory.app.ui.components.ThemedTextField
 import com.inventory.app.ui.theme.LocalReduceMotion
 import com.inventory.app.ui.theme.PaperInkMotion
 import kotlinx.coroutines.delay
@@ -119,7 +122,7 @@ private fun StoryOpensPage(onGetStarted: () -> Unit) {
     )
     val line1Alpha by animateFloatAsState(
         targetValue = if (line1Ready) 1f else 0f,
-        animationSpec = tween(300), label = "line1Alpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "line1Alpha"
     )
 
     // ── Line 2: "Write In" (slightly smaller text per spec) ──
@@ -129,7 +132,7 @@ private fun StoryOpensPage(onGetStarted: () -> Unit) {
     )
     val line2Alpha by animateFloatAsState(
         targetValue = if (line2Ready) 1f else 0f,
-        animationSpec = tween(300), label = "line2Alpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "line2Alpha"
     )
 
     // ── Logo: "Land" (scale 0.3→1.0 + drop) then breathing ──
@@ -144,7 +147,7 @@ private fun StoryOpensPage(onGetStarted: () -> Unit) {
     )
     val logoAlpha by animateFloatAsState(
         targetValue = if (logoReady) 1f else 0f,
-        animationSpec = tween(300), label = "logoAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "logoAlpha"
     )
 
     // Logo breathing at rest (1.0↔1.02, 2500ms)
@@ -164,7 +167,7 @@ private fun StoryOpensPage(onGetStarted: () -> Unit) {
     )
     val btnAlpha by animateFloatAsState(
         targetValue = if (buttonReady) 1f else 0f,
-        animationSpec = tween(300), label = "btnAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "btnAlpha"
     )
 
     // Button breathing after appearing (spec: 1.0↔1.015, 2500ms)
@@ -236,7 +239,7 @@ private fun StoryOpensPage(onGetStarted: () -> Unit) {
             }
 
             // CTA — Fade Up then breathing (spec: "Open the first page")
-            Button(
+            ThemedButton(
                 onClick = onGetStarted,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -247,7 +250,7 @@ private fun StoryOpensPage(onGetStarted: () -> Unit) {
                         val bs = if (buttonReady) btnBreatheScale else 1f
                         scaleX = bs; scaleY = bs
                     },
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             ) {
                 Text("Open the first page", style = MaterialTheme.typography.titleMedium)
             }
@@ -315,7 +318,7 @@ private fun YourKitchenPage(
     )
     val headAlpha by animateFloatAsState(
         targetValue = if (headlineReady) 1f else 0f,
-        animationSpec = tween(300), label = "ykHeadAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "ykHeadAlpha"
     )
 
     // ── Divider pen-stroke: draws left→right (spec: 250ms, primary 0.3 alpha) ──
@@ -333,7 +336,7 @@ private fun YourKitchenPage(
     )
     val prefHeaderAlpha by animateFloatAsState(
         targetValue = if (prefHeaderReady) 1f else 0f,
-        animationSpec = tween(300), label = "prefHdrAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "prefHdrAlpha"
     )
 
     // ── Button: Fade Up ──
@@ -344,7 +347,7 @@ private fun YourKitchenPage(
     )
     val btnAlpha by animateFloatAsState(
         targetValue = if (buttonReady) 1f else 0f,
-        animationSpec = tween(300), label = "ykBtnAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "ykBtnAlpha"
     )
 
     // CTA enabled when preference selected (region auto-accepted)
@@ -442,7 +445,7 @@ private fun YourKitchenPage(
         }
 
         // CTA "Next →" — saves settings and advances to Act 2
-        Button(
+        ThemedButton(
             onClick = onSaveAndContinue,
             enabled = ctaEnabled,
             modifier = Modifier
@@ -453,7 +456,7 @@ private fun YourKitchenPage(
                     translationY = btnY
                     alpha = btnAlpha
                 },
-            shape = RoundedCornerShape(16.dp)
+            shape = MaterialTheme.shapes.large
         ) {
             Text("Next \u2192", style = MaterialTheme.typography.titleMedium)
         }
@@ -518,7 +521,7 @@ private fun RegionSection(
                 translationY = cardY
                 alpha = cardAlpha
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
@@ -548,8 +551,9 @@ private fun RegionSection(
                 }
             }
             // Edit icon — hints card is tappable
-            Icon(
-                Icons.Filled.Edit,
+            ThemedIcon(
+                materialIcon = Icons.Filled.Edit,
+                inkIconRes = R.drawable.ic_ink_edit,
                 contentDescription = "Change region",
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
@@ -581,11 +585,11 @@ private fun RegionSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 360.dp),
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     // Search field
-                    OutlinedTextField(
+                    ThemedTextField(
                         value = searchQuery,
                         onValueChange = {
                             searchQuery = it
@@ -593,14 +597,15 @@ private fun RegionSection(
                         },
                         placeholder = { Text("Search countries...") },
                         leadingIcon = {
-                            Icon(
-                                Icons.Filled.Search,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.Search,
+                                inkIconRes = R.drawable.ic_ink_search,
                                 contentDescription = "Search",
                                 modifier = Modifier.size(20.dp)
                             )
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = MaterialTheme.shapes.medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp, vertical = 4.dp),
@@ -610,7 +615,7 @@ private fun RegionSection(
                     AnimatedContent(
                         targetState = showCustomForm,
                         transitionSpec = {
-                            fadeIn(tween(200)) togetherWith fadeOut(tween(150))
+                            fadeIn(tween(200)) togetherWith fadeOut(tween(PaperInkMotion.DurationShort))
                         },
                         label = "pickerContent"
                     ) { customFormVisible ->
@@ -648,15 +653,16 @@ private fun RegionSection(
                                             },
                                             trailingContent = {
                                                 if (isSelected) {
-                                                    Icon(
-                                                        Icons.Filled.Check,
+                                                    ThemedIcon(
+                                                        materialIcon = Icons.Filled.Check,
+                                                        inkIconRes = R.drawable.ic_ink_check,
                                                         contentDescription = "Selected",
                                                         tint = MaterialTheme.colorScheme.primary
                                                     )
                                                 }
                                             },
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
+                                                .clip(MaterialTheme.shapes.small)
                                                 .clickable { onSelect(region) }
                                         )
                                     }
@@ -676,14 +682,15 @@ private fun RegionSection(
                                                     Text("Set up a custom region")
                                                 },
                                                 leadingContent = {
-                                                    Icon(
-                                                        Icons.Filled.Language,
+                                                    ThemedIcon(
+                                                        materialIcon = Icons.Filled.Language,
+                                                        inkIconRes = R.drawable.ic_ink_language,
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary
                                                     )
                                                 },
                                                 modifier = Modifier
-                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clip(MaterialTheme.shapes.small)
                                                     .clickable { showCustomForm = true }
                                             )
                                         }
@@ -774,7 +781,7 @@ private fun PreferenceCard(
                 alpha = entranceAlpha
             },
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         border = BorderStroke(2.dp, borderColor),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -817,8 +824,9 @@ private fun PreferenceCard(
                 label = "check$entranceIndex"
             )
             if (checkScale > 0.01f) {
-                Icon(
-                    Icons.Filled.Check,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.Check,
+                    inkIconRes = R.drawable.ic_ink_check,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -901,23 +909,23 @@ private fun CustomCountryForm(
             modifier = Modifier.padding(horizontal = 4.dp)
         )
 
-        OutlinedTextField(
+        ThemedTextField(
             value = countryName,
             onValueChange = { countryName = it },
             label = { Text("Country name") },
             singleLine = true,
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.bodyMedium
         )
 
-        OutlinedTextField(
+        ThemedTextField(
             value = currencySymbol,
             onValueChange = { currencySymbol = it },
             label = { Text("Currency symbol") },
             placeholder = { Text("e.g. kr, \u20AC, \u00A5") },
             singleLine = true,
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.bodyMedium
         )
@@ -943,13 +951,13 @@ private fun CustomCountryForm(
             )
         }
 
-        Button(
+        ThemedButton(
             onClick = { onConfirm(countryName, currencySymbol) },
             enabled = isValid,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Text("Use This", style = MaterialTheme.typography.titleSmall)
         }

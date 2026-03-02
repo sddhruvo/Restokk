@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+    <!-- Large 4-point star at (9,10) -->
+    <path
+        android:pathData="M9.0,6.0 Q9.4,8.0 10.2,9.3 Q10.6,9.8 13.0,10.1 Q10.5,10.4 10.1,10.8 Q9.3,12.1 9.0,14.0 Q8.6,12.0 8.0,10.7 Q7.5,10.3 5.0,10.0 Q7.6,9.6 8.1,9.2 Q8.7,8.0 9.0,6.0Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#000000"/>
+    <!-- Medium 4-point star at (18,5) -->
+    <path
+        android:pathData="M18.0,2.5 Q18.2,3.8 18.8,4.5 Q19.2,4.8 20.5,5.0 Q19.1,5.3 18.7,5.6 Q18.2,6.3 18.0,7.5 Q17.8,6.2 17.3,5.5 Q16.9,5.2 15.5,5.0 Q16.9,4.7 17.4,4.4 Q17.8,3.7 18.0,2.5Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#000000"/>
+    <!-- Small 4-point star at (17,17) -->
+    <path
+        android:pathData="M17.0,15.5 Q17.1,16.3 17.5,16.7 Q17.8,16.9 18.5,17.0 Q17.7,17.2 17.4,17.4 Q17.1,17.8 17.0,18.5 Q16.9,17.7 16.6,17.3 Q16.3,17.1 15.5,17.0 Q16.3,16.8 16.7,16.6 Q16.9,16.2 17.0,15.5Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#000000"/>
+</vector>

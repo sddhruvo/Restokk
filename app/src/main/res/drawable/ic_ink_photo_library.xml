@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+
+    <!-- Frame: rounded rectangle -->
+    <path
+        android:pathData="M3.2,5.0 Q12.0,4.8 20.8,5.2 Q21.1,10.5 20.8,19.0 Q12.0,19.3 3.2,19.0 Q2.9,12.0 3.2,5.0Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Mountain peaks: triangle shapes inside frame -->
+    <path
+        android:pathData="M3.5,17.0 Q6.8,11.5 10.0,17.2 Q13.0,12.0 17.5,17.5 Q18.5,17.2 20.5,17.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Sun: small circle in upper right -->
+    <path
+        android:pathData="M16.0,9.0 C17.5,8.8 18.3,10.0 17.8,11.0 C17.2,12.0 15.5,11.8 15.2,10.5 C15.0,9.5 15.5,9.0 16.0,9.0Z"
+        android:fillColor="#000000"
+        android:strokeWidth="0"
+        android:strokeColor="@android:color/transparent"/>
+
+</vector>

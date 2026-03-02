@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.reports
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,18 +11,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,12 +32,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.LoadingState
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.theme.ExpiryRed
-import com.inventory.app.ui.theme.StockYellow
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.appColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,41 +59,39 @@ fun LowStockReportScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ThemedScaffold(
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Low Stock Report") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         }
     ) { padding ->
         if (uiState.isLoading) {
             LoadingState()
-            return@Scaffold
+            return@ThemedScaffold
         }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = Dimens.spacingLg),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
         ) {
             // Summary cards
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                 ) {
                     AppCard(
                         modifier = Modifier.weight(1f),
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text("${uiState.outOfStockCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                             Text("Out of Stock", style = MaterialTheme.typography.bodySmall)
                         }
@@ -100,7 +100,7 @@ fun LowStockReportScreen(
                         modifier = Modifier.weight(1f),
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text("${uiState.lowStockCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                             Text("Low Stock", style = MaterialTheme.typography.bodySmall)
                         }
@@ -111,18 +111,18 @@ fun LowStockReportScreen(
             // Out of stock
             if (uiState.outOfStockItems.isNotEmpty()) {
                 item {
-                    Text("Out of Stock", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = ExpiryRed)
+                    Text("Out of Stock", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.appColors.statusExpired)
                 }
                 items(uiState.outOfStockItems, key = { "oos_${it.item.id}" }) { item ->
                     val effectiveMin = if (item.item.minQuantity > 0) item.item.minQuantity else item.item.smartMinQuantity
                     ListItem(
                         headlineContent = { Text(item.item.name) },
-                        supportingContent = { Text("Target: ${effectiveMin.formatQty()}", color = ExpiryRed) },
+                        supportingContent = { Text("Target: ${effectiveMin.formatQty()}", color = MaterialTheme.appColors.statusExpired) },
                         trailingContent = {
                             IconButton(onClick = {
                                 showShoppingSheet(item.item.id, null)
                             }) {
-                                Icon(Icons.Filled.AddShoppingCart, contentDescription = "Add to shopping list")
+                                ThemedIcon(materialIcon = Icons.Filled.AddShoppingCart, inkIconRes = R.drawable.ic_ink_add_to_cart, contentDescription = "Add to shopping list")
                             }
                         },
                         modifier = Modifier.clickable {
@@ -135,7 +135,7 @@ fun LowStockReportScreen(
             // Low stock
             if (uiState.lowStockItems.isNotEmpty()) {
                 item {
-                    Text("Low Stock", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = StockYellow)
+                    Text("Low Stock", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.appColors.statusLowStock)
                 }
                 items(uiState.lowStockItems, key = { "low_${it.item.id}" }) { item ->
                     val effectiveMin = if (item.item.minQuantity > 0) item.item.minQuantity else item.item.smartMinQuantity
@@ -144,11 +144,11 @@ fun LowStockReportScreen(
                         headlineContent = { Text(item.item.name) },
                         supportingContent = {
                             Column {
-                                Text("Qty: ${item.item.quantity.formatQty()} / ${effectiveMin.formatQty()}", color = StockYellow)
-                                LinearProgressIndicator(
+                                Text("Qty: ${item.item.quantity.formatQty()} / ${effectiveMin.formatQty()}", color = MaterialTheme.appColors.statusLowStock)
+                                ThemedProgressBar(
                                     progress = { ratio },
-                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                    color = if (ratio < 0.3f) ExpiryRed else StockYellow
+                                    modifier = Modifier.fillMaxWidth().padding(top = Dimens.spacingXs),
+                                    color = if (ratio < 0.3f) MaterialTheme.appColors.statusExpired else MaterialTheme.appColors.statusLowStock
                                 )
                             }
                         },
@@ -156,7 +156,7 @@ fun LowStockReportScreen(
                             IconButton(onClick = {
                                 showShoppingSheet(item.item.id, null)
                             }) {
-                                Icon(Icons.Filled.AddShoppingCart, contentDescription = "Add to shopping list")
+                                ThemedIcon(materialIcon = Icons.Filled.AddShoppingCart, inkIconRes = R.drawable.ic_ink_add_to_cart, contentDescription = "Add to shopping list")
                             }
                         },
                         modifier = Modifier.clickable {
@@ -174,7 +174,7 @@ fun LowStockReportScreen(
                     ) {
                         Text(
                             "All items are well stocked",
-                            modifier = Modifier.padding(24.dp),
+                            modifier = Modifier.padding(Dimens.spacingXl),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }

@@ -22,7 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
@@ -34,13 +34,13 @@ import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import com.inventory.app.ui.components.ThemedFilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,16 +64,21 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.domain.model.ScoreFactor
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.ScoreLineChart
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.TipsSection
-import com.inventory.app.ui.theme.ExpiryOrange
-import com.inventory.app.ui.theme.ExpiryRed
-import com.inventory.app.ui.theme.ScoreBlue
-import com.inventory.app.ui.theme.ScoreTeal
-import com.inventory.app.ui.theme.StockGreen
-import com.inventory.app.ui.theme.StockYellow
-import com.inventory.app.ui.theme.scoreToColor
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.InkTokens
+import com.inventory.app.ui.theme.appColors
+import com.inventory.app.ui.theme.isInk
+import com.inventory.app.ui.theme.visuals
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.cos
+import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,14 +88,12 @@ fun PantryHealthScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Home Score") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         }
@@ -100,7 +103,7 @@ fun PantryHealthScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(Dimens.spacingLg),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Section 1: Score Hero
@@ -133,7 +136,7 @@ fun PantryHealthScreen(
                 onTipAction = { route -> navController.navigate(route) }
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingSm))
         }
     }
 }
@@ -158,7 +161,12 @@ private fun ScoreHeroSection(
         label = "scoreArc"
     )
 
-    val scoreColor = scoreToColor(score)
+    val scoreColor = MaterialTheme.appColors.scoreToColor(score)
+    val themeFontFamily = MaterialTheme.typography.bodyLarge.fontFamily
+    val isInk = MaterialTheme.visuals.isInk
+    val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
+    val density = LocalDensity.current
+    val wobbleAmplitudePx = with(density) { InkTokens.wobbleSmall.toPx() }
 
     val textMeasurer = rememberTextMeasurer()
 
@@ -178,31 +186,75 @@ private fun ScoreHeroSection(
                 val topLeft = androidx.compose.ui.geometry.Offset(strokeWidth / 2, strokeWidth / 2)
                 val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
 
-                drawArc(
-                    color = scoreColor.copy(alpha = 0.15f),
-                    startAngle = 135f,
-                    sweepAngle = 270f,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
+                if (isInk) {
+                    // Wobble arc paths for Paper & Ink mode
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val radius = diameter / 2f
+                    val startAngleDeg = 135f
+                    val totalSweepDeg = 270f
 
-                drawArc(
-                    color = scoreColor,
-                    startAngle = 135f,
-                    sweepAngle = 270f * animatedProgress,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
+                    // Background arc (full 270°)
+                    val bgPath = buildWobbleArcPath(
+                        cx = cx, cy = cy, radius = radius,
+                        startAngleDeg = startAngleDeg,
+                        sweepAngleDeg = totalSweepDeg,
+                        segments = 16,
+                        wobbleAmplitude = wobbleAmplitudePx,
+                        wobbleSeed = wobbleSeed
+                    )
+                    drawPath(
+                        path = bgPath,
+                        color = scoreColor.copy(alpha = 0.15f),
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    )
+
+                    // Foreground arc (proportional to progress)
+                    if (animatedProgress > 0f) {
+                        val fgSegments = (16 * animatedProgress).toInt().coerceAtLeast(2)
+                        val fgPath = buildWobbleArcPath(
+                            cx = cx, cy = cy, radius = radius,
+                            startAngleDeg = startAngleDeg,
+                            sweepAngleDeg = totalSweepDeg * animatedProgress,
+                            segments = fgSegments,
+                            wobbleAmplitude = wobbleAmplitudePx,
+                            wobbleSeed = wobbleSeed + 50f
+                        )
+                        drawPath(
+                            path = fgPath,
+                            color = scoreColor,
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                        )
+                    }
+                } else {
+                    // Modern mode: clean geometric arcs
+                    drawArc(
+                        color = scoreColor.copy(alpha = 0.15f),
+                        startAngle = 135f,
+                        sweepAngle = 270f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+
+                    drawArc(
+                        color = scoreColor,
+                        startAngle = 135f,
+                        sweepAngle = 270f * animatedProgress,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                }
 
                 val scoreText = "$score"
                 val scoreStyle = TextStyle(
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
-                    color = scoreColor
+                    color = scoreColor,
+                    fontFamily = themeFontFamily
                 )
                 val scoreLayout = textMeasurer.measure(scoreText, scoreStyle)
                 drawText(
@@ -216,7 +268,8 @@ private fun ScoreHeroSection(
                 val labelStyle = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = scoreColor.copy(alpha = 0.8f)
+                    color = scoreColor.copy(alpha = 0.8f),
+                    fontFamily = themeFontFamily
                 )
                 val labelLayout = textMeasurer.measure(label, labelStyle)
                 drawText(
@@ -229,12 +282,12 @@ private fun ScoreHeroSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
         // Engagement / Condition sub-scores
         Row(
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier.padding(bottom = 4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXl),
+            modifier = Modifier.padding(bottom = Dimens.spacingXs)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("$engagementScore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -255,7 +308,7 @@ private fun ScoreHeroSection(
         )
 
         if (trendDelta != 0) {
-            val trendColor = if (trendDelta > 0) StockGreen else ExpiryRed
+            val trendColor = if (trendDelta > 0) MaterialTheme.appColors.statusInStock else MaterialTheme.appColors.statusExpired
             val trendIcon = if (trendDelta > 0) "+" else ""
             Text(
                 "$trendIcon$trendDelta from last week",
@@ -275,16 +328,16 @@ private fun ScoreTrendSection(
     selectedPeriod: Int,
     onPeriodSelected: (Int) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
         Text("Score Trend", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
+        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+            ThemedFilterChip(
                 selected = selectedPeriod == 7,
                 onClick = { onPeriodSelected(7) },
                 label = { Text("7 Days") }
             )
-            FilterChip(
+            ThemedFilterChip(
                 selected = selectedPeriod == 30,
                 onClick = { onPeriodSelected(30) },
                 label = { Text("30 Days") }
@@ -295,7 +348,7 @@ private fun ScoreTrendSection(
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 ScoreLineChart(
                     entries = entries,
-                    modifier = Modifier.padding(12.dp)
+                    modifier = Modifier.padding(Dimens.spacingMd)
                 )
             }
         } else {
@@ -326,7 +379,7 @@ private fun ScoreBreakdownSection(
     conditionFactors: List<ScoreFactor>,
     onFactorClick: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
         // Engagement section
         if (engagementFactors.isNotEmpty()) {
             Text("Building Your Score", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -337,7 +390,7 @@ private fun ScoreBreakdownSection(
 
         // Condition section
         if (conditionFactors.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Text("Issues to Fix", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             conditionFactors.forEach { factor ->
                 ConditionFactorCard(factor = factor, onClick = { onFactorClick(factor.route) })
@@ -360,6 +413,11 @@ private fun EngagementFactorCard(
         "quality" -> Icons.Filled.Category
         else -> Icons.Filled.Add
     }
+    val inkIconRes = when (factor.icon) {
+        "items" -> R.drawable.ic_ink_box
+        "quality" -> R.drawable.ic_ink_category
+        else -> R.drawable.ic_ink_add
+    }
 
     AppCard(
         onClick = onClick,
@@ -370,15 +428,15 @@ private fun EngagementFactorCard(
                 .fillMaxWidth()
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
         ) {
             Surface(
                 shape = CircleShape,
-                color = StockGreen.copy(alpha = 0.12f),
+                color = MaterialTheme.appColors.statusInStock.copy(alpha = 0.12f),
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(icon, contentDescription = null, tint = StockGreen, modifier = Modifier.size(22.dp))
+                    ThemedIcon(materialIcon = icon, inkIconRes = inkIconRes, contentDescription = null, tint = MaterialTheme.appColors.statusInStock, modifier = Modifier.size(22.dp))
                 }
             }
 
@@ -395,7 +453,7 @@ private fun EngagementFactorCard(
                     Text(
                         "+${factor.points} pts",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = StockGreen,
+                        color = MaterialTheme.appColors.statusInStock,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -406,8 +464,9 @@ private fun EngagementFactorCard(
                 )
             }
 
-            Icon(
-                Icons.Filled.ChevronRight,
+            ThemedIcon(
+                materialIcon = Icons.Filled.ChevronRight,
+                inkIconRes = R.drawable.ic_ink_chevron_right,
                 contentDescription = "View",
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -429,12 +488,21 @@ private fun ConditionFactorCard(
         "shopping" -> Icons.Filled.ShoppingCart
         else -> Icons.Filled.Inventory2
     }
+    val inkIconRes = when (factor.icon) {
+        "expired" -> 0  // DeleteOutline has no mapping
+        "out_of_stock" -> 0  // RemoveShoppingCart has no mapping
+        "expiring" -> R.drawable.ic_ink_warning
+        "low_stock" -> R.drawable.ic_ink_trending_down
+        "shopping" -> R.drawable.ic_ink_shopping
+        else -> R.drawable.ic_ink_box
+    }
+    val appColors = MaterialTheme.appColors
     val iconColor = when (factor.icon) {
-        "expired" -> ExpiryRed
-        "out_of_stock" -> ExpiryRed
-        "expiring" -> ExpiryOrange
-        "low_stock" -> StockYellow
-        "shopping" -> ScoreBlue
+        "expired" -> appColors.statusExpired
+        "out_of_stock" -> appColors.statusExpired
+        "expiring" -> appColors.statusExpiring
+        "low_stock" -> appColors.statusLowStock
+        "shopping" -> appColors.scoreBlue
         else -> MaterialTheme.colorScheme.primary
     }
 
@@ -447,7 +515,7 @@ private fun ConditionFactorCard(
                 .fillMaxWidth()
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
         ) {
             Surface(
                 shape = CircleShape,
@@ -455,7 +523,7 @@ private fun ConditionFactorCard(
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(22.dp))
+                    ThemedIcon(materialIcon = icon, inkIconRes = inkIconRes, contentDescription = null, tint = iconColor, modifier = Modifier.size(22.dp))
                 }
             }
 
@@ -472,7 +540,7 @@ private fun ConditionFactorCard(
                     Text(
                         "-${factor.points} pts",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = ExpiryRed,
+                        color = MaterialTheme.appColors.statusExpired,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -483,8 +551,9 @@ private fun ConditionFactorCard(
                 )
             }
 
-            Icon(
-                Icons.Filled.ChevronRight,
+            ThemedIcon(
+                materialIcon = Icons.Filled.ChevronRight,
+                inkIconRes = R.drawable.ic_ink_chevron_right,
                 contentDescription = "Fix",
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -499,14 +568,15 @@ private fun AllGoodSection() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(Dimens.spacingLg),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
         ) {
-            Icon(
-                Icons.Filled.CheckCircle,
+            ThemedIcon(
+                materialIcon = Icons.Filled.CheckCircle,
+                inkIconRes = R.drawable.ic_ink_check_circle,
                 contentDescription = null,
-                tint = StockGreen,
+                tint = MaterialTheme.appColors.statusInStock,
                 modifier = Modifier.size(32.dp)
             )
             Column {
@@ -526,3 +596,52 @@ private fun AllGoodSection() {
 }
 
 // scoreToColor() is now centralized in Color.kt — imported at top
+
+/**
+ * Builds a wobble arc path for the Paper & Ink score gauge.
+ * Generates a series of quadratic bezier segments along a circular arc
+ * with small perpendicular displacements for an organic, hand-drawn feel.
+ */
+private fun buildWobbleArcPath(
+    cx: Float,
+    cy: Float,
+    radius: Float,
+    startAngleDeg: Float,
+    sweepAngleDeg: Float,
+    segments: Int,
+    wobbleAmplitude: Float,
+    wobbleSeed: Float,
+): Path {
+    val startRad = Math.toRadians(startAngleDeg.toDouble())
+    val sweepRad = Math.toRadians(sweepAngleDeg.toDouble())
+    val segAngle = sweepRad / segments
+
+    return Path().apply {
+        // Move to first point
+        val firstAngle = startRad
+        val r0 = radius + sin(wobbleSeed.toDouble() * 1.3) * wobbleAmplitude * 0.5
+        moveTo(
+            cx + (r0 * cos(firstAngle)).toFloat(),
+            cy + (r0 * sin(firstAngle)).toFloat()
+        )
+
+        for (i in 1..segments) {
+            val endAngle = startRad + segAngle * i
+            val ctrlAngle = startRad + segAngle * (i - 0.5)
+
+            // Wobble: perpendicular displacement from the ideal circle
+            val endWobble = sin((i + wobbleSeed) * 1.7 + wobbleSeed * 0.3) * wobbleAmplitude * 0.6
+            val ctrlWobble = sin((i + wobbleSeed) * 2.3 + Math.PI / 4) * wobbleAmplitude
+
+            val endR = radius + endWobble
+            val ctrlR = radius + ctrlWobble
+
+            quadraticBezierTo(
+                cx + (ctrlR * cos(ctrlAngle)).toFloat(),
+                cy + (ctrlR * sin(ctrlAngle)).toFloat(),
+                cx + (endR * cos(endAngle)).toFloat(),
+                cy + (endR * sin(endAngle)).toFloat()
+            )
+        }
+    }
+}

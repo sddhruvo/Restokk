@@ -28,9 +28,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.input.ImeAction
 import com.inventory.app.ui.components.InkFireworks
+import com.inventory.app.ui.components.ThemedCircularProgress
+import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.RuledLinesBackground
+import com.inventory.app.ui.components.ThemedTextField
 import com.inventory.app.ui.theme.LocalReduceMotion
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.visuals
 import com.inventory.app.util.FormatUtils
 import kotlinx.coroutines.delay
 
@@ -103,7 +107,7 @@ internal fun RevealCard(
     )
     val cardAlpha by animateFloatAsState(
         targetValue = if (cardReady) 1f else 0f,
-        animationSpec = tween(300), label = "revealCardAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "revealCardAlpha"
     )
 
     // Card pop on save
@@ -125,7 +129,7 @@ internal fun RevealCard(
     )
     val flavorAlpha by animateFloatAsState(
         targetValue = if (flavorReady) 1f else 0f,
-        animationSpec = tween(300), label = "flavorAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "flavorAlpha"
     )
 
     // Button: Fade Up + breathing
@@ -135,7 +139,7 @@ internal fun RevealCard(
     )
     val btnAlpha by animateFloatAsState(
         targetValue = if (buttonReady) 1f else 0f,
-        animationSpec = tween(300), label = "revBtnAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "revBtnAlpha"
     )
     val breathe = rememberInfiniteTransition(label = "btnBreathe")
     val breatheScale by breathe.animateFloat(
@@ -162,8 +166,8 @@ internal fun RevealCard(
                         scaleX = s; scaleY = s
                         alpha = cardAlpha
                     },
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                shape = MaterialTheme.shapes.large,
+                elevation = CardDefaults.cardElevation(defaultElevation = if (MaterialTheme.visuals.useElevation) 4.dp else 0.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -194,7 +198,7 @@ internal fun RevealCard(
                             }
                         }
                         if (isEditing && onCorrectName != null) {
-                            OutlinedTextField(
+                            ThemedTextField(
                                 value = editedName,
                                 onValueChange = { editedName = it },
                                 label = { Text("Correct name") },
@@ -284,7 +288,7 @@ internal fun RevealCard(
 
             // ── Save button (fades up after reveal completes) ──
             if (buttonReady || btnAlpha > 0.01f) {
-                Button(
+                ThemedButton(
                     onClick = {
                         celebrating = true
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -299,10 +303,10 @@ internal fun RevealCard(
                             val bs = if (buttonReady && !celebrating) breatheScale else 1f
                             scaleX = bs; scaleY = bs
                         },
-                    shape = RoundedCornerShape(16.dp)
+                    shape = MaterialTheme.shapes.large
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(
+                        ThemedCircularProgress(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary

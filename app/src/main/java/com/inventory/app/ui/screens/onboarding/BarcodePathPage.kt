@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.inventory.app.ui.components.BarcodeCameraPreview
+import com.inventory.app.ui.components.ThemedCircularProgress
+import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.theme.PaperInkMotion
 import kotlinx.coroutines.delay
 
@@ -41,7 +43,7 @@ internal fun BarcodePathPage(
 
     val headerAlpha by animateFloatAsState(
         targetValue = if (headerReady) 1f else 0f,
-        animationSpec = tween(300), label = "barcHeaderAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "barcHeaderAlpha"
     )
     val headerY by animateFloatAsState(
         targetValue = if (headerReady) 0f else -16f,
@@ -104,7 +106,7 @@ internal fun BarcodePathPage(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            CircularProgressIndicator(
+                            ThemedCircularProgress(
                                 modifier = Modifier.size(32.dp),
                                 strokeWidth = 3.dp,
                                 color = MaterialTheme.colorScheme.primary
@@ -145,7 +147,7 @@ private fun NotFoundContent(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(300)) + slideInVertically(
+        enter = fadeIn(tween(PaperInkMotion.DurationMedium)) + slideInVertically(
             animationSpec = spring(dampingRatio = 0.8f, stiffness = 200f),
             initialOffsetY = { it / 4 }
         )
@@ -181,19 +183,19 @@ private fun NotFoundContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             ) {
                 Text("Try another barcode")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
+            ThemedButton(
                 onClick = onFallbackToType,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             ) {
                 Text("Type it instead")
             }

@@ -1,7 +1,11 @@
 package com.inventory.app.ui.screens.items
 
+import com.inventory.app.ui.components.ThemedTextField
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -26,23 +29,22 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.inventory.app.ui.components.AppCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import com.inventory.app.ui.components.ThemedDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Payments
@@ -63,7 +65,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.DailyChartEntry
 import com.inventory.app.ui.components.SpendingLineChart
 import com.inventory.app.ui.components.formatQty
@@ -73,16 +78,14 @@ import com.inventory.app.ui.components.ExpandableSection
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.util.FormatUtils
-import com.inventory.app.ui.theme.ExpiryOrange
-import com.inventory.app.ui.theme.ExpiryRed
-import com.inventory.app.ui.theme.StockGreen
-import com.inventory.app.ui.theme.StockYellow
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.appColors
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ItemDetailScreen(
     navController: NavController,
@@ -104,37 +107,36 @@ fun ItemDetailScreen(
         }
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(uiState.item?.item?.name ?: "Item") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 },
                 actions = {
                     uiState.item?.let { details ->
                         IconButton(onClick = { viewModel.toggleFavorite() }) {
-                            Icon(
-                                if (details.item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            ThemedIcon(
+                                materialIcon = if (details.item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                inkIconRes = if (details.item.isFavorite) R.drawable.ic_ink_heart else R.drawable.ic_ink_heart_outline,
                                 contentDescription = "Favorite",
-                                tint = if (details.item.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurface
+                                tint = if (details.item.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                             )
                         }
                         IconButton(onClick = {
                             navController.navigate(Screen.ItemForm.createRoute(itemId = details.item.id))
                         }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                            ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit")
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                            ThemedIcon(materialIcon = Icons.Filled.Delete, inkIconRes = R.drawable.ic_ink_delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState()
@@ -149,7 +151,7 @@ fun ItemDetailScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimens.spacingLg))
                     TextButton(onClick = { navController.popBackStack() }) {
                         Text("Go Back")
                     }
@@ -157,7 +159,7 @@ fun ItemDetailScreen(
             }
             uiState.item == null -> LoadingState()
             else -> {
-                val details = uiState.item ?: return@Scaffold
+                val details = uiState.item ?: return@ThemedScaffold
                 val item = details.item
 
                 Column(
@@ -165,23 +167,23 @@ fun ItemDetailScreen(
                         .fillMaxSize()
                         .padding(padding)
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(Dimens.spacingLg),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
                 ) {
                     val effectiveMin = if (item.minQuantity > 0) item.minQuantity else item.smartMinQuantity
 
                     // Status badges
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                         if (item.isPaused) StatusChip("Paused", MaterialTheme.colorScheme.outline)
                         item.expiryDate?.let { expiry ->
                             val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
                             when {
-                                daysUntil < 0 -> StatusChip("Expired", ExpiryRed)
-                                daysUntil <= item.expiryWarningDays -> StatusChip("Expiring Soon", ExpiryOrange)
+                                daysUntil < 0 -> StatusChip("Expired", MaterialTheme.appColors.statusExpired)
+                                daysUntil <= item.expiryWarningDays -> StatusChip("Expiring Soon", MaterialTheme.appColors.statusExpiring)
                             }
                         }
-                        if (item.quantity <= 0) StatusChip("Out of Stock", ExpiryRed)
-                        else if (effectiveMin > 0 && item.quantity < effectiveMin) StatusChip("Low Stock", StockYellow)
+                        if (item.quantity <= 0) StatusChip("Out of Stock", MaterialTheme.appColors.statusExpired)
+                        else if (effectiveMin > 0 && item.quantity < effectiveMin) StatusChip("Low Stock", MaterialTheme.appColors.statusLowStock)
                     }
 
                     // Quantity section with +/- controls
@@ -192,7 +194,7 @@ fun ItemDetailScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(Dimens.spacingLg),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -215,13 +217,13 @@ fun ItemDetailScreen(
                                     viewModel.adjustQuantity(-1.0)
                                     scope.launch { snackbarHostState.showSnackbar("Quantity decreased") }
                                 }) {
-                                    Icon(Icons.Filled.Remove, contentDescription = "Decrease")
+                                    ThemedIcon(materialIcon = Icons.Filled.Remove, inkIconRes = R.drawable.ic_ink_minus, contentDescription = "Decrease")
                                 }
                                 IconButton(onClick = {
                                     viewModel.adjustQuantity(1.0)
                                     scope.launch { snackbarHostState.showSnackbar("Quantity increased") }
                                 }) {
-                                    Icon(Icons.Filled.Add, contentDescription = "Increase")
+                                    ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Increase")
                                 }
                             }
                         }
@@ -234,19 +236,20 @@ fun ItemDetailScreen(
                     if (hasCategoryOrLocation || hasExpiryOrPrice) {
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier.padding(Dimens.spacingMd),
+                                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                             ) {
                                 if (hasCategoryOrLocation) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                                     ) {
                                         details.category?.let {
                                             InfoMiniCard(
                                                 label = "Category",
                                                 value = it.name,
                                                 icon = Icons.Filled.Category,
+                                                inkIconRes = R.drawable.ic_ink_category,
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
@@ -255,6 +258,7 @@ fun ItemDetailScreen(
                                                 label = "Location",
                                                 value = it.name,
                                                 icon = Icons.Filled.Place,
+                                                inkIconRes = R.drawable.ic_ink_location,
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
@@ -263,14 +267,14 @@ fun ItemDetailScreen(
                                 if (hasExpiryOrPrice) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                                     ) {
                                         item.expiryDate?.let { expiry ->
                                             val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
                                             val expiryColor = when {
-                                                daysUntil < 0 -> ExpiryRed
-                                                daysUntil <= item.expiryWarningDays -> ExpiryOrange
-                                                else -> StockGreen
+                                                daysUntil < 0 -> MaterialTheme.appColors.statusExpired
+                                                daysUntil <= item.expiryWarningDays -> MaterialTheme.appColors.statusExpiring
+                                                else -> MaterialTheme.appColors.statusInStock
                                             }
                                             val expiryText = when {
                                                 daysUntil < 0 -> "$expiry (expired)"
@@ -282,6 +286,7 @@ fun ItemDetailScreen(
                                                 label = "Expiry",
                                                 value = expiryText,
                                                 icon = Icons.Filled.Schedule,
+                                                inkIconRes = R.drawable.ic_ink_clock,
                                                 valueColor = expiryColor,
                                                 modifier = Modifier.weight(1f)
                                             )
@@ -291,6 +296,7 @@ fun ItemDetailScreen(
                                                 label = "Price",
                                                 value = "${uiState.currencySymbol}${String.format("%.2f", it)}",
                                                 icon = Icons.Filled.Payments,
+                                                inkIconRes = R.drawable.ic_ink_money,
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
@@ -303,7 +309,7 @@ fun ItemDetailScreen(
                     // Notes
                     item.notes?.let { notes ->
                         AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                            Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                                 Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 Text(notes, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                             }
@@ -317,9 +323,9 @@ fun ItemDetailScreen(
 
                     if (hasSecondaryDetails) {
                         AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                            Column(modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingXs)) {
                                 ExpandableSection(title = "More Details", initiallyExpanded = false) {
-                                    Column(modifier = Modifier.padding(bottom = 12.dp)) {
+                                    Column(modifier = Modifier.padding(bottom = Dimens.spacingMd)) {
                                         item.brand?.let { DetailRow("Brand", it) }
                                         item.barcode?.let { DetailRow("Barcode", it) }
                                         details.subcategory?.let { DetailRow("Subcategory", it.name) }
@@ -333,29 +339,31 @@ fun ItemDetailScreen(
                     }
 
                     // Quick actions
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                     ) {
                         AssistChip(
                             onClick = { showUsageDialog = true },
                             label = { Text("Record Usage") },
-                            leadingIcon = { Icon(Icons.Filled.Remove, contentDescription = "Decrease", modifier = Modifier.size(18.dp)) }
+                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Remove, inkIconRes = R.drawable.ic_ink_minus, contentDescription = "Decrease", modifier = Modifier.size(Dimens.iconSizeSm)) }
                         )
                         AssistChip(
                             onClick = { showPurchaseDialog = true },
                             label = { Text("Add Purchase") },
-                            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp)) }
+                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Increase", modifier = Modifier.size(Dimens.iconSizeSm)) }
                         )
                         AssistChip(
                             onClick = { showShoppingSheet(item.id, null) },
                             label = { Text("Shopping") },
-                            leadingIcon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to shopping", modifier = Modifier.size(18.dp)) }
+                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.ShoppingCart, inkIconRes = R.drawable.ic_ink_shopping, contentDescription = "Add to shopping", modifier = Modifier.size(Dimens.iconSizeSm)) }
                         )
                     }
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                     ) {
                         AssistChip(
                             onClick = {
@@ -371,7 +379,7 @@ fun ItemDetailScreen(
                                 Icon(
                                     if (item.isPaused) Icons.Filled.PlayCircle else Icons.Filled.PauseCircle,
                                     contentDescription = if (item.isPaused) "Resume" else "Pause",
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(Dimens.iconSizeSm)
                                 )
                             }
                         )
@@ -385,7 +393,7 @@ fun ItemDetailScreen(
                         if (uiState.usageLogs.isNotEmpty()) {
                             Text("Usage History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             AppCard(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(16.dp)) {
+                                Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                                     uiState.usageLogs.take(10).forEach { log ->
                                         Row(
                                             modifier = Modifier
@@ -404,7 +412,7 @@ fun ItemDetailScreen(
                                             }
                                             Text(log.usageDate.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
-                                        HorizontalDivider()
+                                        ThemedDivider()
                                     }
                                 }
                             }
@@ -426,7 +434,7 @@ fun ItemDetailScreen(
                                         )
                                     },
                                     currencySymbol = uiState.currencySymbol,
-                                    modifier = Modifier.padding(16.dp)
+                                    modifier = Modifier.padding(Dimens.spacingLg)
                                 )
                             }
                         }
@@ -446,7 +454,7 @@ fun ItemDetailScreen(
                                 }
                             }
                             AppCard(modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.padding(16.dp)) {
+                                Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                                     uiState.purchaseHistory.take(5).forEach { purchase ->
                                         Row(
                                             modifier = Modifier
@@ -455,7 +463,7 @@ fun ItemDetailScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                                                     Text(
                                                         "Qty: ${purchase.quantity.formatQty()}",
                                                         style = MaterialTheme.typography.bodyMedium,
@@ -481,7 +489,7 @@ fun ItemDetailScreen(
                                                     val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), expiry)
                                                     val expiryColor = when {
                                                         daysUntil < 0 -> MaterialTheme.colorScheme.error
-                                                        daysUntil <= 7 -> ExpiryOrange
+                                                        daysUntil <= 7 -> MaterialTheme.appColors.statusExpiring
                                                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                                                     }
                                                     Text(
@@ -500,7 +508,7 @@ fun ItemDetailScreen(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
-                                        HorizontalDivider()
+                                        ThemedDivider()
                                     }
                                 }
                             }
@@ -511,7 +519,7 @@ fun ItemDetailScreen(
                             "Stats will appear as you track usage and purchases",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = Dimens.spacingSm)
                         )
                     }
                 }
@@ -568,12 +576,12 @@ private fun RecordUsageDialog(
     val usageTypes = listOf("consumed", "wasted", "expired", "gifted")
     var selectedType by remember { mutableStateOf("consumed") }
 
-    AlertDialog(
+    ThemedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Record Usage") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
+                ThemedTextField(
                     value = quantity,
                     onValueChange = { quantity = it },
                     label = { Text("Quantity") },
@@ -589,7 +597,7 @@ private fun RecordUsageDialog(
                     modifier = Modifier.fillMaxWidth(),
                     allowNone = false
                 )
-                OutlinedTextField(
+                ThemedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Notes (optional)") },
@@ -623,20 +631,20 @@ private fun AddPurchaseDialog(
     var store by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    AlertDialog(
+    ThemedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Purchase") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+                    ThemedTextField(
                         value = quantity,
                         onValueChange = { quantity = it },
                         label = { Text("Quantity") },
                         modifier = Modifier.weight(1f),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
-                    OutlinedTextField(
+                    ThemedTextField(
                         value = price,
                         onValueChange = { price = it },
                         label = { Text("Total Price") },
@@ -645,13 +653,13 @@ private fun AddPurchaseDialog(
                         prefix = { Text(currencySymbol) }
                     )
                 }
-                OutlinedTextField(
+                ThemedTextField(
                     value = store,
                     onValueChange = { store = it },
                     label = { Text("Store (optional)") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                ThemedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Notes (optional)") },
@@ -682,19 +690,21 @@ private fun InfoMiniCard(
     value: String,
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    inkIconRes: Int = 0,
     valueColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     AppCard(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(Dimens.spacingMd)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
             ) {
-                Icon(
-                    icon,
+                ThemedIcon(
+                    materialIcon = icon,
+                    inkIconRes = inkIconRes,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -705,7 +715,7 @@ private fun InfoMiniCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Text(
                 value,
                 style = MaterialTheme.typography.bodyMedium,
@@ -726,7 +736,7 @@ private fun StatusChip(text: String, color: Color) {
             color = color,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = Dimens.spacingSm, vertical = Dimens.spacingXs)
         )
     }
 }

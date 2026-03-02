@@ -1,5 +1,7 @@
 package com.inventory.app.ui.screens.items
 
+import com.inventory.app.ui.components.ThemedTextField
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -19,24 +21,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import com.inventory.app.ui.components.ThemedSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,7 +54,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AnimatedSaveButton
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.AutoCompleteTextField
@@ -64,6 +66,8 @@ import com.inventory.app.ui.components.DropdownField
 import com.inventory.app.ui.components.ExpandableSection
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.theme.appColors
+import com.inventory.app.ui.theme.visuals
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,7 +125,7 @@ fun ItemFormScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard Changes?") },
             text = { Text("You have unsaved changes. Are you sure you want to go back?") },
@@ -163,7 +167,7 @@ fun ItemFormScreen(
     // Confirmation dialog for medium-confidence matches
     val currentPendingMatch = uiState.pendingMatches.firstOrNull()
     if (currentPendingMatch != null) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { viewModel.dismissMatch(currentPendingMatch) },
             title = { Text("Shopping List Match Found") },
             text = {
@@ -182,21 +186,19 @@ fun ItemFormScreen(
         )
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(if (itemId != null) "Edit Item" else "Add Item") },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         if (isDirty) showDiscardDialog = true
                         else navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    })
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         bottomBar = {
             AnimatedVisibility(
                 visible = isDirty || uiState.isSaving || uiState.isSaved,
@@ -209,7 +211,10 @@ fun ItemFormScreen(
                     animationSpec = spring(dampingRatio = 0.7f, stiffness = 200f)
                 )
             ) {
-                Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
+                Surface(
+                    tonalElevation = if (MaterialTheme.visuals.useElevation) 3.dp else 0.dp,
+                    shadowElevation = if (MaterialTheme.visuals.useElevation) 8.dp else 0.dp
+                ) {
                     AnimatedSaveButton(
                         text = if (itemId != null) "Update Item" else "Create Item",
                         onClick = { viewModel.save() },
@@ -266,8 +271,9 @@ fun ItemFormScreen(
                             onClick = {},
                             label = { Text("Smart defaults applied") },
                             leadingIcon = {
-                                Icon(
-                                    Icons.Filled.AutoAwesome,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.AutoAwesome,
+                                    inkIconRes = R.drawable.ic_ink_sparkle,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -284,7 +290,7 @@ fun ItemFormScreen(
                             }
                             .tourHighlight(
                                 active = tourStep == TourStep.CATEGORY_LOCATION,
-                                color = TourHighlightGreen
+                                color = MaterialTheme.appColors.tourHighlightGreen
                             )
                             .padding(2.dp), // inset so border doesn't clip
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -312,7 +318,7 @@ fun ItemFormScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        OutlinedTextField(
+                        ThemedTextField(
                             value = uiState.quantity,
                             onValueChange = { viewModel.updateQuantity(it) },
                             label = { Text("Quantity") },
@@ -340,7 +346,7 @@ fun ItemFormScreen(
                             }
                             .tourHighlight(
                                 active = tourStep == TourStep.EXPIRY,
-                                color = TourHighlightAmber
+                                color = MaterialTheme.appColors.tourHighlightAmber
                             )
                             .padding(2.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -362,8 +368,9 @@ fun ItemFormScreen(
                             },
                             modifier = Modifier.padding(top = 8.dp)
                         ) {
-                            Icon(
-                                Icons.Filled.CameraAlt,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.CameraAlt,
+                                inkIconRes = R.drawable.ic_ink_camera,
                                 contentDescription = "Scan expiry date",
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -384,7 +391,7 @@ fun ItemFormScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.padding(bottom = 16.dp)
                         ) {
-                            OutlinedTextField(
+                            ThemedTextField(
                                 value = uiState.description,
                                 onValueChange = { viewModel.updateDescription(it) },
                                 label = { Text("Description") },
@@ -397,13 +404,13 @@ fun ItemFormScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                OutlinedTextField(
+                                ThemedTextField(
                                     value = uiState.brand,
                                     onValueChange = { viewModel.updateBrand(it) },
                                     label = { Text("Brand") },
                                     modifier = Modifier.weight(1f)
                                 )
-                                OutlinedTextField(
+                                ThemedTextField(
                                     value = uiState.barcode,
                                     onValueChange = { viewModel.updateBarcode(it) },
                                     label = { Text("Barcode") },
@@ -428,7 +435,7 @@ fun ItemFormScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                OutlinedTextField(
+                                ThemedTextField(
                                     value = uiState.minQuantity,
                                     onValueChange = { viewModel.updateMinQuantity(it) },
                                     label = { Text("Min Qty") },
@@ -437,7 +444,7 @@ fun ItemFormScreen(
                                     isError = uiState.minQuantityError != null,
                                     supportingText = { Text(uiState.minQuantityError ?: "Alert when below") }
                                 )
-                                OutlinedTextField(
+                                ThemedTextField(
                                     value = uiState.maxQuantity,
                                     onValueChange = { viewModel.updateMaxQuantity(it) },
                                     label = { Text("Max Qty") },
@@ -449,7 +456,7 @@ fun ItemFormScreen(
                             }
 
                             // Warning Days
-                            OutlinedTextField(
+                            ThemedTextField(
                                 value = uiState.expiryWarningDays,
                                 onValueChange = { viewModel.updateExpiryWarningDays(it) },
                                 label = { Text("Warning Days") },
@@ -471,7 +478,7 @@ fun ItemFormScreen(
                                     isError = uiState.openedDateError != null,
                                     supportingText = uiState.openedDateError?.let { { Text(it) } }
                                 )
-                                OutlinedTextField(
+                                ThemedTextField(
                                     value = uiState.daysAfterOpening,
                                     onValueChange = { viewModel.updateDaysAfterOpening(it) },
                                     label = { Text("Use Within") },
@@ -492,7 +499,7 @@ fun ItemFormScreen(
                                     label = { Text("Purchase Date") },
                                     modifier = Modifier.weight(1f)
                                 )
-                                OutlinedTextField(
+                                ThemedTextField(
                                     value = uiState.purchasePrice,
                                     onValueChange = { viewModel.updatePurchasePrice(it) },
                                     label = { Text("Total Price") },
@@ -505,7 +512,7 @@ fun ItemFormScreen(
                             }
 
                             // Notes
-                            OutlinedTextField(
+                            ThemedTextField(
                                 value = uiState.notes,
                                 onValueChange = { viewModel.updateNotes(it) },
                                 label = { Text("Notes") },
@@ -520,7 +527,7 @@ fun ItemFormScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("Favorite")
-                                Switch(
+                                ThemedSwitch(
                                     checked = uiState.isFavorite,
                                     onCheckedChange = { viewModel.updateFavorite(it) }
                                 )
@@ -540,7 +547,7 @@ fun ItemFormScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Switch(
+                                ThemedSwitch(
                                     checked = uiState.isPaused,
                                     onCheckedChange = { viewModel.updatePaused(it) }
                                 )

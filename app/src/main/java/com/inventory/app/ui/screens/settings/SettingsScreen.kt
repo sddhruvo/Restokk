@@ -1,5 +1,8 @@
 package com.inventory.app.ui.screens.settings
 
+import com.inventory.app.ui.components.ThemedRadioButton
+import com.inventory.app.ui.components.ThemedSnackbarHost
+import com.inventory.app.ui.components.ThemedTextField
 import androidx.activity.compose.BackHandler
 import android.Manifest
 import android.app.Activity
@@ -28,31 +31,31 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
+import com.inventory.app.ui.components.ThemedButton
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedSwitch
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +68,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -79,12 +83,20 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.inventory.app.ui.components.AnimatedSaveButton
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.BuildConfig
 import com.inventory.app.R
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.screens.onboarding.UserPreference
 import com.inventory.app.ui.theme.AppTheme
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.InkTokens
+import com.inventory.app.ui.theme.VisualStyle
+import com.inventory.app.ui.theme.isInk
+import com.inventory.app.ui.theme.previewColor
+import com.inventory.app.ui.theme.visuals
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,7 +123,7 @@ fun SettingsScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard Changes?") },
             text = { Text("You have unsaved settings changes. Are you sure you want to go back?") },
@@ -166,29 +178,28 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         if (isDirty) showDiscardDialog = true
                         else navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    })
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         // Delete account confirmation dialog
         if (showDeleteConfirm) {
-            AlertDialog(
+            ThemedAlertDialog(
                 onDismissRequest = { showDeleteConfirm = false },
                 icon = {
-                    Icon(
-                        Icons.Filled.DeleteForever,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.DeleteForever,
+                        inkIconRes = R.drawable.ic_ink_delete,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(32.dp)
@@ -199,7 +210,7 @@ fun SettingsScreen(
                     Text("This will permanently delete your account and erase all app data (inventory, shopping lists, recipes, settings). This cannot be undone.")
                 },
                 confirmButton = {
-                    Button(
+                    ThemedButton(
                         onClick = {
                             showDeleteConfirm = false
                             viewModel.deleteAccount {
@@ -228,13 +239,13 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(Dimens.spacingLg),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
             // Account
             Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     if (uiState.isSignedIn && !uiState.isAnonymous) {
                         // Signed in with Google
                         Row(
@@ -250,14 +261,15 @@ fun SettingsScreen(
                                         .clip(CircleShape)
                                 )
                             } else {
-                                Icon(
-                                    Icons.Filled.AccountCircle,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.AccountCircle,
+                                    inkIconRes = R.drawable.ic_ink_account,
                                     contentDescription = "Account",
                                     modifier = Modifier.size(40.dp),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(Dimens.spacingMd))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = uiState.userName ?: "Signed in",
@@ -277,8 +289,9 @@ fun SettingsScreen(
                                 }
                             }
                             IconButton(onClick = { viewModel.signOut() }) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.Logout,
+                                ThemedIcon(
+                                    materialIcon = Icons.AutoMirrored.Filled.Logout,
+                                    inkIconRes = R.drawable.ic_ink_logout,
                                     contentDescription = "Sign out",
                                     tint = MaterialTheme.colorScheme.error
                                 )
@@ -288,13 +301,14 @@ fun SettingsScreen(
                             onClick = { showDeleteConfirm = true },
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Icon(
-                                Icons.Filled.DeleteForever,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.DeleteForever,
+                                inkIconRes = R.drawable.ic_ink_delete,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.error
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(Dimens.spacingXs))
                             Text("Delete Account", color = MaterialTheme.colorScheme.error)
                         }
                     } else {
@@ -303,13 +317,14 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                Icons.Filled.AccountCircle,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.AccountCircle,
+                                inkIconRes = R.drawable.ic_ink_account,
                                 contentDescription = "Account",
                                 modifier = Modifier.size(40.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(Dimens.spacingMd))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Not signed in",
@@ -324,14 +339,14 @@ fun SettingsScreen(
                             }
                         }
                         if (uiState.authLoading) {
-                            CircularProgressIndicator(
+                            ThemedCircularProgress(
                                 modifier = Modifier
                                     .size(24.dp)
                                     .align(Alignment.CenterHorizontally),
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Button(
+                            ThemedButton(
                                 onClick = {
                                     try {
                                         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -357,7 +372,7 @@ fun SettingsScreen(
             // Notifications
             Text("Notifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -387,13 +402,13 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
+                        ThemedSwitch(
                             checked = uiState.notificationsEnabled,
                             onCheckedChange = null
                         )
                     }
                     if (uiState.notificationsEnabled) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingSm))
                         NotificationToggleRow(
                             label = "Expiry Alerts",
                             description = "When items are about to expire",
@@ -419,8 +434,8 @@ fun SettingsScreen(
             // Expiry Settings
             Text("Expiry Tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
+                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
+                    ThemedTextField(
                         value = uiState.expiryWarningDays,
                         onValueChange = { viewModel.updateExpiryWarningDays(it) },
                         label = { Text("Warning Days Before Expiry") },
@@ -435,8 +450,8 @@ fun SettingsScreen(
             // Display Settings
             Text("Display", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
+                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
+                    ThemedTextField(
                         value = uiState.currencySymbol,
                         onValueChange = { viewModel.updateCurrencySymbol(it) },
                         label = { Text("Currency Symbol") },
@@ -444,7 +459,7 @@ fun SettingsScreen(
                         isError = uiState.currencyError != null,
                         supportingText = uiState.currencyError?.let { { Text(it) } }
                     )
-                    OutlinedTextField(
+                    ThemedTextField(
                         value = uiState.defaultQuantity,
                         onValueChange = { viewModel.updateDefaultQuantity(it) },
                         label = { Text("Default Quantity") },
@@ -453,7 +468,7 @@ fun SettingsScreen(
                         isError = uiState.defaultQuantityError != null,
                         supportingText = uiState.defaultQuantityError?.let { { Text(it) } }
                     )
-                    Text("App Theme", style = MaterialTheme.typography.bodyLarge)
+                    Text("Color Palette", style = MaterialTheme.typography.bodyLarge)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -467,34 +482,62 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                    Text("Visual Style", style = MaterialTheme.typography.bodyLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        VisualStyle.entries.forEach { style ->
+                            VisualStyleChip(
+                                style = style,
+                                isSelected = uiState.visualStyle == style,
+                                onClick = { viewModel.updateVisualStyle(style) }
+                            )
+                        }
+                    }
                 }
             }
 
             // What Matters Most
             Text("What Matters Most", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                     Text(
                         "This shapes your dashboard and suggestions",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                    val isInk = MaterialTheme.visuals.isInk
                     UserPreference.entries.forEach { pref ->
+                        val isSelected = uiState.userPreference == pref.name
+                        // In P&I mode: selected row gets ink wash highlight
+                        val rowBackground = if (isInk && isSelected)
+                            MaterialTheme.colorScheme.primary.copy(alpha = InkTokens.fillLight)
+                        else Color.Transparent
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(RoundedCornerShape(Dimens.spacingSm))
+                                .background(rowBackground)
                                 .clickable { viewModel.updateUserPreference(pref.name) }
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = Dimens.spacingSm, horizontal = Dimens.spacingXs),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            androidx.compose.material3.RadioButton(
-                                selected = uiState.userPreference == pref.name,
+                            ThemedRadioButton(
+                                selected = isSelected,
                                 onClick = { viewModel.updateUserPreference(pref.name) }
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(Dimens.spacingSm))
                             Column {
-                                Text(pref.label, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    pref.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
                                 Text(
                                     pref.subtitle,
                                     style = MaterialTheme.typography.bodySmall,
@@ -509,8 +552,8 @@ fun SettingsScreen(
             // Shopping List
             Text("Shopping List", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
+                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
+                    ThemedTextField(
                         value = uiState.shoppingBudget,
                         onValueChange = { viewModel.updateShoppingBudget(it) },
                         label = { Text("Shopping Budget") },
@@ -518,7 +561,7 @@ fun SettingsScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         supportingText = { Text("Leave empty for no budget limit") }
                     )
-                    OutlinedTextField(
+                    ThemedTextField(
                         value = uiState.autoClearDays,
                         onValueChange = { viewModel.updateAutoClearDays(it) },
                         label = { Text("Auto-Clear Purchased After (Days)") },
@@ -532,13 +575,13 @@ fun SettingsScreen(
             // General
             Text("General", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                     Text(
                         text = "Re-watch the intro walkthrough to explore features you may have missed.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OutlinedButton(
+                    ThemedButton(
                         onClick = {
                             viewModel.resetOnboarding {
                                 navController.navigate(Screen.Onboarding.route) {
@@ -561,7 +604,7 @@ fun SettingsScreen(
             )
 
             // About
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingLg))
             Text(
                 text = "Restokk v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
@@ -577,7 +620,7 @@ fun SettingsScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Text(
                 text = "Privacy Policy",
                 style = MaterialTheme.typography.bodySmall,
@@ -620,7 +663,7 @@ private fun NotificationToggleRow(
                 onValueChange = onCheckedChange,
                 role = Role.Switch
             )
-            .padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
+            .padding(start = Dimens.spacingSm, top = Dimens.spacingXs, bottom = Dimens.spacingXs),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -632,7 +675,7 @@ private fun NotificationToggleRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = null)
+        ThemedSwitch(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -642,11 +685,7 @@ private fun ThemeCircle(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val circleColor = when (theme) {
-        AppTheme.CLASSIC_GREEN -> Color(0xFF2E7D32)
-        AppTheme.WARM_CREAM -> Color(0xFFF8F9FA)
-        AppTheme.AMOLED_DARK -> Color(0xFF1A1A1A)
-    }
+    val circleColor = theme.previewColor
     val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
     val borderWidth = if (isSelected) 3.dp else 1.dp
 
@@ -664,13 +703,13 @@ private fun ThemeCircle(
             contentAlignment = Alignment.Center
         ) {
             if (isSelected) {
-                Icon(
-                    Icons.Filled.Check,
+                val checkTint = if (circleColor.luminance() > 0.5f) Color.Black else Color.White
+                ThemedIcon(
+                    materialIcon = Icons.Filled.Check,
+                    inkIconRes = R.drawable.ic_ink_check,
                     contentDescription = "Selected",
-                    tint = if (theme == AppTheme.AMOLED_DARK) Color.White
-                           else if (theme == AppTheme.WARM_CREAM) Color(0xFF007AFF)
-                           else Color.White,
-                    modifier = Modifier.size(24.dp)
+                    tint = checkTint,
+                    modifier = Modifier.size(Dimens.iconSizeMd)
                 )
             }
         }
@@ -679,5 +718,40 @@ private fun ThemeCircle(
             style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun VisualStyleChip(
+    style: VisualStyle,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    val borderWidth = if (isSelected) 2.dp else 1.dp
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                  else MaterialTheme.colorScheme.surface
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .height(40.dp)
+                .border(borderWidth, borderColor, MaterialTheme.shapes.small)
+                .clip(MaterialTheme.shapes.small)
+                .background(bgColor)
+                .clickable { onClick() }
+                .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = style.displayName,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }

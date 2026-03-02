@@ -42,6 +42,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.appColors
+import com.inventory.app.ui.theme.visuals
 import kotlinx.coroutines.delay
 
 private val BouncySpring = PaperInkMotion.BouncySpring
@@ -49,7 +51,7 @@ private val BouncySpring = PaperInkMotion.BouncySpring
 /** Tour step — exposed so ItemFormScreen can highlight fields */
 enum class TourStep { BANNER, CATEGORY_LOCATION, EXPIRY, SUMMARY, DONE }
 
-/** Highlight colors for each tour step */
+/** Highlight colors — kept for non-composable modifier references */
 val TourHighlightGreen = Color(0xFF4CAF50)
 val TourHighlightAmber = Color(0xFFFF9800)
 
@@ -68,7 +70,7 @@ fun Modifier.tourHighlight(
         initialValue = 0.8f,
         targetValue = 0.3f,
         animationSpec = infiniteRepeatable(
-            animation = tween(800),
+            animation = tween(PaperInkMotion.DurationChart),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulseAlpha"
@@ -77,7 +79,7 @@ fun Modifier.tourHighlight(
     this.border(
         width = 2.dp,
         color = color.copy(alpha = pulseAlpha),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     )
 }
 
@@ -120,7 +122,7 @@ fun SmartDefaultsTourOverlay(
 
         // Step 0: Banner
         onStepChanged(TourStep.BANNER)
-        bannerAlpha.animateTo(1f, tween(300))
+        bannerAlpha.animateTo(1f, tween(PaperInkMotion.DurationMedium))
         delay(800)
 
         // Step 1: Category + Location
@@ -150,11 +152,11 @@ fun SmartDefaultsTourOverlay(
         currentStep = TourStep.SUMMARY
         onStepChanged(TourStep.SUMMARY)
         expiryAlpha.animateTo(0f, tween(200))
-        summaryAlpha.animateTo(1f, tween(300))
+        summaryAlpha.animateTo(1f, tween(PaperInkMotion.DurationMedium))
         delay(2000)
 
         // Done — fade everything out
-        summaryAlpha.animateTo(0f, tween(300))
+        summaryAlpha.animateTo(0f, tween(PaperInkMotion.DurationMedium))
         currentStep = TourStep.DONE
         onStepChanged(TourStep.DONE)
         onDismiss()
@@ -209,7 +211,7 @@ fun SmartDefaultsTourOverlay(
             }
             InkAnnotationCard(
                 text = "Category & storage \u2014 auto-detected",
-                accentColor = TourHighlightGreen,
+                accentColor = MaterialTheme.appColors.tourHighlightGreen,
                 modifier = Modifier
                     .padding(start = 24.dp, end = 24.dp)
                     .offset { IntOffset(catSlideX.value.toInt(), 0) }
@@ -225,7 +227,7 @@ fun SmartDefaultsTourOverlay(
             }
             InkAnnotationCard(
                 text = "Shelf life estimate \u2014 tap to adjust",
-                accentColor = TourHighlightAmber,
+                accentColor = MaterialTheme.appColors.tourHighlightAmber,
                 modifier = Modifier
                     .padding(start = 24.dp, end = 24.dp)
                     .offset { IntOffset(expirySlideX.value.toInt(), 0) }
@@ -270,10 +272,10 @@ private fun InkAnnotationCard(
                     strokeWidth = 3.dp.toPx()
                 )
             },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
-        tonalElevation = 2.dp,
-        shadowElevation = 4.dp
+        tonalElevation = if (MaterialTheme.visuals.useElevation) 2.dp else 0.dp,
+        shadowElevation = if (MaterialTheme.visuals.useElevation) 4.dp else 0.dp
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),

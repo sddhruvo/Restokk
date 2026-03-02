@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.inventory.app.R
 import com.inventory.app.domain.tips.Tip
 
 @Composable
@@ -42,8 +43,9 @@ fun TipsSection(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.Lightbulb,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.Lightbulb,
+                            inkIconRes = R.drawable.ic_ink_lightbulb,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.tertiary
@@ -54,8 +56,9 @@ fun TipsSection(
                             modifier = Modifier.weight(1f)
                         )
                         if (isClickable) {
-                            Icon(
-                                Icons.Filled.ChevronRight,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.ChevronRight,
+                                inkIconRes = R.drawable.ic_ink_chevron_right,
                                 contentDescription = "Go",
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant

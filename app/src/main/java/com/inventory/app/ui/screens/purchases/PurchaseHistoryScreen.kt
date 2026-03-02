@@ -13,20 +13,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedTextField
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import com.inventory.app.ui.components.ThemedFilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,8 +42,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.LoadingState
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.TimelineDateHeader
 import com.inventory.app.ui.components.TimelinePurchaseItem
 import com.inventory.app.ui.navigation.Screen
@@ -55,25 +59,23 @@ fun PurchaseHistoryScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showSearch by rememberSaveable { mutableStateOf(false) }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(uiState.itemName ?: "Purchase History") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 },
                 actions = {
                     viewModel.itemId?.let { id ->
                         IconButton(onClick = {
                             navController.navigate(Screen.ItemDetail.createRoute(id))
                         }) {
-                            Icon(Icons.Filled.Add, contentDescription = "Add purchase")
+                            ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add purchase")
                         }
                     }
                     IconButton(onClick = { showSearch = !showSearch }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search")
+                        ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search")
                     }
                 }
             )
@@ -81,7 +83,7 @@ fun PurchaseHistoryScreen(
     ) { padding ->
         if (uiState.isLoading) {
             LoadingState()
-            return@Scaffold
+            return@ThemedScaffold
         }
 
         Column(
@@ -91,14 +93,14 @@ fun PurchaseHistoryScreen(
         ) {
             // Search bar
             if (showSearch) {
-                OutlinedTextField(
+                ThemedTextField(
                     value = uiState.searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     placeholder = { Text("Search by item or store...") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+                    leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search") },
                     singleLine = true
                 )
             }
@@ -112,7 +114,7 @@ fun PurchaseHistoryScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     PurchaseFilter.entries.forEach { filter ->
-                        FilterChip(
+                        ThemedFilterChip(
                             selected = uiState.selectedFilter == filter,
                             onClick = { viewModel.setFilter(filter) },
                             label = { Text(filter.label, style = MaterialTheme.typography.labelSmall) }
@@ -161,8 +163,9 @@ fun PurchaseHistoryScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Filled.ShoppingBag,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.ShoppingBag,
+                            inkIconRes = R.drawable.ic_ink_shopping,
                             contentDescription = "Purchase",
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)

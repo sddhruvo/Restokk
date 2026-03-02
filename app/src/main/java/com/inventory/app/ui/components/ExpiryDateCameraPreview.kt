@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import com.inventory.app.R
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -158,8 +159,9 @@ fun ExpiryDateCameraPreview(
                     .align(Alignment.TopEnd)
                     .padding(16.dp)
             ) {
-                Icon(
-                    imageVector = if (isTorchOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                ThemedIcon(
+                    materialIcon = if (isTorchOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                    inkIconRes = if (isTorchOn) R.drawable.ic_ink_flash_on else R.drawable.ic_ink_flash_off,
                     contentDescription = if (isTorchOn) "Turn off flash" else "Turn on flash"
                 )
             }
@@ -181,8 +183,9 @@ fun ExpiryDateCameraPreview(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Filled.CalendarMonth,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.CalendarMonth,
+                        inkIconRes = R.drawable.ic_ink_calendar,
                         contentDescription = "Expiry",
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary

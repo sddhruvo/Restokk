@@ -28,11 +28,16 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.inventory.app.R
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedCircularProgress
 import com.inventory.app.ui.components.AnimatedCounter
 import com.inventory.app.ui.components.InkFireworks
 import com.inventory.app.ui.components.RuledLinesBackground
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.theme.LocalReduceMotion
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.visuals
 import com.inventory.app.util.FormatUtils
 import kotlinx.coroutines.delay
 
@@ -89,7 +94,7 @@ internal fun KitchenMemoryPath(
     )
     val headerAlpha by animateFloatAsState(
         targetValue = if (headerReady) 1f else 0f,
-        animationSpec = tween(300), label = "memHeaderAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "memHeaderAlpha"
     )
 
     // Subtitle: Fade Up
@@ -99,14 +104,14 @@ internal fun KitchenMemoryPath(
     )
     val subAlpha by animateFloatAsState(
         targetValue = if (subtitleReady) 1f else 0f,
-        animationSpec = tween(300), label = "memSubAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "memSubAlpha"
     )
 
     // Confirm button visibility
     val showConfirm = selectedCount >= 3
     val confirmAlpha by animateFloatAsState(
         targetValue = if (showConfirm) 1f else 0f,
-        animationSpec = tween(300), label = "confirmAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "confirmAlpha"
     )
     val confirmY by animateFloatAsState(
         targetValue = if (showConfirm) 0f else 20f,
@@ -205,7 +210,7 @@ internal fun KitchenMemoryPath(
 
             // Confirm button (visible when 3+ selected)
             if (showConfirm || confirmAlpha > 0.01f) {
-                Button(
+                ThemedButton(
                     onClick = onConfirm,
                     enabled = !isSaving && showConfirm,
                     modifier = Modifier
@@ -217,10 +222,10 @@ internal fun KitchenMemoryPath(
                             val bs = if (showConfirm) breatheScale else 1f
                             scaleX = bs; scaleY = bs
                         },
-                    shape = RoundedCornerShape(16.dp)
+                    shape = MaterialTheme.shapes.large
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(
+                        ThemedCircularProgress(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary
@@ -317,7 +322,7 @@ private fun MemoryItemCard(
                 indication = null,
                 onClick = onClick
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Box(
@@ -347,8 +352,9 @@ private fun MemoryItemCard(
             }
             // Checkmark in top-right
             if (checkScale > 0.01f) {
-                Icon(
-                    Icons.Filled.Check,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.Check,
+                    inkIconRes = R.drawable.ic_ink_check,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -420,7 +426,7 @@ internal fun MemoryAggregateReveal(
     )
     val cardAlpha by animateFloatAsState(
         targetValue = if (cardReady) 1f else 0f,
-        animationSpec = tween(300), label = "aggCardAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "aggCardAlpha"
     )
 
     val headX by animateFloatAsState(
@@ -429,7 +435,7 @@ internal fun MemoryAggregateReveal(
     )
     val headAlpha by animateFloatAsState(
         targetValue = if (headlineReady) 1f else 0f,
-        animationSpec = tween(300), label = "aggHeadAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "aggHeadAlpha"
     )
 
     val statsY by animateFloatAsState(
@@ -438,7 +444,7 @@ internal fun MemoryAggregateReveal(
     )
     val statsAlpha by animateFloatAsState(
         targetValue = if (statsReady) 1f else 0f,
-        animationSpec = tween(300), label = "statsAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "statsAlpha"
     )
 
     val flavorY by animateFloatAsState(
@@ -447,7 +453,7 @@ internal fun MemoryAggregateReveal(
     )
     val flavorAlpha by animateFloatAsState(
         targetValue = if (flavorReady) 1f else 0f,
-        animationSpec = tween(300), label = "aggFlavorAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "aggFlavorAlpha"
     )
 
     Column(
@@ -461,8 +467,8 @@ internal fun MemoryAggregateReveal(
             modifier = Modifier
                 .fillMaxWidth()
                 .graphicsLayer { scaleX = cardScale; scaleY = cardScale; alpha = cardAlpha },
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            shape = MaterialTheme.shapes.large,
+            elevation = CardDefaults.cardElevation(defaultElevation = if (MaterialTheme.visuals.useElevation) 4.dp else 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Box {
@@ -676,7 +682,7 @@ internal fun MemoryCelebrationScreen(
     )
     val btnAlpha by animateFloatAsState(
         targetValue = if (buttonReady) 1f else 0f,
-        animationSpec = tween(300), label = "memCelBtnAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "memCelBtnAlpha"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -706,7 +712,7 @@ internal fun MemoryCelebrationScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
+            ThemedButton(
                 onClick = {
                     celebrating = true
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -718,7 +724,7 @@ internal fun MemoryCelebrationScreen(
                     .graphicsLayer {
                         translationY = btnY; alpha = btnAlpha
                     },
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             ) {
                 Text("See my kitchen \u2192", style = MaterialTheme.typography.titleMedium)
             }

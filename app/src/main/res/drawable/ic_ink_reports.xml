@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+    <!-- Baseline -->
+    <path
+        android:pathData="M3.0,21.1 Q8.3,20.9 12.1,21.0 Q16.4,21.1 21.0,20.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Left bar (short): filled rect ~(4,14)-(8,21) with wobble -->
+    <path
+        android:pathData="M4.2,14.3 Q6.1,14.1 7.8,14.2 Q8.1,16.4 7.9,18.0 Q8.0,19.8 7.8,20.9 Q5.9,21.1 4.2,21.0 Q4.0,18.2 4.1,16.0 Q4.0,14.8 4.2,14.3Z"
+        android:fillColor="#000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Center bar (medium): filled rect ~(10,8)-(14,21) with wobble -->
+    <path
+        android:pathData="M10.2,8.3 Q12.0,8.1 13.8,8.2 Q14.1,12.2 13.9,15.0 Q14.0,18.0 13.8,20.9 Q12.0,21.1 10.2,21.0 Q10.0,17.2 10.1,14.0 Q10.0,11.0 10.2,8.3Z"
+        android:fillColor="#000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Right bar (tall): filled rect ~(16,4)-(20,21) with wobble -->
+    <path
+        android:pathData="M16.2,4.3 Q18.0,4.1 19.8,4.2 Q20.1,8.4 19.9,12.0 Q20.0,16.2 19.8,20.9 Q18.0,21.1 16.2,21.0 Q16.0,16.4 16.1,12.0 Q16.0,8.0 16.2,4.3Z"
+        android:fillColor="#000000"
+        android:strokeColor="#000000"
+        android:strokeWidth="0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+</vector>

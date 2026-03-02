@@ -1,0 +1,69 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+
+    <!-- Roof: peaked triangle with slight sag wobble -->
+    <path
+        android:pathData="M3.2,13.3 Q7.3,13.5 12.1,4.2 Q16.8,13.4 21.0,13.1"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Left wall -->
+    <path
+        android:pathData="M6.0,13.0 Q5.8,16.3 6.1,20.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Right wall -->
+    <path
+        android:pathData="M18.0,13.0 Q18.3,16.4 17.9,20.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Floor: bottom connecting line -->
+    <path
+        android:pathData="M6.1,20.0 Q12.0,20.3 17.9,20.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Door: centered rectangle -->
+    <path
+        android:pathData="M10.1,14.2 Q10.0,17.0 10.2,20.0 M13.9,14.1 Q14.1,17.1 13.8,20.0 M10.1,14.2 Q12.0,13.9 13.9,14.1"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Door knob: tiny dot -->
+    <path
+        android:pathData="M13.0,17.2 Q13.4,17.0 13.2,17.5 Q12.8,17.4 13.0,17.2Z"
+        android:fillColor="#000000"
+        android:strokeWidth="0"
+        android:strokeColor="@android:color/transparent"/>
+
+    <!-- Chimney: small rectangle on right roof slope -->
+    <path
+        android:pathData="M16.0,5.5 Q16.2,4.2 18.0,4.3 Q17.8,5.8 17.9,8.0 M16.0,5.5 Q16.1,7.0 16.1,8.2"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+
+</vector>

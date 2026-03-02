@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+    <!-- Circle with 4-quadrant Q bezier wobble, center (12,12) r=9 -->
+    <path
+        android:pathData="M12.0,3.1
+            Q17.3,2.8 20.2,7.4
+            Q21.4,10.0 20.9,12.0
+            Q21.2,17.2 16.8,20.1
+            Q13.8,21.3 12.0,20.9
+            Q6.8,21.2 3.9,16.6
+            Q2.7,13.8 3.1,12.0
+            Q2.8,6.9 7.3,3.9
+            Q10.0,2.8 12.0,3.1Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- X: top-left to bottom-right -->
+    <path
+        android:pathData="M8.2,8.1 Q10.0,10.2 12.0,12.0 Q14.0,13.9 15.9,16.1"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- X: top-right to bottom-left -->
+    <path
+        android:pathData="M15.8,8.2 Q14.0,10.1 12.0,12.0 Q10.1,14.0 8.1,15.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+</vector>

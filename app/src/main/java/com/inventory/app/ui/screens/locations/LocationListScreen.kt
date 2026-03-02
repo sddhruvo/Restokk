@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.locations
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -22,16 +23,15 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import com.inventory.app.ui.components.ThemedFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,13 +47,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.data.local.dao.LocationWithItemCountRow
+import com.inventory.app.ui.components.ThemedIcon
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import com.inventory.app.ui.components.ConfirmDialog
 import com.inventory.app.ui.components.EmptyState
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.theme.appColors
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,25 +70,23 @@ fun LocationListScreen(
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<LocationWithItemCountRow?>(null) }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Storage Locations") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ThemedFab(
                 onClick = { navController.navigate(Screen.LocationForm.createRoute()) }
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Location")
+                ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add Location")
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState()
@@ -120,8 +121,9 @@ fun LocationListScreen(
                                         enabled = index > 0,
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Filled.KeyboardArrowUp,
+                                        ThemedIcon(
+                                            materialIcon = Icons.Filled.KeyboardArrowUp,
+                                            inkIconRes = R.drawable.ic_ink_collapse,
                                             contentDescription = "Move up",
                                             modifier = Modifier.size(20.dp),
                                             tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant
@@ -133,8 +135,9 @@ fun LocationListScreen(
                                         enabled = index < uiState.locations.size - 1,
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Filled.KeyboardArrowDown,
+                                        ThemedIcon(
+                                            materialIcon = Icons.Filled.KeyboardArrowDown,
+                                            inkIconRes = R.drawable.ic_ink_expand,
                                             contentDescription = "Move down",
                                             modifier = Modifier.size(20.dp),
                                             tint = if (index < uiState.locations.size - 1) MaterialTheme.colorScheme.onSurfaceVariant
@@ -142,17 +145,15 @@ fun LocationListScreen(
                                         )
                                     }
                                 }
+                                val defaultBg = MaterialTheme.appColors.entityDefaultColor
+                                val locationBgColor = try {
+                                    location.color?.toColorInt()?.let { Color(it) } ?: defaultBg
+                                } catch (_: Exception) { defaultBg }
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            try {
-                                                Color(location.color?.toColorInt() ?: 0xFF6c757d.toInt())
-                                            } catch (_: Exception) {
-                                                Color(0xFF6c757d)
-                                            }
-                                        )
+                                        .background(locationBgColor)
                                 )
                             }
                         },
@@ -161,11 +162,12 @@ fun LocationListScreen(
                                 IconButton(onClick = {
                                     navController.navigate(Screen.LocationForm.createRoute(location.id))
                                 }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
                                 }
                                 IconButton(onClick = { deleteTarget = location }) {
-                                    Icon(
-                                        Icons.Filled.Delete,
+                                    ThemedIcon(
+                                        materialIcon = Icons.Filled.Delete,
+                                        inkIconRes = R.drawable.ic_ink_delete,
                                         contentDescription = "Delete",
                                         modifier = Modifier.size(20.dp),
                                         tint = MaterialTheme.colorScheme.error

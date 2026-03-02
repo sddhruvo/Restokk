@@ -3,6 +3,8 @@ package com.inventory.app.ui.components
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,11 +17,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -29,7 +34,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import com.inventory.app.R
+import com.inventory.app.ui.theme.CardStyle
+import com.inventory.app.ui.theme.InkTokens
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.ProgressStyle
+import com.inventory.app.ui.theme.isInk
+import com.inventory.app.ui.theme.visuals
 import java.time.LocalTime
 import kotlin.math.PI
 import kotlin.math.cos
@@ -137,7 +148,7 @@ fun StaggeredAnimatedItem(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(animationSpec = tween(300)) +
+        enter = fadeIn(animationSpec = tween(PaperInkMotion.DurationMedium)) +
                 slideInVertically(
                     initialOffsetY = { it / slideOffsetDivisor },
                     animationSpec = tween(300, easing = FastOutSlowInEasing)
@@ -172,7 +183,7 @@ fun AnimatedEmptyState(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(500)) + scaleIn(tween(500), initialScale = 0.8f)
+        enter = fadeIn(tween(PaperInkMotion.DurationLong)) + scaleIn(tween(PaperInkMotion.DurationLong), initialScale = 0.8f)
     ) {
         Column(
             modifier = modifier.padding(32.dp),
@@ -288,7 +299,7 @@ fun ExpandableSection(
     var expanded by remember { mutableStateOf(initiallyExpanded) }
     val rotationAngle by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(300),
+        animationSpec = tween(PaperInkMotion.DurationMedium),
         label = "expandRotation"
     )
 
@@ -306,8 +317,9 @@ fun ExpandableSection(
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
             )
             IconButton(onClick = { expanded = !expanded }) {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowDown,
+                ThemedIcon(
+                    materialIcon = Icons.Filled.KeyboardArrowDown,
+                    inkIconRes = R.drawable.ic_ink_expand,
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     modifier = Modifier.graphicsLayer { rotationZ = rotationAngle }
                 )
@@ -315,8 +327,51 @@ fun ExpandableSection(
         }
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
-            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
+            enter = expandVertically(animationSpec = tween(PaperInkMotion.DurationMedium)) + fadeIn(tween(PaperInkMotion.DurationMedium)),
+            exit = shrinkVertically(animationSpec = tween(PaperInkMotion.DurationMedium)) + fadeOut(tween(PaperInkMotion.DurationMedium))
+        ) {
+            content()
+        }
+    }
+}
+
+// ─── Themed FAB ───────────────────────────────────────────────────
+
+/**
+ * Drop-in replacement for [FloatingActionButton] that renders as an
+ * [InkBorderCard] circle in Paper & Ink mode.
+ *
+ * Modern mode delegates to the standard [FloatingActionButton].
+ */
+@Composable
+fun ThemedFab(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    content: @Composable () -> Unit
+) {
+    val isInk = MaterialTheme.visuals.isInk
+    if (isInk) {
+        InkBorderCard(
+            modifier = modifier.size(InkTokens.fabSize),
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = InkTokens.fillMedium),
+            inkBorder = CardStyle.InkBorder(
+                wobbleAmplitude = InkTokens.wobbleMedium,
+                strokeWidth = InkTokens.strokeBold,
+                segments = 6
+            ),
+            cornerRadius = InkTokens.fabSize / 2,
+            onClick = onClick
+        ) {
+            Box(modifier = Modifier.align(Alignment.Center)) {
+                content()
+            }
+        }
+    } else {
+        FloatingActionButton(
+            onClick = onClick,
+            modifier = modifier,
+            containerColor = containerColor
         ) {
             content()
         }
@@ -336,7 +391,7 @@ fun AnimatedFab(
         enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
         exit = scaleOut() + fadeOut()
     ) {
-        FloatingActionButton(onClick = onClick) {
+        ThemedFab(onClick = onClick) {
             icon()
         }
     }
@@ -373,7 +428,7 @@ fun DashboardGreeting(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(500)),
+        enter = fadeIn(tween(PaperInkMotion.DurationLong)),
         modifier = modifier
     ) {
         Column {
@@ -402,7 +457,7 @@ fun FormProgressIndicator(
 ) {
     val animatedProgress by animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
-        animationSpec = tween(300),
+        animationSpec = tween(PaperInkMotion.DurationMedium),
         label = "formProgress"
     )
 
@@ -422,7 +477,7 @@ fun FormProgressIndicator(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        LinearProgressIndicator(
+        ThemedProgressBar(
             progress = { animatedProgress },
             modifier = Modifier
                 .fillMaxWidth()
@@ -443,11 +498,9 @@ fun AnimatedSaveButton(
     isSaved: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    Button(
-        onClick = { if (!isLoading && !isSaved) onClick() },
-        modifier = modifier.fillMaxWidth(),
-        enabled = !isLoading
-    ) {
+    val isInk = MaterialTheme.visuals.isInk
+
+    val animatedContent: @Composable () -> Unit = {
         AnimatedContent(
             targetState = when {
                 isLoading -> "loading"
@@ -465,10 +518,10 @@ fun AnimatedSaveButton(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(
+                        ThemedCircularProgress(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = LocalContentColor.current
                         )
                         Text("Saving...")
                     }
@@ -478,11 +531,93 @@ fun AnimatedSaveButton(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Check, contentDescription = "Saved", modifier = Modifier.size(18.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.Check, inkIconRes = R.drawable.ic_ink_check, contentDescription = "Saved", modifier = Modifier.size(18.dp))
                         Text("Saved!")
                     }
                 }
                 else -> Text(text)
+            }
+        }
+    }
+
+    if (!isInk) {
+        Button(
+            onClick = { if (!isLoading && !isSaved) onClick() },
+            modifier = modifier.fillMaxWidth(),
+            enabled = !isLoading
+        ) {
+            animatedContent()
+        }
+    } else {
+        // Ink mode: wobbly pill border + ink wash fill (matches ThemedButton)
+        val colorScheme = MaterialTheme.colorScheme
+        val density = LocalDensity.current
+        val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
+        val strokePx = with(density) { InkTokens.strokeMedium.toPx() }
+        val wobblePx = with(density) { InkTokens.wobbleSmall.toPx() }
+
+        val enabled = !isLoading
+        val borderColor = if (enabled) colorScheme.primary
+            else colorScheme.onSurface.copy(alpha = InkTokens.disabledBorder)
+        val fillColor = if (enabled) colorScheme.primary.copy(alpha = InkTokens.fillLight)
+            else Color.Transparent
+        val contentColor = if (enabled) colorScheme.primary
+            else colorScheme.onSurface.copy(alpha = InkTokens.disabledContent)
+
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    val cr = minOf(size.width, size.height) / 2f
+
+                    drawRoundRect(
+                        color = fillColor,
+                        cornerRadius = CornerRadius(cr, cr)
+                    )
+
+                    val path = buildWobbleBorderPath(
+                        width = size.width,
+                        height = size.height,
+                        cornerRadius = cr,
+                        wobbleAmplitude = wobblePx,
+                        wobbleSeed = wobbleSeed,
+                        segments = 3
+                    )
+
+                    // Bleed layer
+                    drawPath(
+                        path = path,
+                        color = borderColor.copy(alpha = InkTokens.fillBleed),
+                        style = Stroke(
+                            width = strokePx * 2f,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round
+                        )
+                    )
+
+                    // Primary border
+                    drawPath(
+                        path = path,
+                        color = borderColor,
+                        style = Stroke(
+                            width = strokePx,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round
+                        )
+                    )
+                }
+                .clip(RoundedCornerShape(50))
+                .clickable(
+                    enabled = enabled,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = { if (!isLoading && !isSaved) onClick() }
+                )
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CompositionLocalProvider(LocalContentColor provides contentColor) {
+                animatedContent()
             }
         }
     }
@@ -738,6 +873,70 @@ fun RuledLinesBackground(
         while (y < size.height) {
             drawLine(lineColor, Offset(0f, y), Offset(size.width, y), 1f)
             y += spacingPx
+        }
+    }
+}
+
+// ─── Ink Hatched Progress Bar ────────────────────────────────────────────
+
+/**
+ * Hand-scratched progress bar with diagonal hatch strokes (////).
+ * Each stroke has slight wobble for an organic, hand-drawn feel.
+ * Used automatically by [ThemedProgressBar] when Paper & Ink is active.
+ */
+@Composable
+fun InkHatchedProgressBar(
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = color.copy(alpha = 0.15f),
+    style: ProgressStyle.InkHatched = ProgressStyle.InkHatched(),
+) {
+    val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
+
+    Canvas(modifier = modifier) {
+        val fillWidth = size.width * progress().coerceIn(0f, 1f)
+        drawInkHatchedBar(
+            fillWidth = fillWidth,
+            color = color,
+            trackColor = trackColor,
+            style = style,
+            wobbleSeed = wobbleSeed,
+        )
+    }
+}
+
+/**
+ * Theme-aware progress bar. Delegates to:
+ * - [InkHatchedProgressBar] when Paper & Ink is active (reads params from [ProgressStyle])
+ * - [LinearProgressIndicator] when Modern/Standard is active
+ *
+ * Drop-in replacement for LinearProgressIndicator.
+ */
+@Composable
+fun ThemedProgressBar(
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = color.copy(alpha = 0.15f),
+) {
+    when (val style = MaterialTheme.visuals.progressStyle) {
+        is ProgressStyle.InkHatched -> {
+            InkHatchedProgressBar(
+                progress = progress,
+                modifier = modifier,
+                color = color,
+                trackColor = trackColor,
+                style = style,
+            )
+        }
+        is ProgressStyle.Standard -> {
+            LinearProgressIndicator(
+                progress = progress,
+                modifier = modifier,
+                color = color,
+                trackColor = trackColor,
+            )
         }
     }
 }

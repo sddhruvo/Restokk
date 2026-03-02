@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.categories
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
@@ -23,18 +24,17 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import com.inventory.app.ui.components.ThemedFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,12 +50,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.data.local.dao.CategoryWithItemCountRow
 import com.inventory.app.ui.components.ConfirmDialog
 import com.inventory.app.ui.components.EmptyState
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.util.CategoryVisuals
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.theme.appColors
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,25 +72,23 @@ fun CategoryListScreen(
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<CategoryWithItemCountRow?>(null) }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Categories") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ThemedFab(
                 onClick = { navController.navigate(Screen.CategoryForm.createRoute()) }
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Category")
+                ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add Category")
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState()
@@ -122,8 +123,9 @@ fun CategoryListScreen(
                                         enabled = index > 0,
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Filled.KeyboardArrowUp,
+                                        ThemedIcon(
+                                            materialIcon = Icons.Filled.KeyboardArrowUp,
+                                            inkIconRes = R.drawable.ic_ink_collapse,
                                             contentDescription = "Move up",
                                             modifier = Modifier.size(22.dp)
                                         )
@@ -133,17 +135,19 @@ fun CategoryListScreen(
                                         enabled = index < uiState.categories.size - 1,
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Filled.KeyboardArrowDown,
+                                        ThemedIcon(
+                                            materialIcon = Icons.Filled.KeyboardArrowDown,
+                                            inkIconRes = R.drawable.ic_ink_expand,
                                             contentDescription = "Move down",
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
+                                val defaultColor = MaterialTheme.appColors.entityDefaultColor
                                 val bgColor = try {
-                                    Color(category.color?.toColorInt() ?: 0xFF6c757d.toInt())
+                                    category.color?.toColorInt()?.let { Color(it) } ?: defaultColor
                                 } catch (_: Exception) {
-                                    Color(0xFF6c757d)
+                                    defaultColor
                                 }
                                 Box(
                                     modifier = Modifier
@@ -175,17 +179,18 @@ fun CategoryListScreen(
                                 IconButton(onClick = {
                                     navController.navigate(Screen.CategoryForm.createRoute(category.id))
                                 }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
                                 }
                                 IconButton(onClick = { deleteTarget = category }) {
-                                    Icon(
-                                        Icons.Filled.Delete,
+                                    ThemedIcon(
+                                        materialIcon = Icons.Filled.Delete,
+                                        inkIconRes = R.drawable.ic_ink_delete,
                                         contentDescription = "Delete",
                                         modifier = Modifier.size(20.dp),
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 }
-                                Icon(Icons.Filled.ChevronRight, contentDescription = "View subcategories")
+                                ThemedIcon(materialIcon = Icons.Filled.ChevronRight, inkIconRes = R.drawable.ic_ink_chevron_right, contentDescription = "View subcategories")
                             }
                         },
                         modifier = Modifier.clickable {

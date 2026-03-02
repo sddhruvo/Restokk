@@ -1,0 +1,63 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+    <!-- Lid: slightly bowed horizontal line -->
+    <path
+        android:pathData="M6.0,6.2 Q12.0,5.6 18.0,6.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Handle: arch from lid -->
+    <path
+        android:pathData="M9.0,4.2 Q9.2,2.8 10.5,2.5 Q12.0,2.3 13.5,2.5 Q14.8,2.8 15.0,4.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Body left side: inward curve -->
+    <path
+        android:pathData="M7.0,6.2 Q6.6,13.5 8.0,21.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Body right side: inward curve -->
+    <path
+        android:pathData="M17.0,6.0 Q17.4,13.5 16.0,21.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Body bottom -->
+    <path
+        android:pathData="M8.0,21.0 Q12.0,21.3 16.0,21.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Inner divider left at x=10 -->
+    <path
+        android:pathData="M10.0,9.0 Q9.8,13.5 10.2,18.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Inner divider right at x=14 -->
+    <path
+        android:pathData="M14.0,9.0 Q14.3,13.5 13.8,18.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+</vector>

@@ -36,9 +36,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,23 +54,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.inventory.app.BuildConfig
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.StaggeredAnimatedItem
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.theme.CardBlue
-import com.inventory.app.ui.theme.CardGold
-import com.inventory.app.ui.theme.CardGreen
-import com.inventory.app.ui.theme.CardOrange
-import com.inventory.app.ui.theme.CardPurple
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.appColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(navController: NavController) {
     val aiGate = rememberAiSignInGate()
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(title = { Text("More") })
+            ThemedTopAppBar(title = { Text("More") })
         }
     ) { padding ->
         val context = LocalContext.current
@@ -88,10 +87,10 @@ fun MoreScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = Dimens.spacingLg),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
 
             // Search — standalone tappable row
             AnimateOnce(index = 0, hasAnimated = hasAnimated) {
@@ -99,8 +98,9 @@ fun MoreScreen(navController: NavController) {
                     headlineContent = { Text("Search") },
                     supportingContent = { Text("Search items, categories, and locations") },
                     leadingContent = {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.Search,
+                            inkIconRes = R.drawable.ic_ink_search,
                             contentDescription = "Search",
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -113,40 +113,40 @@ fun MoreScreen(navController: NavController) {
 
             // AI & Kitchen section
             AnimateOnce(index = 1, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(
                         title = "AI & Kitchen",
                         leadingIcon = Icons.Filled.AutoAwesome,
-                        color = CardOrange
+                        color = MaterialTheme.appColors.accentOrange
                     )
                     AdaptiveGrid(
                         columns = 2,
                         spacing = 12.dp,
                         items = listOf<@Composable (Modifier) -> Unit>(
                             { mod ->
-                                MoreActionCard(mod, "Cook", Icons.Filled.Restaurant, CardOrange, "What Can I Cook?") {
+                                MoreActionCard(mod, "Cook", Icons.Filled.Restaurant, MaterialTheme.appColors.accentOrange, "What Can I Cook?") {
                                     navController.navigate(Screen.Cook.route)
                                 }
                             },
                             { mod ->
-                                MoreActionCard(mod, "Kitchen Scan", Icons.Filled.PhotoCamera, CardGreen) {
+                                MoreActionCard(mod, "Kitchen Scan", Icons.Filled.PhotoCamera, MaterialTheme.appColors.accentGreen) {
                                     aiGate.requireSignIn("identify kitchen items") {
                                         navController.navigate(Screen.FridgeScan.route)
                                     }
                                 }
                             },
                             { mod ->
-                                MoreActionCard(mod, "Kitchen Map", Icons.Filled.Kitchen, CardGold, "My Kitchen") {
+                                MoreActionCard(mod, "Kitchen Map", Icons.Filled.Kitchen, MaterialTheme.appColors.accentGold, "My Kitchen") {
                                     navController.navigate(Screen.KitchenMap.route)
                                 }
                             },
                             { mod ->
-                                MoreActionCard(mod, "My Recipes", Icons.Filled.MenuBook, CardPurple) {
+                                MoreActionCard(mod, "My Recipes", Icons.Filled.MenuBook, MaterialTheme.appColors.accentPurple) {
                                     navController.navigate(Screen.SavedRecipes.route)
                                 }
                             },
                             { mod ->
-                                MoreActionCard(mod, "Scan Receipt", Icons.Filled.Receipt, CardGreen) {
+                                MoreActionCard(mod, "Scan Receipt", Icons.Filled.Receipt, MaterialTheme.appColors.accentGreen) {
                                     aiGate.requireSignIn("parse receipts") {
                                         navController.navigate(Screen.ReceiptScan.route)
                                     }
@@ -159,19 +159,19 @@ fun MoreScreen(navController: NavController) {
 
             // Analytics section
             AnimateOnce(index = 2, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(title = "Analytics")
                     AdaptiveGrid(
                         columns = 2,
                         spacing = 12.dp,
                         items = listOf<@Composable (Modifier) -> Unit>(
                             { mod ->
-                                MoreActionCard(mod, "Reports", Icons.Filled.Assessment, CardBlue) {
+                                MoreActionCard(mod, "Reports", Icons.Filled.Assessment, MaterialTheme.appColors.accentBlue) {
                                     navController.navigate(Screen.Reports.route)
                                 }
                             },
                             { mod ->
-                                MoreActionCard(mod, "Purchases", Icons.Filled.ShoppingBag, CardOrange, "Purchase History") {
+                                MoreActionCard(mod, "Purchases", Icons.Filled.ShoppingBag, MaterialTheme.appColors.accentOrange, "Purchase History") {
                                     navController.navigate(Screen.PurchaseHistory.createRoute())
                                 }
                             }
@@ -182,19 +182,19 @@ fun MoreScreen(navController: NavController) {
 
             // Organize section
             AnimateOnce(index = 3, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(title = "Organize")
                     AdaptiveGrid(
                         columns = 2,
                         spacing = 12.dp,
                         items = listOf<@Composable (Modifier) -> Unit>(
                             { mod ->
-                                MoreActionCard(mod, "Categories", Icons.Filled.Category, CardBlue) {
+                                MoreActionCard(mod, "Categories", Icons.Filled.Category, MaterialTheme.appColors.accentBlue) {
                                     navController.navigate(Screen.CategoryList.route)
                                 }
                             },
                             { mod ->
-                                MoreActionCard(mod, "Locations", Icons.Filled.Place, CardGold, "Storage Locations") {
+                                MoreActionCard(mod, "Locations", Icons.Filled.Place, MaterialTheme.appColors.accentGold, "Storage Locations") {
                                     navController.navigate(Screen.LocationList.route)
                                 }
                             }
@@ -205,7 +205,7 @@ fun MoreScreen(navController: NavController) {
 
             // App section
             AnimateOnce(index = 4, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(title = "App")
                     AdaptiveGrid(
                         columns = 2,
@@ -228,14 +228,14 @@ fun MoreScreen(navController: NavController) {
 
             // Feedback section
             AnimateOnce(index = 5, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(title = "Feedback")
                     AdaptiveGrid(
                         columns = 2,
                         spacing = 12.dp,
                         items = listOf<@Composable (Modifier) -> Unit>(
                             { mod ->
-                                MoreActionCard(mod, "Send Feedback", Icons.Filled.Feedback, CardPurple, "Report bugs & ideas") {
+                                MoreActionCard(mod, "Send Feedback", Icons.Filled.Feedback, MaterialTheme.appColors.accentPurple, "Report bugs & ideas") {
                                     launchFeedbackEmail(context)
                                 }
                             }
@@ -244,7 +244,7 @@ fun MoreScreen(navController: NavController) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingSm))
         }
     }
 }
@@ -257,10 +257,14 @@ private fun MoreSectionHeader(
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (leadingIcon != null) {
-            Icon(
-                imageVector = leadingIcon,
+            ThemedIcon(
+                materialIcon = leadingIcon,
+                inkIconRes = when (leadingIcon) {
+                    Icons.Filled.AutoAwesome -> R.drawable.ic_ink_sparkle
+                    else -> 0
+                },
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(Dimens.iconSizeSm),
                 tint = color
             )
             Spacer(modifier = Modifier.width(6.dp))
@@ -286,11 +290,32 @@ private fun MoreActionCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(Dimens.spacingMd),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = title, modifier = Modifier.size(28.dp), tint = iconTint)
+            ThemedIcon(
+                materialIcon = icon,
+                inkIconRes = when (icon) {
+                    Icons.Filled.Restaurant -> R.drawable.ic_ink_cook
+                    Icons.Filled.PhotoCamera -> R.drawable.ic_ink_camera
+                    Icons.Filled.Kitchen -> R.drawable.ic_ink_kitchen
+                    Icons.Filled.MenuBook -> R.drawable.ic_ink_book
+                    Icons.Filled.Receipt -> R.drawable.ic_ink_receipt
+                    Icons.Filled.Assessment -> R.drawable.ic_ink_reports
+                    Icons.Filled.ShoppingBag -> R.drawable.ic_ink_shopping
+                    Icons.Filled.Category -> R.drawable.ic_ink_category
+                    Icons.Filled.Place -> R.drawable.ic_ink_location
+                    Icons.Filled.Settings -> R.drawable.ic_ink_settings
+                    Icons.Filled.ImportExport -> R.drawable.ic_ink_download
+                    Icons.Filled.Feedback -> R.drawable.ic_ink_feedback
+                    Icons.Filled.Search -> R.drawable.ic_ink_search
+                    else -> 0
+                },
+                contentDescription = title,
+                modifier = Modifier.size(Dimens.iconSizeLg),
+                tint = iconTint
+            )
             Spacer(modifier = Modifier.height(6.dp))
             Text(title, style = MaterialTheme.typography.labelMedium)
             if (subtitle != null) {

@@ -17,7 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.inventory.app.domain.model.ItemDefaults
+import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.RuledLinesBackground
+import com.inventory.app.ui.components.ThemedTextField
 import com.inventory.app.ui.theme.PaperInkMotion
 import kotlinx.coroutines.delay
 
@@ -51,7 +53,7 @@ internal fun TypePathPage(
     )
     val promptAlpha by animateFloatAsState(
         targetValue = if (promptReady) 1f else 0f,
-        animationSpec = tween(300), label = "typePromptAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "typePromptAlpha"
     )
 
     val inputY by animateFloatAsState(
@@ -60,7 +62,7 @@ internal fun TypePathPage(
     )
     val inputAlpha by animateFloatAsState(
         targetValue = if (inputReady) 1f else 0f,
-        animationSpec = tween(300), label = "inputAlpha"
+        animationSpec = tween(PaperInkMotion.DurationMedium), label = "inputAlpha"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -89,13 +91,13 @@ internal fun TypePathPage(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Input field
-            OutlinedTextField(
+            ThemedTextField(
                 value = typedName,
                 onValueChange = onNameChange,
                 label = { Text("Item name") },
                 placeholder = { Text("e.g. milk, rice, eggs...") },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
@@ -123,14 +125,14 @@ internal fun TypePathPage(
             }
 
             // Submit button
-            Button(
+            ThemedButton(
                 onClick = onSubmit,
                 enabled = typedName.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 24.dp)
                     .height(52.dp),
-                shape = RoundedCornerShape(16.dp)
+                shape = MaterialTheme.shapes.large
             ) {
                 Text("Add to my kitchen", style = MaterialTheme.typography.titleMedium)
             }
@@ -227,7 +229,7 @@ private fun DefaultChip(
             .graphicsLayer {
                 translationX = chipX; alpha = chipAlpha
             },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
         )

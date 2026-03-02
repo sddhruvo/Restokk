@@ -72,24 +72,13 @@ val md_theme_dark_surfaceVariant = Color(0xFF1E2A1E)
 val md_theme_dark_onSurfaceVariant = Color(0xFFC2C9BD)
 val md_theme_dark_outline = Color(0xFF8C9389)
 
-// Status colors used across the app
-val ExpiryRed = Color(0xFFD32F2F)
-val ExpiryOrange = Color(0xFFFF9800)
-val StockYellow = Color(0xFFFFC107)
-val StockGreen = Color(0xFF4CAF50)
-
-// Score colors — shared between Dashboard and PantryHealth
-val ScoreTeal = Color(0xFF26A69A)
-val ScoreBlue = Color(0xFF42A5F5)
-
-/** Map a 0-100 home score to its display color. */
-fun scoreToColor(score: Int): Color = when {
-    score >= 70 -> StockGreen
-    score >= 50 -> ScoreTeal
-    score >= 30 -> ExpiryOrange
-    score >= 1  -> ScoreBlue
-    else        -> Color.Gray
-}
+/** Preview swatch color for theme picker circles in Settings. */
+val AppTheme.previewColor: Color
+    get() = when (this) {
+        AppTheme.CLASSIC_GREEN -> Color(0xFF2E7D32)
+        AppTheme.WARM_CREAM -> Color(0xFFF8F9FA)
+        AppTheme.AMOLED_DARK -> Color(0xFF1A1A1A)
+    }
 
 // Warm Cream palette — modern minimalist light theme
 // Background: very light off-white, cards: white/frosted, primary: iOS blue
@@ -121,16 +110,3 @@ val md_theme_cream_surfaceVariant = Color(0xFFF5F5F7)    // subtle light gray
 val md_theme_cream_onSurfaceVariant = Color(0xFF6E6E73)  // medium gray for secondary text
 val md_theme_cream_outline = Color(0xFFD1D1D6)           // light border gray
 
-// Dashboard card accent colors (per-card icon tints)
-val CardBlue = Color(0xFF007AFF)     // Total Items, Reports
-val CardOrange = Color(0xFFFF9500)   // Expiring Soon
-val CardGreen = Color(0xFF34C759)    // Low Stock, Total Value, Recognize
-val CardPurple = Color(0xFFAF52DE)   // Shopping
-val CardGold = Color(0xFFC99700)     // Scan barcode
-
-// Report card accent colors
-val ReportExpiring = Color(0xFFE65100)
-val ReportLowStock = Color(0xFFC62828)
-val ReportSpending = Color(0xFF1565C0)
-val ReportUsage = Color(0xFF6A1B9A)
-val ReportInventory = Color(0xFF2E7D32)

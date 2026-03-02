@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.appColors
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -142,6 +144,10 @@ fun TriumphantScribble(
         }
     }
 
+    // Resolve theme colors outside Canvas
+    val bleedColor = MaterialTheme.appColors.statusInStock
+    val coreColor = MaterialTheme.appColors.reportInventory
+
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -203,7 +209,7 @@ fun TriumphantScribble(
         clipRect(right = clipRight) {
             drawPath(
                 path = checkPath,
-                color = Color(0xFF4CAF50).copy(alpha = 0.2f),
+                color = bleedColor.copy(alpha = 0.2f),
                 style = Stroke(
                     width = 10.dp.toPx(),
                     cap = StrokeCap.Round,
@@ -216,7 +222,7 @@ fun TriumphantScribble(
         clipRect(right = clipRight) {
             drawPath(
                 path = checkPath,
-                color = Color(0xFF2E7D32).copy(alpha = 0.85f),
+                color = coreColor.copy(alpha = 0.85f),
                 style = Stroke(
                     width = 3.5.dp.toPx(),
                     cap = StrokeCap.Round,
@@ -427,7 +433,9 @@ fun PageFoldAndSeal(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // The seal
+        // The seal — resolve theme colors outside Canvas
+        val sealBodyColor = MaterialTheme.appColors.reportLowStock
+        val sealInnerColor = MaterialTheme.appColors.statusExpired
         Canvas(
             modifier = Modifier
                 .size(80.dp)
@@ -472,12 +480,12 @@ fun PageFoldAndSeal(
             // Seal body — warm tertiary color
             drawPath(
                 path = sealPath,
-                color = Color(0xFFC62828).copy(alpha = 0.85f)
+                color = sealBodyColor.copy(alpha = 0.85f)
             )
 
             // Inner circle
             drawCircle(
-                color = Color(0xFFD32F2F).copy(alpha = 0.6f),
+                color = sealInnerColor.copy(alpha = 0.6f),
                 radius = sealRadius * 0.72f,
                 center = Offset(cx, cy)
             )
@@ -711,7 +719,7 @@ fun AllDoneCelebration(
             Spacer(modifier = Modifier.height(14.dp))
             AnimatedVisibility(
                 visible = showCategories,
-                enter = fadeIn(tween(150))
+                enter = fadeIn(tween(PaperInkMotion.DurationShort))
             ) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),

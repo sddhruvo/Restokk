@@ -39,7 +39,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -58,9 +57,11 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.AlertDialog
+import com.inventory.app.ui.components.ThemedAlertDialog
+import com.inventory.app.ui.components.ThemedDropdownMenu
+import com.inventory.app.ui.components.ThemedTextField
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -68,16 +69,16 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import com.inventory.app.ui.components.ThemedBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -111,12 +112,17 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import com.inventory.app.R
 import com.inventory.app.data.local.entity.CategoryEntity
 import com.inventory.app.data.local.entity.UnitEntity
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.BarcodeCameraPreview
 import com.inventory.app.ui.components.DropdownField
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
+import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.util.FormatUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -215,7 +221,7 @@ fun ReceiptScanScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
+        ThemedAlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard scan results?") },
             text = { Text("Going back will discard all scanned items. This cannot be undone.") },
@@ -231,17 +237,15 @@ fun ReceiptScanScreen(
         )
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("Scan Receipt") },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         if (hasResults) showDiscardDialog = true
                         else navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    })
                 }
             )
         }
@@ -264,8 +268,10 @@ fun ReceiptScanScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Filled.Receipt, null,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.Receipt,
+                                    inkIconRes = R.drawable.ic_ink_receipt,
+                                    contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.size(28.dp)
                                 )
@@ -285,11 +291,11 @@ fun ReceiptScanScreen(
                         }
                     }
 
-                    Button(
+                    ThemedButton(
                         onClick = { launchScanner() },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Filled.CameraAlt, null, Modifier.size(18.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text("Scan Receipt", Modifier.padding(start = 8.dp))
                     }
 
@@ -297,7 +303,7 @@ fun ReceiptScanScreen(
                         onClick = { galleryLauncher.launch("image/*") },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(18.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.PhotoLibrary, inkIconRes = R.drawable.ic_ink_photo_library, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text("Pick from Gallery", Modifier.padding(start = 8.dp))
                     }
                 }
@@ -353,7 +359,7 @@ fun ReceiptScanScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator()
+                    ThemedCircularProgress()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         "Adding item ${state.current} of ${state.total}...",
@@ -371,8 +377,10 @@ fun ReceiptScanScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Filled.CheckCircle, null,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.CheckCircle,
+                        inkIconRes = R.drawable.ic_ink_check_circle,
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(64.dp)
                     )
@@ -383,7 +391,7 @@ fun ReceiptScanScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Button(
+                    ThemedButton(
                         onClick = { viewModel.reset() },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Scan Another Receipt") }
@@ -409,7 +417,7 @@ fun ReceiptScanScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Error, null, tint = MaterialTheme.colorScheme.error)
+                                ThemedIcon(materialIcon = Icons.Filled.Error, inkIconRes = R.drawable.ic_ink_error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                                 Text(
                                     "Scan Failed",
                                     style = MaterialTheme.typography.titleSmall,
@@ -424,14 +432,14 @@ fun ReceiptScanScreen(
                             )
                         }
                     }
-                    Button(
+                    ThemedButton(
                         onClick = {
                             viewModel.reset()
                             launchScanner()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Filled.CameraAlt, null, Modifier.size(18.dp))
+                        ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text("Try Again", Modifier.padding(start = 8.dp))
                     }
                     OutlinedButton(
@@ -534,8 +542,9 @@ private fun AIProcessingScreen(
             }
 
             // AI icon with pulsing glow
-            Icon(
-                Icons.Filled.AutoAwesome,
+            ThemedIcon(
+                materialIcon = Icons.Filled.AutoAwesome,
+                inkIconRes = R.drawable.ic_ink_sparkle,
                 contentDescription = null,
                 modifier = Modifier
                     .size(36.dp)
@@ -573,9 +582,9 @@ private fun AIProcessingScreen(
 
                     AnimatedVisibility(
                         visible = isVisible,
-                        enter = fadeIn(tween(300)) + slideInVertically(
+                        enter = fadeIn(tween(PaperInkMotion.DurationMedium)) + slideInVertically(
                             initialOffsetY = { it / 2 },
-                            animationSpec = tween(300)
+                            animationSpec = tween(PaperInkMotion.DurationMedium)
                         )
                     ) {
                         ProcessingStepRow(
@@ -611,8 +620,9 @@ private fun ProcessingStepRow(
         ) {
             when {
                 isCompleted -> {
-                    Icon(
-                        Icons.Filled.Check,
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.Check,
+                        inkIconRes = R.drawable.ic_ink_check,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -780,21 +790,21 @@ private fun ReviewSummaryScreen(
                     SuggestionChip(
                         onClick = {},
                         label = { Text("$newCount new") },
-                        icon = { Icon(Icons.Filled.Add, null, Modifier.size(16.dp)) }
+                        icon = { ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     )
                 }
                 if (updateCount > 0) {
                     SuggestionChip(
                         onClick = {},
                         label = { Text("$updateCount update") },
-                        icon = { Icon(Icons.Filled.Inventory2, null, Modifier.size(16.dp)) }
+                        icon = { ThemedIcon(materialIcon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     )
                 }
                 if (shoppingCount > 0) {
                     SuggestionChip(
                         onClick = {},
                         label = { Text("$shoppingCount from list") },
-                        icon = { Icon(Icons.Filled.ShoppingCart, null, Modifier.size(16.dp)) }
+                        icon = { ThemedIcon(materialIcon = Icons.Filled.ShoppingCart, inkIconRes = R.drawable.ic_ink_shopping, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     )
                 }
             }
@@ -831,7 +841,7 @@ private fun ReviewSummaryScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
+                ThemedButton(
                     onClick = onConfirmAll,
                     modifier = Modifier.weight(1f),
                     enabled = activeItems.isNotEmpty()
@@ -849,7 +859,7 @@ private fun ReviewSummaryScreen(
                 onClick = onRetake,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Filled.CameraAlt, null, Modifier.size(14.dp))
+                ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(14.dp))
                 Text("Retake", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelMedium)
             }
         }
@@ -903,8 +913,10 @@ private fun SummaryItemRow(
             }
         }
         if (item.matchedShoppingId != null) {
-            Icon(
-                Icons.Filled.ShoppingCart, null,
+            ThemedIcon(
+                materialIcon = Icons.Filled.ShoppingCart,
+                inkIconRes = R.drawable.ic_ink_shopping,
+                contentDescription = null,
                 modifier = Modifier.size(14.dp),
                 tint = MaterialTheme.colorScheme.secondary
             )
@@ -1000,7 +1012,7 @@ private fun ReviewPagerScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            LinearProgressIndicator(
+            ThemedProgressBar(
                 progress = { animatedProgress },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -1050,8 +1062,10 @@ private fun ReviewPagerScreen(
                         .padding(start = 4.dp)
                         .size(36.dp)
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous",
+                    ThemedIcon(
+                        materialIcon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        inkIconRes = R.drawable.ic_ink_chevron_left,
+                        contentDescription = "Previous",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1070,8 +1084,10 @@ private fun ReviewPagerScreen(
                         .padding(end = 4.dp)
                         .size(36.dp)
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next",
+                    ThemedIcon(
+                        materialIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        inkIconRes = R.drawable.ic_ink_chevron_right,
+                        contentDescription = "Next",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1085,7 +1101,7 @@ private fun ReviewPagerScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Button(
+            ThemedButton(
                 onClick = onConfirm,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = activeItems.isNotEmpty()
@@ -1167,7 +1183,7 @@ private fun PagerItemCard(
 
             if (!isSkipped) {
                 // Row 2: Product name + Category
-                OutlinedTextField(
+                ThemedTextField(
                     value = item.name,
                     onValueChange = onNameChange,
                     label = { Text("Product name") },
@@ -1195,7 +1211,7 @@ private fun PagerItemCard(
                         .height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    ThemedTextField(
                         value = item.quantity,
                         onValueChange = onQuantityChange,
                         label = { Text("Qty") },
@@ -1217,7 +1233,7 @@ private fun PagerItemCard(
                         modifier = Modifier.weight(1f),
                         allowNone = true
                     )
-                    OutlinedTextField(
+                    ThemedTextField(
                         value = item.price,
                         onValueChange = onPriceChange,
                         label = { Text("Price") },
@@ -1235,8 +1251,9 @@ private fun PagerItemCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.Error,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.Error,
+                            inkIconRes = R.drawable.ic_ink_error,
                             contentDescription = "Warning",
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
@@ -1259,7 +1276,7 @@ private fun PagerItemCard(
                     // Expiry date field
                     val expiryLabel = if (item.isAiEstimatedExpiry && item.expiryDate != null) "Expected expiry" else "Expiry"
                     Box(modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
+                        ThemedTextField(
                             value = item.expiryDate?.let { FormatUtils.formatDate(it) } ?: "",
                             onValueChange = {},
                             label = { Text(expiryLabel) },
@@ -1269,10 +1286,10 @@ private fun PagerItemCard(
                             trailingIcon = {
                                 if (item.expiryDate != null) {
                                     IconButton(onClick = { onExpiryDateChange(null) }, modifier = Modifier.size(24.dp)) {
-                                        Icon(Icons.Filled.Clear, "Clear expiry", modifier = Modifier.size(18.dp))
+                                        ThemedIcon(materialIcon = Icons.Filled.Clear, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Clear expiry", modifier = Modifier.size(18.dp))
                                     }
                                 } else {
-                                    Icon(Icons.Filled.DateRange, "Set expiry", modifier = Modifier.size(18.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.DateRange, inkIconRes = R.drawable.ic_ink_calendar, contentDescription = "Set expiry", modifier = Modifier.size(18.dp))
                                 }
                             }
                         )
@@ -1286,7 +1303,7 @@ private fun PagerItemCard(
 
                     // Barcode field
                     Box(modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
+                        ThemedTextField(
                             value = item.barcode,
                             onValueChange = {},
                             label = { Text("Barcode") },
@@ -1296,10 +1313,10 @@ private fun PagerItemCard(
                             trailingIcon = {
                                 if (item.barcode.isNotBlank()) {
                                     IconButton(onClick = { onBarcodeChange("") }, modifier = Modifier.size(24.dp)) {
-                                        Icon(Icons.Filled.Clear, "Clear barcode", modifier = Modifier.size(18.dp))
+                                        ThemedIcon(materialIcon = Icons.Filled.Clear, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Clear barcode", modifier = Modifier.size(18.dp))
                                     }
                                 } else {
-                                    Icon(Icons.Filled.QrCodeScanner, "Scan barcode", modifier = Modifier.size(18.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.QrCodeScanner, inkIconRes = R.drawable.ic_ink_barcode, contentDescription = "Scan barcode", modifier = Modifier.size(18.dp))
                                 }
                             }
                         )
@@ -1360,14 +1377,14 @@ private fun MatchBadge(item: EditableReceiptItem, modifier: Modifier = Modifier)
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         when (item.matchType) {
             ReceiptMatchType.CREATE_NEW -> {
-                Icon(Icons.Filled.Add, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 Text("New item", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp))
             }
             ReceiptMatchType.UPDATE_EXISTING -> {
                 val matchedName = item.inventoryCandidates.firstOrNull { it.id == item.matchedInventoryItemId }?.name ?: "?"
                 val matchedQty = item.inventoryCandidates.firstOrNull { it.id == item.matchedInventoryItemId }?.currentQuantity ?: 0.0
                 val qtyStr = if (matchedQty == matchedQty.toLong().toDouble()) matchedQty.toLong().toString() else String.format("%.1f", matchedQty)
-                Icon(Icons.Filled.Inventory2, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(16.dp))
+                ThemedIcon(materialIcon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(16.dp))
                 Text(
                     "Update \"$matchedName\" ($qtyStr)",
                     style = MaterialTheme.typography.labelSmall,
@@ -1378,14 +1395,14 @@ private fun MatchBadge(item: EditableReceiptItem, modifier: Modifier = Modifier)
                 )
             }
             ReceiptMatchType.SKIP -> {
-                Icon(Icons.Filled.Block, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                ThemedIcon(materialIcon = Icons.Filled.Block, inkIconRes = R.drawable.ic_ink_block, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 Text("Skipped", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
             }
         }
 
         if (item.matchedShoppingId != null) {
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Filled.ShoppingCart, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(14.dp))
+            ThemedIcon(materialIcon = Icons.Filled.ShoppingCart, inkIconRes = R.drawable.ic_ink_shopping, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(14.dp))
         }
     }
 }
@@ -1402,16 +1419,16 @@ private fun ActionMenu(
 ) {
     Box {
         IconButton(onClick = { onExpandedChange(true) }, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Filled.MoreVert, "Options", modifier = Modifier.size(18.dp))
+            ThemedIcon(materialIcon = Icons.Filled.MoreVert, inkIconRes = R.drawable.ic_ink_more_vert, contentDescription = "Options", modifier = Modifier.size(18.dp))
         }
-        DropdownMenu(
+        ThemedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { onExpandedChange(false) }
         ) {
             DropdownMenuItem(
                 text = { Text("Create new") },
                 onClick = { onMatchTypeChange(ReceiptMatchType.CREATE_NEW, null); onExpandedChange(false) },
-                leadingIcon = { Icon(Icons.Filled.Add, null, Modifier.size(18.dp)) }
+                leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = null, modifier = Modifier.size(18.dp)) }
             )
             if (item.inventoryCandidates.isNotEmpty()) {
                 item.inventoryCandidates.forEach { candidate ->
@@ -1423,19 +1440,19 @@ private fun ActionMenu(
                             Text("Update \"${candidate.name}\" ($qtyStr)")
                         },
                         onClick = { onMatchTypeChange(ReceiptMatchType.UPDATE_EXISTING, candidate.id); onExpandedChange(false) },
-                        leadingIcon = { Icon(Icons.Filled.Inventory2, null, Modifier.size(18.dp)) }
+                        leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box, contentDescription = null, modifier = Modifier.size(18.dp)) }
                     )
                 }
             }
             DropdownMenuItem(
                 text = { Text("Skip") },
                 onClick = { onMatchTypeChange(ReceiptMatchType.SKIP, null); onExpandedChange(false) },
-                leadingIcon = { Icon(Icons.Filled.Block, null, Modifier.size(18.dp)) }
+                leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Block, inkIconRes = R.drawable.ic_ink_block, contentDescription = null, modifier = Modifier.size(18.dp)) }
             )
             DropdownMenuItem(
                 text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
                 onClick = { onRemove(); onExpandedChange(false) },
-                leadingIcon = { Icon(Icons.Filled.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) }
+                leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Delete, inkIconRes = R.drawable.ic_ink_delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) }
             )
         }
     }
@@ -1452,7 +1469,7 @@ private fun BarcodeScanBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
 
-    ModalBottomSheet(
+    ThemedBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
@@ -1489,8 +1506,10 @@ private fun BarcodeScanBottomSheet(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            Icons.Filled.CameraAlt, null,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.CameraAlt,
+                            inkIconRes = R.drawable.ic_ink_camera,
+                            contentDescription = null,
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1502,7 +1521,7 @@ private fun BarcodeScanBottomSheet(
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
+                        ThemedButton(onClick = { cameraPermissionState.launchPermissionRequest() }) {
                             Text("Grant Camera Permission")
                         }
                     }

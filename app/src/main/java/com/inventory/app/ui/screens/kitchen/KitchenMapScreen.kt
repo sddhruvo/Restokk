@@ -34,7 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -42,16 +42,16 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -75,12 +75,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.EmptyStateIllustration
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.theme.CardOrange
+import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.appColors
 import com.inventory.app.util.CategoryVisuals
 import com.inventory.app.ui.theme.PaperInkMotion
 import kotlinx.coroutines.delay
@@ -105,14 +108,12 @@ fun KitchenMapScreen(
     val uiState by viewModel.uiState.collectAsState()
     val aiGate = rememberAiSignInGate()
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("My Kitchen") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         }
@@ -125,7 +126,7 @@ fun KitchenMapScreen(
                         .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    ThemedCircularProgress()
                 }
             }
 
@@ -157,8 +158,8 @@ fun KitchenMapScreen(
                         .fillMaxSize()
                         .padding(padding)
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(Dimens.spacingLg),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                 ) {
                     // Scan CTA card — Write-In entrance
                     WriteInAnimatedItem(index = 0) {
@@ -261,26 +262,27 @@ private fun ScanCtaCard(onClick: () -> Unit) {
     AppCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(Dimens.spacingLg),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Filled.PhotoCamera,
+            ThemedIcon(
+                materialIcon = Icons.Filled.PhotoCamera,
+                inkIconRes = R.drawable.ic_ink_camera,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(Dimens.iconSizeLg)
                     .graphicsLayer {
                         scaleX = breathScale.value
                         scaleY = breathScale.value
                     },
-                tint = CardOrange
+                tint = MaterialTheme.appColors.accentOrange
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingMd))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "Scan to Add Items",
@@ -293,8 +295,9 @@ private fun ScanCtaCard(onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
+            ThemedIcon(
+                materialIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                inkIconRes = R.drawable.ic_ink_forward,
                 contentDescription = "Go to scan",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -380,7 +383,7 @@ private fun ZoneCard(
     // Chevron rotation animation
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(300),
+        animationSpec = tween(PaperInkMotion.DurationMedium),
         label = "chevron"
     )
 
@@ -394,7 +397,7 @@ private fun ZoneCard(
     AppCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = zone.tintColor.copy(alpha = 0.35f),
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.large
     ) {
         Box {
             // Wobbly shelf lines for Fridge/Pantry
@@ -405,7 +408,7 @@ private fun ZoneCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(Dimens.spacingLg)
                     .animateContentSize(animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f))
             ) {
                 // Header row
@@ -416,7 +419,7 @@ private fun ZoneCard(
                     // Zone icon with subtle Land entrance
                     ZoneIconAnimated(zone.icon)
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(Dimens.spacingSm))
                     Text(
                         zone.name,
                         style = MaterialTheme.typography.titleMedium,
@@ -446,8 +449,9 @@ private fun ZoneCard(
                             onClick = { expanded = !expanded },
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(
-                                Icons.Filled.ExpandMore,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.ExpandMore,
+                                inkIconRes = R.drawable.ic_ink_expand,
                                 contentDescription = if (expanded) "Collapse" else "Expand",
                                 modifier = Modifier.graphicsLayer {
                                     rotationZ = chevronRotation
@@ -542,7 +546,7 @@ private fun ZoneIconAnimated(icon: androidx.compose.ui.graphics.vector.ImageVect
         icon,
         contentDescription = null,
         modifier = Modifier
-            .size(24.dp)
+            .size(Dimens.iconSizeMd)
             .graphicsLayer {
                 scaleX = scale.value
                 scaleY = scale.value
@@ -596,7 +600,7 @@ private fun ItemChip(
                 Canvas(modifier = Modifier.size(6.dp)) {
                     drawCircle(color = categoryColor)
                 }
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(Dimens.spacingXs))
                 Text(
                     item.item.name + qtyText,
                     style = MaterialTheme.typography.labelSmall,

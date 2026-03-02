@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 
 private val ClassicGreenScheme = lightColorScheme(
     primary = md_theme_light_primary,
@@ -86,6 +87,7 @@ private val AmoledDarkScheme = darkColorScheme(
 @Composable
 fun HomeInventoryTheme(
     appTheme: AppTheme = AppTheme.CLASSIC_GREEN,
+    visualStyle: VisualStyle = VisualStyle.MODERN,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when (appTheme) {
@@ -94,9 +96,26 @@ fun HomeInventoryTheme(
         AppTheme.AMOLED_DARK -> AmoledDarkScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    val appColors = when (appTheme) {
+        AppTheme.CLASSIC_GREEN -> AppColors.ClassicGreen
+        AppTheme.WARM_CREAM -> AppColors.WarmCream
+        AppTheme.AMOLED_DARK -> AppColors.AmoledDark
+    }
+
+    val themeVisuals = when (visualStyle) {
+        VisualStyle.MODERN -> ThemeVisuals.Modern
+        VisualStyle.PAPER_INK -> ThemeVisuals.PaperInk
+    }
+
+    CompositionLocalProvider(
+        LocalAppColors provides appColors,
+        LocalThemeVisuals provides themeVisuals,
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            shapes = themeVisuals.shapes,
+            typography = themeVisuals.typography,
+            content = content
+        )
+    }
 }

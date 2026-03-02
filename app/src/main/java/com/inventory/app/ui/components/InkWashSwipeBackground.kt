@@ -17,7 +17,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.dp
+import com.inventory.app.ui.theme.appColors
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -79,8 +81,9 @@ fun InkWashSwipeBackground(
     val isDelete = direction == SwipeToDismissBoxValue.EndToStart
     val isActive = isPurchase || isDelete
 
-    // Base ink color
-    val inkColor = if (isPurchase) Color(0xFF4CAF50) else Color(0xFFE53935)
+    // Base ink color — from semantic tokens
+    val appColors = MaterialTheme.appColors
+    val inkColor = if (isPurchase) appColors.statusInStock else appColors.swipeDeleteColor
 
     // Icon spring — appears at 25%, lands with wobble overshoot
     val iconTargetScale = if (isActive && progress > 0.20f) 1f else 0f

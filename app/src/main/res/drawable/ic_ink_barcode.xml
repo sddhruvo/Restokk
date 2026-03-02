@@ -1,0 +1,81 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tintMode="src_in">
+    <!-- Top-left bracket: vertical (3,3)-(3,7) and horizontal (3,3)-(7,3) -->
+    <path
+        android:pathData="M3.1,7.2 L2.9,3.3 L7.2,2.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Top-right bracket: horizontal (17,3)-(21,3) and vertical (21,3)-(21,7) -->
+    <path
+        android:pathData="M16.8,3.1 L21.1,2.9 L20.9,7.2"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Bottom-left bracket: vertical (3,17)-(3,21) and horizontal (3,21)-(7,21) -->
+    <path
+        android:pathData="M2.9,16.8 L3.1,21.1 L7.2,20.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Bottom-right bracket: horizontal (17,21)-(21,21) and vertical (21,17)-(21,21) -->
+    <path
+        android:pathData="M21.1,16.8 L20.9,21.1 L16.8,20.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Barcode line x=8: y=7 to y=17, stroke 2.5 -->
+    <path
+        android:pathData="M8.1,7.2 Q7.9,12.0 8.0,16.8"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Barcode line x=10: y=6 to y=18, stroke 1.5 -->
+    <path
+        android:pathData="M10.0,6.1 Q10.2,12.0 9.9,17.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Barcode line x=12: y=5 to y=19, stroke 3.0 -->
+    <path
+        android:pathData="M12.1,5.2 Q11.9,12.0 12.0,18.8"
+        android:strokeColor="#000000"
+        android:strokeWidth="3.0"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Barcode line x=14: y=6 to y=18, stroke 1.5 -->
+    <path
+        android:pathData="M13.9,6.0 Q14.2,12.0 14.1,18.1"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Barcode line x=16: y=7 to y=17, stroke 2.5 -->
+    <path
+        android:pathData="M16.0,7.1 Q15.8,12.0 16.1,17.0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"/>
+    <!-- Scan line: horizontal dashed feel (5,12)-(19,12) -->
+    <path
+        android:pathData="M5.2,12.1 Q8.0,11.9 12.0,12.0 Q16.0,12.2 18.8,11.9"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"/>
+</vector>

@@ -1,5 +1,11 @@
 package com.inventory.app.ui.screens.cook
 
+import com.inventory.app.ui.components.ThemedCheckbox
+import com.inventory.app.ui.components.ThemedTextField
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedFilterChip
+import com.inventory.app.ui.components.ThemedInputChip
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -13,9 +19,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.inventory.app.ui.components.ThemedBottomSheet
+import com.inventory.app.ui.components.ThemedTopAppBar
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
@@ -36,18 +44,21 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.domain.model.CuisineData
 import com.inventory.app.domain.model.RegionalCuisine
+import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.ThemedDivider
+import com.inventory.app.ui.components.ThemedProgressBar
 import com.inventory.app.ui.components.EmptyStateIllustration
+import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ThemedIcon
+import com.inventory.app.ui.components.ThemedSwitch
 import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.theme.AppShapes
+import com.inventory.app.ui.theme.Dimens
 import com.inventory.app.ui.theme.PaperInkMotion
-
-private val CardShape = RoundedCornerShape(16.dp)
-private val ChipShape = RoundedCornerShape(20.dp)
-
-// ── Warm accent color for Cook feature ──────────────────────────────────
-private val CookAccent = Color(0xFFE85D3A) // Warm orange-red
+import com.inventory.app.ui.theme.appColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,17 +97,15 @@ fun CookScreen(
         viewModel.clearLastSaved()
     }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text("What Can I Cook?") },
                 navigationIcon = {
-                    IconButton(onClick = {
+                    InkBackButton(onClick = {
                         if (uiState.showResults) viewModel.backToConfigurator()
                         else navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
+                    })
                 },
                 actions = {
                     // My Recipes button with count badge
@@ -107,18 +116,18 @@ fun CookScreen(
                             }
                         ) {
                             IconButton(onClick = { navController.navigate(Screen.SavedRecipes.route) }) {
-                                Icon(Icons.Filled.MenuBook, contentDescription = "My Recipes")
+                                ThemedIcon(materialIcon = Icons.Filled.MenuBook, inkIconRes = R.drawable.ic_ink_book, contentDescription = "My Recipes")
                             }
                         }
                     } else {
                         IconButton(onClick = { navController.navigate(Screen.SavedRecipes.route) }) {
-                            Icon(Icons.Filled.MenuBook, contentDescription = "My Recipes")
+                            ThemedIcon(materialIcon = Icons.Filled.MenuBook, inkIconRes = R.drawable.ic_ink_book, contentDescription = "My Recipes")
                         }
                     }
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             AnimatedContent(
@@ -230,7 +239,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
             // Smart tip
             if (uiState.currentTip != null && !uiState.showResults) {
@@ -265,8 +274,8 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                     ) {
                         SectionLabel("Build around...")
                         TextButton(onClick = { viewModel.showHeroPicker() }) {
-                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(4.dp))
+                            ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(Dimens.spacingXs))
                             Text("Pick items")
                         }
                     }
@@ -274,14 +283,14 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
             }
             if (uiState.heroIngredients.isNotEmpty()) {
                 item(key = "hero_chips") {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                         items(uiState.heroIngredients, key = { it.id }) { item ->
                             val isExpiring = (item.daysUntilExpiry ?: Long.MAX_VALUE) <= 3
-                            InputChip(
+                            ThemedInputChip(
                                 selected = true,
                                 onClick = { viewModel.toggleHeroIngredient(item) },
                                 label = { Text(item.name) },
-                                trailingIcon = { Icon(Icons.Filled.Close, "Remove", modifier = Modifier.size(16.dp)) },
+                                trailingIcon = { ThemedIcon(materialIcon = Icons.Filled.Close, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Remove", modifier = Modifier.size(16.dp)) },
                                 colors = InputChipDefaults.inputChipColors(
                                     selectedContainerColor = if (isExpiring)
                                         MaterialTheme.colorScheme.errorContainer
@@ -335,7 +344,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                         )
                         Column {
                             SectionTip("Choose meal type & servings", 4 in visibleSections)
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(Dimens.spacingXs))
                             MealAndServingsRow(uiState, viewModel)
                         }
                     }
@@ -362,14 +371,15 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(if (uiState.showMoreOptions) "Less options" else "More options")
-                        Icon(
-                            if (uiState.showMoreOptions) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        ThemedIcon(
+                            materialIcon = if (uiState.showMoreOptions) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            inkIconRes = if (uiState.showMoreOptions) R.drawable.ic_ink_collapse else R.drawable.ic_ink_expand,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                     AnimatedVisibility(visible = uiState.showMoreOptions) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                             SectionLabel("Equipment")
                             EquipmentChips(uiState.equipment) { viewModel.toggleEquipment(it) }
 
@@ -392,7 +402,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Switch(
+                                ThemedSwitch(
                                     checked = uiState.flexibleIngredients,
                                     onCheckedChange = null
                                 )
@@ -405,7 +415,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
             // Cook button
             item(key = "cook_button") {
                 Column {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Dimens.spacingSm))
                     Box(modifier = Modifier.fillMaxWidth()) {
                         if (showGuide) {
                             InlineSectionDot(
@@ -417,21 +427,21 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                                     .offset(x = (-20).dp)
                             )
                         }
-                        Button(
+                        ThemedButton(
                             onClick = { aiGate.requireSignIn("generate recipe suggestions") { viewModel.cook() } },
                             enabled = uiState.canCook,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CookAccent)
+                            shape = MaterialTheme.shapes.large,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.appColors.cookAccent)
                         ) {
-                            Icon(Icons.Filled.Restaurant, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
+                            ThemedIcon(materialIcon = Icons.Filled.Restaurant, inkIconRes = R.drawable.ic_ink_cook, contentDescription = null)
+                            Spacer(Modifier.width(Dimens.spacingSm))
                             Text("Cook!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(Dimens.spacingLg))
                 }
             }
 
@@ -444,7 +454,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(Dimens.spacingXl))
             }
         }
     } // end Box
@@ -460,16 +470,16 @@ private fun MoodCardsRow(selected: MealMood?, onSelect: (MealMood) -> Unit) {
             AppCard(
                 onClick = { onSelect(mood) },
                 modifier = Modifier.width(100.dp).height(84.dp),
-                shape = CardShape,
+                shape = MaterialTheme.shapes.large,
                 containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else null
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                    modifier = Modifier.fillMaxSize().padding(Dimens.spacingSm),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(mood.emoji, fontSize = 24.sp)
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(Dimens.spacingXs))
                     Text(
                         mood.label,
                         style = MaterialTheme.typography.labelSmall,
@@ -490,19 +500,19 @@ private fun MoodCardsRow(selected: MealMood?, onSelect: (MealMood) -> Unit) {
 
 @Composable
 private fun CuisineSelector(selected: RegionalCuisine?, viewModel: CookViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
         // Quick chips: popular + Any
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
             // "Any" chip
             item(key = "any") {
-                FilterChip(
+                ThemedFilterChip(
                     selected = selected == null,
                     onClick = { viewModel.selectCuisine(null) },
                     label = { Text("Any") }
                 )
             }
             items(CuisineData.popular, key = { "pop_${it.name}" }) { cuisine ->
-                FilterChip(
+                ThemedFilterChip(
                     selected = selected?.name == cuisine.name,
                     onClick = { viewModel.selectCuisine(cuisine) },
                     label = { Text(cuisine.name) }
@@ -512,15 +522,15 @@ private fun CuisineSelector(selected: RegionalCuisine?, viewModel: CookViewModel
 
         // Selected cuisine badge + Explore button
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (selected != null && CuisineData.popular.none { it.name == selected.name }) {
-                InputChip(
+                ThemedInputChip(
                     selected = true,
                     onClick = { viewModel.selectCuisine(null) },
                     label = { Text("${selected.name} (${selected.country})") },
-                    trailingIcon = { Icon(Icons.Filled.Close, "Clear", modifier = Modifier.size(16.dp)) }
+                    trailingIcon = { ThemedIcon(materialIcon = Icons.Filled.Close, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Clear", modifier = Modifier.size(16.dp)) }
                 )
             }
             OutlinedButton(
@@ -528,8 +538,8 @@ private fun CuisineSelector(selected: RegionalCuisine?, viewModel: CookViewModel
                 modifier = Modifier.height(36.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp)
             ) {
-                Icon(Icons.Filled.Explore, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
+                ThemedIcon(materialIcon = Icons.Filled.Explore, inkIconRes = R.drawable.ic_ink_explore, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(Dimens.spacingXs))
                 Text("Explore Cuisines", style = MaterialTheme.typography.labelMedium)
             }
         }
@@ -540,7 +550,7 @@ private fun CuisineSelector(selected: RegionalCuisine?, viewModel: CookViewModel
 
 @Composable
 private fun TasteControls(uiState: CookUiState, viewModel: CookViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
         // Spice Level
         ToggleRow("Spice", SpiceLevel.entries.toList(), uiState.spiceLevel, { it.label }) {
             viewModel.setSpiceLevel(it)
@@ -573,10 +583,17 @@ private fun <T> ToggleRow(
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             options.forEach { option ->
                 val isSelected = option == selected
-                FilterChip(
+                ThemedFilterChip(
                     selected = isSelected,
                     onClick = { onSelect(option) },
-                    label = { Text(labelProvider(option), style = MaterialTheme.typography.labelSmall) },
+                    label = {
+                        Text(
+                            labelProvider(option),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    },
                     modifier = Modifier.height(32.dp)
                 )
             }
@@ -590,16 +607,16 @@ private fun <T> ToggleRow(
 private fun MealAndServingsRow(uiState: CookUiState, viewModel: CookViewModel) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingLg),
         verticalAlignment = Alignment.Top
     ) {
         // Meal type chips
         Column(modifier = Modifier.weight(1f)) {
             SectionLabel("Meal")
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Dimens.spacingXs))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(MealType.entries.toList(), key = { it.name }) { type ->
-                    FilterChip(
+                    ThemedFilterChip(
                         selected = type == uiState.mealType,
                         onClick = { viewModel.setMealType(type) },
                         label = { Text(type.label, style = MaterialTheme.typography.labelSmall) },
@@ -612,17 +629,17 @@ private fun MealAndServingsRow(uiState: CookUiState, viewModel: CookViewModel) {
         // Servings stepper
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             SectionLabel("Serves")
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Dimens.spacingXs))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
             ) {
                 IconButton(
                     onClick = { viewModel.setServings(uiState.servings - 1) },
                     enabled = uiState.servings > 1,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Filled.Remove, "Less", modifier = Modifier.size(20.dp))
+                    ThemedIcon(materialIcon = Icons.Filled.Remove, inkIconRes = R.drawable.ic_ink_minus, contentDescription = "Less", modifier = Modifier.size(20.dp))
                 }
                 Text(
                     "${uiState.servings}",
@@ -634,7 +651,7 @@ private fun MealAndServingsRow(uiState: CookUiState, viewModel: CookViewModel) {
                     enabled = uiState.servings < 8,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(Icons.Filled.Add, "More", modifier = Modifier.size(20.dp))
+                    ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "More", modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -648,7 +665,7 @@ private fun MealAndServingsRow(uiState: CookUiState, viewModel: CookViewModel) {
 private fun DietaryChips(selected: Set<DietaryFilter>, onToggle: (DietaryFilter) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         DietaryFilter.entries.forEach { filter ->
-            FilterChip(
+            ThemedFilterChip(
                 selected = filter in selected,
                 onClick = { onToggle(filter) },
                 label = { Text(filter.label, style = MaterialTheme.typography.labelSmall) },
@@ -663,7 +680,7 @@ private fun DietaryChips(selected: Set<DietaryFilter>, onToggle: (DietaryFilter)
 private fun EquipmentChips(selected: Set<Equipment>, onToggle: (Equipment) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Equipment.entries.forEach { equip ->
-            FilterChip(
+            ThemedFilterChip(
                 selected = equip in selected,
                 onClick = { onToggle(equip) },
                 label = { Text(equip.label, style = MaterialTheme.typography.labelSmall) },
@@ -692,7 +709,7 @@ private fun ResultsScreen(uiState: CookUiState, viewModel: CookViewModel, navCon
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
     ) {
         item(key = "results_header") {
             Text(
@@ -726,15 +743,15 @@ private fun ResultsScreen(uiState: CookUiState, viewModel: CookViewModel, navCon
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Dimens.spacingSm))
                 Text(
                     "Not quite right?",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                     val refinements = listOf(
                         "Different protein" to "Use a different main protein",
                         "Simpler" to "Suggest simpler, fewer-step recipes",
@@ -752,11 +769,11 @@ private fun ResultsScreen(uiState: CookUiState, viewModel: CookViewModel, navCon
                     }
                 }
                 TextButton(onClick = { viewModel.backToConfigurator() }) {
-                    Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
+                    ThemedIcon(materialIcon = Icons.Filled.Tune, inkIconRes = R.drawable.ic_ink_tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(Dimens.spacingXs))
                     Text("Change settings")
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(Dimens.spacingXl))
             }
         }
     }
@@ -775,9 +792,9 @@ private fun RecipeCard(
 
     AppCard(
         onClick = { expanded = !expanded },
-        shape = CardShape
+        shape = MaterialTheme.shapes.large
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Dimens.spacingLg)) {
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -800,8 +817,9 @@ private fun RecipeCard(
                 Row(verticalAlignment = Alignment.Top) {
                     Column(horizontalAlignment = Alignment.End) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.Schedule,
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.Schedule,
+                                inkIconRes = R.drawable.ic_ink_clock,
                                 contentDescription = "Time",
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -817,13 +835,13 @@ private fun RecipeCard(
                             recipe.difficulty.replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.labelSmall,
                             color = when (recipe.difficulty) {
-                                "easy" -> Color(0xFF34C759)
-                                "hard" -> Color(0xFFFF3B30)
-                                else -> Color(0xFFFF9500)
+                                "easy" -> MaterialTheme.appColors.difficultyEasy
+                                "hard" -> MaterialTheme.appColors.difficultyHard
+                                else -> MaterialTheme.appColors.difficultyMedium
                             }
                         )
                     }
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(Dimens.spacingXs))
                     val isSaved = recipe.name in savedRecipeNames
                     AnimatedBookmarkIcon(
                         isSaved = isSaved,
@@ -835,7 +853,7 @@ private fun RecipeCard(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Dimens.spacingSm))
 
             // Description
             Text(
@@ -844,13 +862,13 @@ private fun RecipeCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Dimens.spacingMd))
 
             // Ingredient match bar (animated)
             val matchColor = when {
-                recipe.matchPercentage >= 90 -> Color(0xFF34C759)
-                recipe.matchPercentage >= 70 -> Color(0xFFFF9500)
-                else -> Color(0xFFFF3B30)
+                recipe.matchPercentage >= 90 -> MaterialTheme.appColors.accentGreen
+                recipe.matchPercentage >= 70 -> MaterialTheme.appColors.accentOrange
+                else -> MaterialTheme.appColors.difficultyHard
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -869,12 +887,12 @@ private fun RecipeCard(
                     fontWeight = FontWeight.Bold
                 )
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Dimens.spacingXs))
             AnimatedMatchBar(matchPercentage = recipe.matchPercentage)
 
             // Missing ingredients quick view
             if (recipe.missingIngredients.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Dimens.spacingSm))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -894,7 +912,7 @@ private fun RecipeCard(
                             onClick = { viewModel.addMissingToShoppingList(recipe) },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
-                            Icon(Icons.Filled.ShoppingCart, null, modifier = Modifier.size(14.dp))
+                            ThemedIcon(materialIcon = Icons.Filled.ShoppingCart, inkIconRes = R.drawable.ic_ink_shopping, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(2.dp))
                             Text("Add all", style = MaterialTheme.typography.labelSmall)
                         }
@@ -902,7 +920,7 @@ private fun RecipeCard(
                         Text(
                             "Added!",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF34C759),
+                            color = MaterialTheme.appColors.accentGreen,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -912,7 +930,7 @@ private fun RecipeCard(
             // Expanded details
             AnimatedVisibility(visible = expanded) {
                 Column {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    ThemedDivider(modifier = Modifier.padding(vertical = Dimens.spacingMd))
 
                     // Full ingredient list
                     Text("Ingredients", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -923,11 +941,12 @@ private fun RecipeCard(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(modifier = Modifier.weight(1f)) {
-                                Icon(
-                                    if (ing.have_it) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+                                ThemedIcon(
+                                    materialIcon = if (ing.have_it) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+                                    inkIconRes = if (ing.have_it) R.drawable.ic_ink_check_circle else R.drawable.ic_ink_error,
                                     contentDescription = if (ing.have_it) "In stock" else "Missing",
                                     modifier = Modifier.size(16.dp),
-                                    tint = if (ing.have_it) Color(0xFF34C759) else MaterialTheme.colorScheme.error
+                                    tint = if (ing.have_it) MaterialTheme.appColors.accentGreen else MaterialTheme.colorScheme.error
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
@@ -948,14 +967,14 @@ private fun RecipeCard(
                                     onClick = { viewModel.addSingleToShoppingList(ing.name, recipe.name) },
                                     modifier = Modifier.size(24.dp)
                                 ) {
-                                    Icon(Icons.Filled.AddShoppingCart, "Add to list", modifier = Modifier.size(14.dp))
+                                    ThemedIcon(materialIcon = Icons.Filled.AddShoppingCart, inkIconRes = R.drawable.ic_ink_add_to_cart, contentDescription = "Add to list", modifier = Modifier.size(14.dp))
                                 }
                             }
                         }
                     }
 
                     // Steps
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(Dimens.spacingMd))
                     Text("Steps", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     recipe.steps.forEachIndexed { idx, step ->
@@ -964,7 +983,7 @@ private fun RecipeCard(
                                 "${idx + 1}.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = CookAccent,
+                                color = MaterialTheme.appColors.cookAccent,
                                 modifier = Modifier.width(24.dp)
                             )
                             Text(step, style = MaterialTheme.typography.bodyMedium)
@@ -973,11 +992,12 @@ private fun RecipeCard(
 
                     // Tips
                     if (!recipe.tips.isNullOrBlank()) {
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(Dimens.spacingSm))
                         AppCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
                             Row(modifier = Modifier.padding(10.dp)) {
-                                Icon(
-                                    Icons.Filled.Lightbulb,
+                                ThemedIcon(
+                                    materialIcon = Icons.Filled.Lightbulb,
+                                    inkIconRes = R.drawable.ic_ink_lightbulb,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.tertiary
@@ -995,7 +1015,7 @@ private fun RecipeCard(
             }
 
             // Expand hint
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Dimens.spacingXs))
             Text(
                 if (expanded) "Tap to collapse" else "Tap for full recipe",
                 style = MaterialTheme.typography.labelSmall,
@@ -1016,7 +1036,7 @@ private fun RecipeCard(
 private fun CuisinePassportSheet(uiState: CookUiState, viewModel: CookViewModel) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    ThemedBottomSheet(
         onDismissRequest = { viewModel.dismissCuisinePassport() },
         sheetState = sheetState
     ) {
@@ -1024,7 +1044,7 @@ private fun CuisinePassportSheet(uiState: CookUiState, viewModel: CookViewModel)
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = Dimens.spacingLg)
         ) {
             // Title
             Text(
@@ -1032,26 +1052,26 @@ private fun CuisinePassportSheet(uiState: CookUiState, viewModel: CookViewModel)
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Dimens.spacingMd))
 
             // Search
-            OutlinedTextField(
+            ThemedTextField(
                 value = uiState.cuisineSearchQuery,
                 onValueChange = { viewModel.setCuisineSearch(it) },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search cuisines...") },
-                leadingIcon = { Icon(Icons.Filled.Search, null) },
+                leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = null) },
                 trailingIcon = {
                     if (uiState.cuisineSearchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.setCuisineSearch("") }) {
-                            Icon(Icons.Filled.Clear, "Clear")
+                            ThemedIcon(materialIcon = Icons.Filled.Clear, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Clear")
                         }
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Dimens.spacingMd))
 
             if (uiState.cuisineSearchQuery.isNotBlank()) {
                 // Search results
@@ -1066,7 +1086,7 @@ private fun CuisinePassportSheet(uiState: CookUiState, viewModel: CookViewModel)
                                 "No cuisines found",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(16.dp)
+                                modifier = Modifier.padding(Dimens.spacingLg)
                             )
                         }
                     }
@@ -1088,7 +1108,7 @@ private fun CuisinePassportSheet(uiState: CookUiState, viewModel: CookViewModel)
                         )
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Dimens.spacingSm))
 
                 // Countries + regional cuisines
                 val continent = uiState.selectedContinent ?: CuisineData.continents.first()
@@ -1122,8 +1142,9 @@ private fun CuisinePassportSheet(uiState: CookUiState, viewModel: CookViewModel)
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Icon(
-                                        if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                    ThemedIcon(
+                                        materialIcon = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                        inkIconRes = if (isExpanded) R.drawable.ic_ink_collapse else R.drawable.ic_ink_expand,
                                         contentDescription = null,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -1161,8 +1182,9 @@ private fun CuisineListItem(cuisine: RegionalCuisine, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Icon(
-            Icons.Filled.ChevronRight,
+        ThemedIcon(
+            materialIcon = Icons.Filled.ChevronRight,
+            inkIconRes = R.drawable.ic_ink_chevron_right,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1183,7 +1205,7 @@ private fun HeroPickerSheet(uiState: CookUiState, viewModel: CookViewModel) {
     // Precompute hero ingredient IDs for O(1) lookup
     val heroIds = remember(uiState.heroIngredients) { uiState.heroIngredients.map { it.id }.toSet() }
 
-    ModalBottomSheet(
+    ThemedBottomSheet(
         onDismissRequest = { viewModel.dismissHeroPicker() },
         sheetState = sheetState
     ) {
@@ -1191,7 +1213,7 @@ private fun HeroPickerSheet(uiState: CookUiState, viewModel: CookViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.7f)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = Dimens.spacingLg)
         ) {
             Text(
                 "Pick Hero Ingredients",
@@ -1203,19 +1225,19 @@ private fun HeroPickerSheet(uiState: CookUiState, viewModel: CookViewModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Dimens.spacingMd))
 
             // Search
-            OutlinedTextField(
+            ThemedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search your inventory...") },
-                leadingIcon = { Icon(Icons.Filled.Search, null) },
+                leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = null) },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Dimens.spacingSm))
 
             // Expiring items section
             val expiringItems = uiState.inventoryItems.filter { (it.daysUntilExpiry ?: Long.MAX_VALUE) <= 5 }
@@ -1243,7 +1265,7 @@ private fun HeroPickerSheet(uiState: CookUiState, viewModel: CookViewModel) {
                         }
                     }
                     item(key = "all_header") {
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(Dimens.spacingSm))
                         Text(
                             "All Items",
                             style = MaterialTheme.typography.titleSmall,
@@ -1261,15 +1283,15 @@ private fun HeroPickerSheet(uiState: CookUiState, viewModel: CookViewModel) {
             }
 
             // Done button
-            Spacer(Modifier.height(8.dp))
-            Button(
+            Spacer(Modifier.height(Dimens.spacingSm))
+            ThemedButton(
                 onClick = { viewModel.dismissHeroPicker() },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Done")
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Dimens.spacingLg))
         }
     }
 }
@@ -1285,19 +1307,19 @@ private fun InventoryPickItem(item: InventoryItemSummary, isSelected: Boolean, o
             .background(
                 if (isSelected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
                 else Color.Transparent,
-                RoundedCornerShape(8.dp)
+                MaterialTheme.shapes.small
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
+            ThemedCheckbox(
                 checked = isSelected,
                 onCheckedChange = { onToggle() },
                 modifier = Modifier.size(36.dp)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(Dimens.spacingSm))
             Column {
                 Text(item.name, style = MaterialTheme.typography.bodyMedium)
                 Row {
@@ -1307,7 +1329,7 @@ private fun InventoryPickItem(item: InventoryItemSummary, isSelected: Boolean, o
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (isExpiring && item.daysUntilExpiry != null) {
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(Dimens.spacingSm))
                         Text(
                             if (item.daysUntilExpiry <= 0) "Expired!"
                             else "${item.daysUntilExpiry}d left",
@@ -1350,8 +1372,9 @@ private fun LoadingAnimation() {
                 ),
                 label = "breathe"
             )
-            Icon(
-                Icons.Filled.Restaurant,
+            ThemedIcon(
+                materialIcon = Icons.Filled.Restaurant,
+                inkIconRes = R.drawable.ic_ink_cook,
                 contentDescription = null,
                 modifier = Modifier
                     .size(64.dp)
@@ -1360,10 +1383,10 @@ private fun LoadingAnimation() {
                         scaleX = scale
                         scaleY = scale
                     },
-                tint = CookAccent
+                tint = MaterialTheme.appColors.cookAccent
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(Dimens.spacingXl))
 
             // Animated messages
             val messages = listOf(
@@ -1399,22 +1422,23 @@ private fun ErrorState(error: String, onRetry: () -> Unit, onBack: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(Dimens.spacingXxl)
         ) {
-            Icon(
-                Icons.Filled.ErrorOutline,
+            ThemedIcon(
+                materialIcon = Icons.Filled.ErrorOutline,
+                inkIconRes = R.drawable.ic_ink_error_outline,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.error
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Dimens.spacingLg))
             Text(error, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(Dimens.spacingLg))
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                 OutlinedButton(onClick = onBack) {
                     Text("Go back")
                 }
-                Button(onClick = onRetry) {
+                ThemedButton(onClick = onRetry) {
                     Text("Try again")
                 }
             }
@@ -1474,11 +1498,11 @@ private fun AnimatedMatchBar(
         label = "matchBar"
     )
     val matchColor = when {
-        matchPercentage >= 90 -> Color(0xFF34C759)
-        matchPercentage >= 70 -> Color(0xFFFF9500)
-        else -> Color(0xFFFF3B30)
+        matchPercentage >= 90 -> MaterialTheme.appColors.accentGreen
+        matchPercentage >= 70 -> MaterialTheme.appColors.accentOrange
+        else -> MaterialTheme.appColors.difficultyHard
     }
-    LinearProgressIndicator(
+    ThemedProgressBar(
         progress = { animatedProgress },
         modifier = modifier
             .fillMaxWidth()
@@ -1510,8 +1534,9 @@ private fun AnimatedBookmarkIcon(
         },
         modifier = Modifier.size(40.dp)
     ) {
-        Icon(
-            if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+        ThemedIcon(
+            materialIcon = if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+            inkIconRes = if (isSaved) R.drawable.ic_ink_bookmark else R.drawable.ic_ink_bookmark_outline,
             contentDescription = if (isSaved) "Unsave recipe" else "Save recipe",
             modifier = Modifier
                 .size(24.dp)
@@ -1519,7 +1544,7 @@ private fun AnimatedBookmarkIcon(
                     scaleX = scale
                     scaleY = scale
                 },
-            tint = if (isSaved) CookAccent else MaterialTheme.colorScheme.onSurfaceVariant
+            tint = if (isSaved) MaterialTheme.appColors.cookAccent else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -1558,10 +1583,10 @@ private fun CookTipCard(
             alpha = tipAlpha
         },
         containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(Dimens.spacingMd),
             verticalAlignment = Alignment.Top
         ) {
             // Left accent bar (pen-stroke style)
@@ -1569,7 +1594,7 @@ private fun CookTipCard(
                 modifier = Modifier
                     .width(3.dp)
                     .height(40.dp)
-                    .background(CookAccent, RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.appColors.cookAccent, RoundedCornerShape(2.dp))
             )
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -1579,7 +1604,7 @@ private fun CookTipCard(
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 if (tip.ctaLabel != null && onCtaClick != null) {
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(Dimens.spacingXs))
                     TextButton(
                         onClick = onCtaClick,
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -1593,7 +1618,7 @@ private fun CookTipCard(
                 onClick = onDismiss,
                 modifier = Modifier.size(24.dp)
             ) {
-                Icon(Icons.Filled.Close, "Dismiss", modifier = Modifier.size(16.dp))
+                ThemedIcon(materialIcon = Icons.Filled.Close, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Dismiss", modifier = Modifier.size(16.dp))
             }
         }
     }

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import com.inventory.app.R
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -180,8 +181,9 @@ fun BarcodeCameraPreview(
                     .align(Alignment.TopEnd)
                     .padding(16.dp)
             ) {
-                Icon(
-                    imageVector = if (isTorchOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                ThemedIcon(
+                    materialIcon = if (isTorchOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                    inkIconRes = if (isTorchOn) R.drawable.ic_ink_flash_on else R.drawable.ic_ink_flash_off,
                     contentDescription = if (isTorchOn) "Turn off flash" else "Turn on flash"
                 )
             }
@@ -204,8 +206,9 @@ fun BarcodeCameraPreview(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.QrCodeScanner,
+                        ThemedIcon(
+                            materialIcon = Icons.Filled.QrCodeScanner,
+                            inkIconRes = R.drawable.ic_ink_barcode,
                             contentDescription = "Camera",
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.primary

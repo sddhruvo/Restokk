@@ -14,7 +14,8 @@ import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.unit.dp
+import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -30,6 +31,11 @@ import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.ShoppingListRepository
 import androidx.compose.runtime.CompositionLocalProvider
+import com.inventory.app.ui.components.BreathingBudget
+import com.inventory.app.ui.components.LocalBreathingBudget
+import com.inventory.app.ui.components.LocalSurpriseManager
+import com.inventory.app.ui.components.SurpriseManager
+import com.inventory.app.ui.components.ThemedBackground
 import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.navigation.AppNavigation
 import com.inventory.app.ui.navigation.BottomNavBar
@@ -44,8 +50,10 @@ import com.inventory.app.ui.screens.shopping.SheetRequest
 import com.inventory.app.ui.theme.AppTheme
 import com.inventory.app.ui.theme.HomeInventoryTheme
 import com.inventory.app.ui.theme.LocalReduceMotion
+import com.inventory.app.ui.theme.VisualStyle
 import com.inventory.app.ui.theme.rememberReduceMotion
 import com.inventory.app.worker.SmartNotificationWorker
+import androidx.core.view.WindowCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -95,6 +103,11 @@ class MainActivity : ComponentActivity() {
                 .getStringFlow(SettingsRepository.KEY_APP_THEME, AppTheme.CLASSIC_GREEN.key)
                 .collectAsState(initial = AppTheme.CLASSIC_GREEN.key)
             val appTheme = AppTheme.fromKey(themeKey)
+
+            val visualStyleKey by settingsRepository
+                .getStringFlow(SettingsRepository.KEY_VISUAL_STYLE, VisualStyle.MODERN.key)
+                .collectAsState(initial = VisualStyle.MODERN.key)
+            val visualStyle = VisualStyle.fromKey(visualStyleKey)
             val shoppingBadgeCount by shoppingListRepository.getActiveCount()
                 .collectAsState(initial = 0)
 
@@ -143,8 +156,21 @@ class MainActivity : ComponentActivity() {
             }
 
             val reduceMotion = rememberReduceMotion()
-            CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
-            HomeInventoryTheme(appTheme = appTheme) {
+            val breathingBudget = remember { BreathingBudget() }
+            val surpriseManager = remember { SurpriseManager() }
+            CompositionLocalProvider(
+                LocalReduceMotion provides reduceMotion,
+                LocalBreathingBudget provides breathingBudget,
+                LocalSurpriseManager provides surpriseManager
+            ) {
+            HomeInventoryTheme(appTheme = appTheme, visualStyle = visualStyle) {
+                // Status bar icons: dark icons on light themes, light icons on dark
+                val isLightTheme = appTheme != AppTheme.AMOLED_DARK
+                SideEffect {
+                    WindowCompat.getInsetsController(window, window.decorView)
+                        .isAppearanceLightStatusBars = isLightTheme
+                }
+
                 val navController = rememberNavController()
                 val currentRoute = navController.currentBackStackEntryAsState()
                     .value?.destination?.route
@@ -171,7 +197,7 @@ class MainActivity : ComponentActivity() {
                     null -> {
                         // Loading — brief splash while reading setting
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                            ThemedCircularProgress()
                         }
                     }
                     else -> {
@@ -197,25 +223,21 @@ class MainActivity : ComponentActivity() {
 
                             Box(modifier = Modifier.fillMaxSize()) {
                                 Scaffold(
-                                    modifier = Modifier.fillMaxSize(),
-                                    bottomBar = {
-                                        if (currentRoute != Screen.Onboarding.route) {
-                                            BottomNavBar(
-                                                navController,
-                                                shoppingBadgeCount = shoppingBadgeCount,
-                                                expiringBadgeCount = expiringBadgeCount,
-                                                isQuickAddOpen = isQuickAddOpen,
-                                                onQuickAddToggle = { isQuickAddOpen = !isQuickAddOpen }
-                                            )
-                                        }
-                                    }
+                                    modifier = Modifier.fillMaxSize()
                                 ) { innerPadding ->
-                                    AppNavigation(
-                                        navController = navController,
-                                        modifier = Modifier.padding(innerPadding),
-                                        startDestination = startDest,
-                                        windowWidthSizeClass = windowSizeClass.widthSizeClass
-                                    )
+                                    ThemedBackground(
+                                        modifier = Modifier.padding(
+                                            top = innerPadding.calculateTopPadding(),
+                                            bottom = if (currentRoute != Screen.Onboarding.route) 72.dp else 0.dp
+                                        )
+                                    ) {
+                                        AppNavigation(
+                                            navController = navController,
+                                            modifier = Modifier.fillMaxSize(),
+                                            startDestination = startDest,
+                                            windowWidthSizeClass = windowSizeClass.widthSizeClass
+                                        )
+                                    }
                                 }
 
                                 // Quick Add overlay (renders above everything)
@@ -242,6 +264,23 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 )
+
+                                // Floating pill bottom nav (renders above content)
+                                if (currentRoute != Screen.Onboarding.route) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize(),
+                                        contentAlignment = Alignment.BottomCenter
+                                    ) {
+                                        BottomNavBar(
+                                            navController,
+                                            shoppingBadgeCount = shoppingBadgeCount,
+                                            expiringBadgeCount = expiringBadgeCount,
+                                            isQuickAddOpen = isQuickAddOpen,
+                                            onQuickAddToggle = { isQuickAddOpen = !isQuickAddOpen }
+                                        )
+                                    }
+                                }
                             }
 
                             // Shopping bottom sheet

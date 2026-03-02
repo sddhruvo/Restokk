@@ -1,26 +1,26 @@
 package com.inventory.app.ui.screens.categories
 
+import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import com.inventory.app.ui.components.ThemedFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,8 +31,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.inventory.app.R
 import com.inventory.app.data.local.entity.SubcategoryEntity
 import com.inventory.app.ui.components.ConfirmDialog
+import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.EmptyState
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.navigation.Screen
@@ -50,25 +52,23 @@ fun SubcategoryListScreen(
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<SubcategoryEntity?>(null) }
 
-    Scaffold(
+    ThemedScaffold(
         topBar = {
-            TopAppBar(
+            ThemedTopAppBar(
                 title = { Text(uiState.categoryName?.let { "$it - Subcategories" } ?: "Subcategories") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    InkBackButton(onClick = { navController.popBackStack() })
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ThemedFab(
                 onClick = { navController.navigate(Screen.SubcategoryForm.createRoute(categoryId = categoryId)) }
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Subcategory")
+                ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add Subcategory")
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState()
@@ -96,11 +96,12 @@ fun SubcategoryListScreen(
                                         )
                                     )
                                 }) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                                    ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit")
                                 }
                                 IconButton(onClick = { deleteTarget = sub }) {
-                                    Icon(
-                                        Icons.Filled.Delete,
+                                    ThemedIcon(
+                                        materialIcon = Icons.Filled.Delete,
+                                        inkIconRes = R.drawable.ic_ink_delete,
                                         contentDescription = "Delete",
                                         tint = MaterialTheme.colorScheme.error
                                     )
