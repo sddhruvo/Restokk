@@ -15,23 +15,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.ExperimentalMaterial3Api
 import com.inventory.app.ui.components.ThemedFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,7 +57,6 @@ import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.appColors
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationListScreen(
     navController: NavController,
@@ -70,15 +67,8 @@ fun LocationListScreen(
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<LocationWithItemCountRow?>(null) }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Storage Locations") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        },
+    PageScaffold(
+        onBack = { navController.popBackStack() },
         floatingActionButton = {
             ThemedFab(
                 onClick = { navController.navigate(Screen.LocationForm.createRoute()) }
@@ -87,7 +77,7 @@ fun LocationListScreen(
             }
         },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         when {
             uiState.isLoading -> LoadingState()
             uiState.locations.isEmpty() -> EmptyState(
@@ -98,11 +88,10 @@ fun LocationListScreen(
                 onAction = { navController.navigate(Screen.LocationForm.createRoute()) }
             )
             else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = contentPadding
             ) {
+                item { PageHeader("Storage Locations") }
                 itemsIndexed(uiState.locations, key = { _, it -> it.id }) { index, location ->
                     ListItem(
                         headlineContent = { Text(location.name) },

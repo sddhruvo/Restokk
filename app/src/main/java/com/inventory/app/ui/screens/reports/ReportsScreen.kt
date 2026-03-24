@@ -17,13 +17,12 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -42,14 +40,16 @@ import androidx.navigation.NavController
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.R
+import com.inventory.app.ui.components.ThemedIcon
+import androidx.annotation.DrawableRes
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
 import com.inventory.app.ui.components.EmptyStateIllustration
 import com.inventory.app.ui.components.StaggeredAnimatedItem
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.formSectionLabel
 import com.inventory.app.ui.theme.appColors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,17 +96,10 @@ fun ReportsScreen(navController: NavController) {
     val preference by viewModel.userPreference.collectAsState()
     LaunchedEffect(Unit) { viewModel.markReportsViewed() }
     val snackbarHostState = remember { SnackbarHostState() }
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Reports") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        },
+    PageScaffold(
+        onBack = { navController.popBackStack() },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         if (totalItems == 0) {
             val emptyBody = when (preference) {
                 "WASTE" -> "Track your items for a few days and we'll show you what expires, what you waste, and how to save."
@@ -121,53 +114,60 @@ fun ReportsScreen(navController: NavController) {
                 onCtaClick = { navController.navigate(Screen.KitchenMap.route) },
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(contentPadding)
             )
-            return@ThemedScaffold
+            return@PageScaffold
         }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
-            verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
         ) {
+            PageHeader("Reports")
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
+                verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
+                modifier = Modifier.fillMaxSize()
+            ) {
             item {
                 StaggeredAnimatedItem(index = 0) {
-                    ReportCard("Expiring Items", "Items nearing expiry", Icons.Filled.Warning, MaterialTheme.appColors.reportExpiring) {
+                    ReportCard("Expiring Items", "Items nearing expiry", Icons.Filled.Warning, MaterialTheme.appColors.reportExpiring, R.drawable.ic_ink_warning) {
                         navController.navigate(Screen.ExpiringReport.route)
                     }
                 }
             }
             item {
                 StaggeredAnimatedItem(index = 1) {
-                    ReportCard("Low Stock", "Items below minimum", Icons.Filled.TrendingDown, MaterialTheme.appColors.reportLowStock) {
+                    ReportCard("Low Stock", "Items below minimum", Icons.Filled.TrendingDown, MaterialTheme.appColors.reportLowStock, R.drawable.ic_ink_trending_down) {
                         navController.navigate(Screen.LowStockReport.route)
                     }
                 }
             }
             item {
                 StaggeredAnimatedItem(index = 2) {
-                    ReportCard("Spending", "Purchase analysis", Icons.Filled.AttachMoney, MaterialTheme.appColors.reportSpending) {
+                    ReportCard("Spending", "Purchase analysis", Icons.Filled.AttachMoney, MaterialTheme.appColors.reportSpending, R.drawable.ic_ink_money) {
                         navController.navigate(Screen.SpendingReport.route)
                     }
                 }
             }
             item {
                 StaggeredAnimatedItem(index = 3) {
-                    ReportCard("Usage", "Consumption tracking", Icons.Filled.Assessment, MaterialTheme.appColors.reportUsage) {
+                    ReportCard("Usage", "Consumption tracking", Icons.Filled.Assessment, MaterialTheme.appColors.reportUsage, R.drawable.ic_ink_reports) {
                         navController.navigate(Screen.UsageReport.route)
                     }
                 }
             }
             item {
                 StaggeredAnimatedItem(index = 4) {
-                    ReportCard("Full Inventory", "Complete inventory list", Icons.Filled.Inventory, MaterialTheme.appColors.reportInventory) {
+                    ReportCard("Full Inventory", "Complete inventory list", Icons.Filled.Inventory, MaterialTheme.appColors.reportInventory, R.drawable.ic_ink_box) {
                         navController.navigate(Screen.InventoryReport.route)
                     }
                 }
+            }
             }
         }
     }
@@ -180,6 +180,7 @@ private fun ReportCard(
     subtitle: String,
     icon: ImageVector,
     accentColor: Color,
+    @DrawableRes inkIconRes: Int = 0,
     onClick: () -> Unit
 ) {
     AppCard(
@@ -192,8 +193,8 @@ private fun ReportCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
-            Icon(icon, contentDescription = "Report", modifier = Modifier.size(36.dp), tint = accentColor)
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            ThemedIcon(materialIcon = icon, inkIconRes = inkIconRes, contentDescription = "Report", modifier = Modifier.size(36.dp), tint = accentColor)
+            Text(title, style = MaterialTheme.typography.formSectionLabel)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

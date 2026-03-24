@@ -7,6 +7,7 @@ import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.data.local.entity.StorageLocationEntity
 import com.inventory.app.data.repository.CategoryRepository
 import com.inventory.app.data.repository.ItemRepository
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.StorageLocationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -23,20 +24,29 @@ data class GlobalSearchUiState(
     val categories: List<CategoryEntity> = emptyList(),
     val locations: List<StorageLocationEntity> = emptyList(),
     val isSearching: Boolean = false,
-    val hasSearched: Boolean = false
+    val hasSearched: Boolean = false,
+    val lowStockThreshold: Float = 0.25f
 )
 
 @HiltViewModel
 class GlobalSearchViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
     private val categoryRepository: CategoryRepository,
-    private val locationRepository: StorageLocationRepository
+    private val locationRepository: StorageLocationRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GlobalSearchUiState())
     val uiState = _uiState.asStateFlow()
 
     private var searchJob: Job? = null
+
+    init {
+        viewModelScope.launch {
+            val threshold = (settingsRepository.getString(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25").toDoubleOrNull() ?: 25.0) / 100.0
+            _uiState.update { it.copy(lowStockThreshold = threshold.toFloat()) }
+        }
+    }
 
     fun updateQuery(query: String) {
         _uiState.update { it.copy(query = query) }

@@ -18,25 +18,26 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
+import com.inventory.app.ui.theme.formSectionLabel
+import com.inventory.app.ui.theme.statValue
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -44,7 +45,6 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ExpiryDateCameraPreview
 import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.ThemedIcon
@@ -54,29 +54,25 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun ExpiryDateScannerScreen(
-    navController: NavController
+    navController: NavController,
+    viewModel: ExpiryDateScannerViewModel = hiltViewModel()
 ) {
     val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
-    var detectedDate by remember { mutableStateOf<String?>(null) }
-    var isScanning by remember { mutableStateOf(true) }
+    var detectedDate by rememberSaveable { mutableStateOf<String?>(null) }
+    var isScanning by rememberSaveable { mutableStateOf(true) }
+    val aiState by viewModel.uiState.collectAsState()
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Scan Expiry Date") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        }
-    ) { padding ->
+    PageScaffold(
+        onBack = { navController.popBackStack() }
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            PageHeader("Scan Expiry Date")
             // Camera section
             if (cameraPermissionState.status.isGranted) {
                 if (isScanning) {
@@ -84,6 +80,12 @@ fun ExpiryDateScannerScreen(
                         onDateDetected = { date ->
                             detectedDate = date
                             isScanning = false
+                        },
+                        onPhotoFallbackNeeded = { bitmap ->
+                            viewModel.extractExpiryDateFromImage(bitmap) { aiDate ->
+                                detectedDate = aiDate
+                                isScanning = false
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -159,6 +161,21 @@ fun ExpiryDateScannerScreen(
                 }
             }
 
+            // AI error message
+            if (aiState.aiError != null) {
+                AppCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                ) {
+                    Text(
+                        aiState.aiError!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
             // Detected date confirmation
             AnimatedVisibility(
                 visible = detectedDate != null,
@@ -172,15 +189,13 @@ fun ExpiryDateScannerScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 "Expiry Date Detected",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.formSectionLabel,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 formatDisplayDate(date),
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.statValue
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Row(
@@ -203,6 +218,7 @@ fun ExpiryDateScannerScreen(
                                     onClick = {
                                         detectedDate = null
                                         isScanning = true
+                                        viewModel.clearError()
                                     },
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -221,11 +237,12 @@ fun ExpiryDateScannerScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Tips", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("- Hold the camera steady over the expiry date", style = MaterialTheme.typography.bodySmall)
-                    Text("- Look for text like \"Use By\", \"Best Before\", or \"EXP\"", style = MaterialTheme.typography.bodySmall)
+                    Text("Tips", style = MaterialTheme.typography.formSectionLabel)
+                    Text("- Keep the date inside the scan window", style = MaterialTheme.typography.bodySmall)
+                    Text("- Hold steady until the brackets turn green", style = MaterialTheme.typography.bodySmall)
+                    Text("- Pinch to zoom in on small text", style = MaterialTheme.typography.bodySmall)
+                    Text("- Tap on the date to focus the camera there", style = MaterialTheme.typography.bodySmall)
                     Text("- Use the flash button in dim lighting", style = MaterialTheme.typography.bodySmall)
-                    Text("- Keep the date within the scan window", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

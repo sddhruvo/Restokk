@@ -5,10 +5,13 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.lerp
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
@@ -52,13 +55,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import com.inventory.app.ui.navigation.LocalBottomNavHeight
+import com.inventory.app.ui.theme.appColors
 import com.inventory.app.ui.theme.CardStyle
+import com.inventory.app.ui.theme.Dimens
 import com.inventory.app.ui.theme.DividerStyle
 import com.inventory.app.ui.theme.InkTokens
 import com.inventory.app.ui.theme.PaperInkMotion
@@ -77,6 +92,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -94,7 +110,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import com.inventory.app.ui.theme.LocalReduceMotion
+import androidx.compose.ui.graphics.TransformOrigin
 import kotlin.math.PI
+import kotlin.math.max
 import kotlin.math.sin
 import java.time.Instant
 import java.time.LocalDate
@@ -238,6 +256,12 @@ fun ThemedTopAppBar(
  * - Paper & Ink: containerColor = Transparent → root [ThemedBackground] texture shows through
  * - Modern: containerColor = background (standard Material behavior)
  *
+ * Includes an "Overscroll Lift" mechanism: when a child scrollable (LazyColumn,
+ * Column.verticalScroll, etc.) reaches its bottom and the user keeps scrolling,
+ * the entire content translates upward to reveal items hidden behind the floating
+ * bottom nav bar. Scrolling back up reverses the lift before resuming normal scroll.
+ * Zero per-screen changes required — works automatically via nested scroll.
+ *
  * Pass an explicit [containerColor] to override the theme default on a per-screen basis.
  */
 @Composable
@@ -278,6 +302,462 @@ fun ThemedScaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         content = content
     )
+}
+
+// ─── Journal Page Layout System ──────────────────────────────────────────
+
+/**
+ * Floating back button + action icons overlay for [PageScaffold].
+ *
+ * Renders a subtle gradient scrim so icons stay readable when content scrolls behind.
+ * Paper & Ink: warm paper background scrim. Modern: Material background scrim.
+ *
+ * Private — used only through [PageScaffold].
+ */
+@Composable
+private fun FloatingNavBar(
+    onBack: (() -> Unit)?,
+    actions: @Composable RowScope.() -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isInk = MaterialTheme.visuals.isInk
+    val scrimBase = if (isInk) {
+        MaterialTheme.colorScheme.background
+    } else {
+        MaterialTheme.colorScheme.background
+    }
+
+    Box(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        // Gradient scrim behind icons
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0f to scrimBase.copy(alpha = 0.92f),
+                            0.6f to scrimBase.copy(alpha = 0.4f),
+                            1f to Color.Transparent
+                        )
+                    )
+                )
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimens.spacingXs, vertical = Dimens.spacingXs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onBack != null) {
+                InkBackButton(onClick = onBack)
+            } else {
+                // Maintain layout spacing even without back button
+                Spacer(modifier = Modifier.width(48.dp))
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            actions()
+        }
+
+        // 16dp soft fade zone below the row
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(Dimens.spacingLg)
+                .align(Alignment.BottomCenter)
+        )
+    }
+}
+
+/**
+ * Drop-in replacement for [ThemedScaffold] on journal-style screens.
+ *
+ * Removes the rigid top bar — the back button and actions float as a
+ * lightweight overlay while the title becomes part of the scrollable content
+ * (via [PageHeader]). Every screen feels like opening a page in a journal.
+ *
+ * @param onBack Back navigation callback. Pass `null` for screens with no back button.
+ * @param actions Action icons for the floating overlay (e.g., edit, delete, favorite).
+ */
+@Composable
+fun PageScaffold(
+    onBack: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+    modifier: Modifier = Modifier,
+    snackbarHost: @Composable () -> Unit = {},
+    floatingActionButton: @Composable () -> Unit = {},
+    floatingActionButtonPosition: FabPosition = FabPosition.End,
+    bottomBar: @Composable () -> Unit = {},
+    containerColor: Color = Color.Unspecified,
+    content: @Composable (PaddingValues) -> Unit
+) {
+    var overlayHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+
+    ThemedScaffold(
+        modifier = modifier,
+        snackbarHost = snackbarHost,
+        floatingActionButton = floatingActionButton,
+        floatingActionButtonPosition = floatingActionButtonPosition,
+        bottomBar = bottomBar,
+        containerColor = containerColor
+    ) { scaffoldPadding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Content area — gets top padding = scaffold top + overlay height
+            val overlayHeightDp = with(density) { overlayHeightPx.toDp() }
+            val adjustedPadding = PaddingValues(
+                top = scaffoldPadding.calculateTopPadding() + overlayHeightDp,
+                bottom = scaffoldPadding.calculateBottomPadding(),
+                start = scaffoldPadding.calculateLeftPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                end = scaffoldPadding.calculateRightPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
+            )
+            content(adjustedPadding)
+
+            // Floating overlay on top
+            FloatingNavBar(
+                onBack = onBack,
+                actions = actions,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .onGloballyPositioned { coordinates ->
+                        overlayHeightPx = coordinates.size.height
+                    }
+            )
+        }
+    }
+}
+
+/**
+ * Large inline title for journal-style screens. Used as the first item
+ * in a [PageScaffold]'s LazyColumn/Column — scrolls with content.
+ *
+ * Paper & Ink: handwritten headlineSmall with wobbly ink divider.
+ * Modern: standard headlineSmall with clean divider.
+ */
+@Composable
+fun PageHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.spacingLg)
+    ) {
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Dimens.spacingXs)
+            )
+        }
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
+        ThemedDivider()
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
+    }
+}
+
+// ─── Collapsing Page Scaffold ────────────────────────────────────────────
+
+/**
+ * Journal-page scaffold with a **parallax collapsing header**.
+ *
+ * Two layers at different "depths" create dramatic compression:
+ * - **Icon strip** (upper layer): glides at 0.4× scroll speed, pins at top
+ * - **Title** (lower layer): moves at 1.0× scroll speed + "Ink Retreat"
+ *   (scaleY squish from top + alpha fade — title dissolves like ink
+ *   absorbed back into paper)
+ *
+ * Expanded ≈ 152dp → Collapsed ≈ 76dp (≈76dp compression).
+ *
+ * Works automatically with any scrollable child (LazyColumn, LazyVerticalGrid,
+ * Column.verticalScroll) via [NestedScrollConnection] — zero per-screen wiring.
+ *
+ * @param title Large title in the collapsible area.
+ * @param onBack Back navigation callback. `null` = no back button (uses spacer).
+ * @param actions Action icons for the always-visible bar.
+ * @param subtitle Optional subtitle below the title.
+ */
+@Composable
+fun CollapsingPageScaffold(
+    title: String,
+    onBack: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+    subtitle: String? = null,
+    modifier: Modifier = Modifier,
+    snackbarHost: @Composable () -> Unit = {},
+    floatingActionButton: @Composable () -> Unit = {},
+    floatingActionButtonPosition: FabPosition = FabPosition.End,
+    bottomBar: @Composable () -> Unit = {},
+    containerColor: Color = Color.Unspecified,
+    content: @Composable (PaddingValues) -> Unit
+) {
+    val density = LocalDensity.current
+    val reduceMotion = LocalReduceMotion.current
+
+    // Parallax rate — strip moves slower than scroll to create depth
+    val parallaxRate = if (reduceMotion) 1.0f else 0.4f
+
+    // Measured heights (px) — captured once via onGloballyPositioned
+    var stripHeightPx by remember { mutableIntStateOf(0) }
+    var titleHeightPx by remember { mutableIntStateOf(0) }
+    val hasMeasured = stripHeightPx > 0 && titleHeightPx > 0
+
+    // Collapse range = full title height (strip stays, title collapses away)
+    val collapseRangePx = titleHeightPx
+
+    // Scroll-driven offset: 0 = expanded, -collapseRangePx = fully collapsed
+    var heightOffsetPx by remember { mutableFloatStateOf(0f) }
+
+    // Derived fraction: 0 = expanded, 1 = collapsed
+    val collapseFraction = if (collapseRangePx > 0) {
+        (-heightOffsetPx / collapseRangePx).coerceIn(0f, 1f)
+    } else 0f
+
+    // ── Ink Retreat: title completes fade at ~67% collapse ──
+    val titleFraction = (collapseFraction * 1.5f).coerceIn(0f, 1f)
+    val titleAlpha = if (reduceMotion) {
+        if (collapseFraction > 0.5f) 0f else 1f
+    } else {
+        1f - titleFraction
+    }
+    val titleScaleY = if (reduceMotion) 1f else 1f - 0.7f * titleFraction
+
+    // Paper shadow between strip and title — fades as they merge
+    val shadowAlpha = if (reduceMotion) 0f else (0.08f * (1f - collapseFraction)).coerceIn(0f, 0.08f)
+    val shadowColor = MaterialTheme.colorScheme.onSurface
+
+    // Ink residue line — fades IN as title's ThemedDivider dissolves
+    val residueAlpha = if (reduceMotion) {
+        if (collapseFraction > 0.5f) 1f else 0f
+    } else {
+        collapseFraction
+    }
+
+    // ── Strip padding: shrinks from 4dp → 1dp as header collapses ──
+    val stripVerticalPadding = lerp(Dimens.spacingXs, 1.dp, collapseFraction)
+
+    // ── Positional math (px) ──
+    // Strip: glides at parallaxRate, pins at y=0 (starts at y=0 in expanded)
+    val stripTranslationY = if (hasMeasured) {
+        max(heightOffsetPx * parallaxRate, 0f)
+    } else {
+        0f
+    }
+    // Title: sits below strip, moves 1:1 with scroll
+    val titleTranslationY = if (hasMeasured) {
+        stripHeightPx.toFloat() + heightOffsetPx
+    } else {
+        stripHeightPx.toFloat()
+    }
+    // Content top: follows title bottom, but never goes above strip bottom
+    val contentTopPx = if (hasMeasured) {
+        max(
+            (stripHeightPx + titleHeightPx).toFloat() + heightOffsetPx,
+            stripHeightPx.toFloat()
+        )
+    } else {
+        (stripHeightPx + titleHeightPx).toFloat()
+    }
+    val contentTopDp = with(density) { contentTopPx.toDp() }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Read titleHeightPx STATE directly (not captured val)
+                // so range stays current after onGloballyPositioned
+                val range = titleHeightPx
+                if (available.y < 0f && range > 0) {
+                    val prevOffset = heightOffsetPx
+                    heightOffsetPx = (heightOffsetPx + available.y)
+                        .coerceIn(-range.toFloat(), 0f)
+                    val consumed = heightOffsetPx - prevOffset
+                    if (consumed != 0f) return Offset(0f, consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                val range = titleHeightPx
+                if (available.y > 0f && range > 0) {
+                    val prevOffset = heightOffsetPx
+                    heightOffsetPx = (heightOffsetPx + available.y)
+                        .coerceIn(-range.toFloat(), 0f)
+                    val consumed2 = heightOffsetPx - prevOffset
+                    if (consumed2 != 0f) return Offset(0f, consumed2)
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    val scrimBase = MaterialTheme.colorScheme.background
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant
+
+    ThemedScaffold(
+        modifier = modifier,
+        snackbarHost = snackbarHost,
+        floatingActionButton = floatingActionButton,
+        floatingActionButtonPosition = floatingActionButtonPosition,
+        bottomBar = bottomBar,
+        containerColor = containerColor
+    ) { scaffoldPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(nestedScrollConnection)
+        ) {
+            // Z=1 — Content layer (dynamic top padding)
+            content(
+                PaddingValues(
+                    top = scaffoldPadding.calculateTopPadding() + contentTopDp,
+                    bottom = scaffoldPadding.calculateBottomPadding(),
+                    start = scaffoldPadding.calculateLeftPadding(
+                        androidx.compose.ui.unit.LayoutDirection.Ltr
+                    ),
+                    end = scaffoldPadding.calculateRightPadding(
+                        androidx.compose.ui.unit.LayoutDirection.Ltr
+                    )
+                )
+            )
+
+            // Z=2 — Title layer (1.0× speed + Ink Retreat)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        if (titleHeightPx == 0) {
+                            titleHeightPx = coordinates.size.height
+                        }
+                    }
+                    .graphicsLayer {
+                        translationY = titleTranslationY
+                        alpha = if (hasMeasured) titleAlpha else 0f
+                        scaleY = titleScaleY
+                        transformOrigin = TransformOrigin(0.5f, 0f) // scale from top edge
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Dimens.spacingLg)
+                ) {
+                    Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Dimens.spacingXs)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                    ThemedDivider()
+                    Spacer(modifier = Modifier.height(Dimens.spacingMd))
+                }
+            }
+
+            // Z=3 — Paper shadow (depth cue between strip and title)
+            if (shadowAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .graphicsLayer {
+                            translationY = stripTranslationY + stripHeightPx
+                        }
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0f to shadowColor.copy(alpha = shadowAlpha),
+                                    1f to Color.Transparent
+                                )
+                            )
+                        )
+                )
+            }
+
+            // Z=4 — Icon strip + scrim (0.4× speed, pins at y=0)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        stripHeightPx = coordinates.size.height
+                    }
+                    .graphicsLayer {
+                        translationY = stripTranslationY
+                    }
+            ) {
+                // Scrim gradient behind icons
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0f to scrimBase.copy(alpha = 0.92f),
+                                    0.6f to scrimBase.copy(alpha = 0.4f),
+                                    1f to Color.Transparent
+                                )
+                            )
+                        )
+                )
+
+                // Icon row — vertical padding animates 4dp→1dp on collapse
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = Dimens.spacingXs,
+                            vertical = stripVerticalPadding
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onBack != null) {
+                        InkBackButton(onClick = onBack)
+                    } else {
+                        Spacer(modifier = Modifier.width(48.dp))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    actions()
+                }
+            }
+
+            // Z=5 — Ink residue line (fades IN as title dissolves)
+            if (residueAlpha > 0f) {
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            // Sits just below pinned strip
+                            translationY = max(stripTranslationY + stripHeightPx, stripHeightPx.toFloat())
+                            alpha = residueAlpha
+                        },
+                    thickness = 0.75.dp,
+                    color = dividerColor
+                )
+            }
+        }
+    }
 }
 
 // ─── Themed Bottom Sheet ────────────────────────────────────────────────
@@ -565,7 +1045,8 @@ fun AutoCompleteTextField(
                 .menuAnchor(),
             isError = isError,
             supportingText = supportingText,
-            singleLine = true
+            singleLine = true,
+            inkEndcaps = true
         )
         if (suggestions.isNotEmpty() && expanded) {
             ExposedDropdownMenu(
@@ -612,7 +1093,8 @@ fun <T> DropdownField(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor()
+                .menuAnchor(),
+            inkEndcaps = true
         )
         ExposedDropdownMenu(
             expanded = expanded,
@@ -684,7 +1166,8 @@ fun DatePickerField(
             }
         },
         placeholder = { Text("Select date") },
-        interactionSource = interactionSource
+        interactionSource = interactionSource,
+        inkEndcaps = true
     )
 
     androidx.compose.runtime.LaunchedEffect(interactionSource) {
@@ -735,6 +1218,90 @@ fun DatePickerField(
 fun Double.formatQty(): String {
     return if (this % 1.0 == 0.0) this.toLong().toString()
     else String.format(java.util.Locale.US, "%.1f", this)
+}
+
+// ─── Stock Bar Computation ───────────────────────────────────────────────
+
+/**
+ * Result of [computeStockBar] — everything a UI needs to render a stock bar.
+ *
+ * @param ratio     0..1 fill amount (quantity / ceiling, clamped)
+ * @param threshold 0..1 where the "low stock" cutoff sits on the bar
+ * @param ceiling   the denominator used (for display: "qty / ceiling")
+ */
+data class StockBarState(
+    val ratio: Float,
+    val threshold: Float,
+    val ceiling: Double,
+)
+
+/**
+ * Central stock-bar math used everywhere items show a progress bar.
+ *
+ * **Ceiling priority** (what "100% full" means):
+ * 1. [maxQuantity] — user-set storage capacity
+ * 2. [smartMinQuantity] — auto-learned peak (highest qty ever recorded)
+ * 3. max([quantity], [minQuantity] × 2) — synthetic ceiling when only min is set
+ * 4. [quantity] — binary mode (has stock or doesn't)
+ * 5. 1.0 — div-by-zero guard
+ *
+ * **Threshold** (where the "low" color band starts):
+ * - If [minQuantity] > 0: minQuantity / ceiling (dynamic per-item)
+ * - Else: [globalLowThreshold] (user's global setting, default 0.25)
+ */
+fun computeStockBar(
+    quantity: Double,
+    minQuantity: Double,
+    smartMinQuantity: Double,
+    maxQuantity: Double?,
+    globalLowThreshold: Float,
+): StockBarState {
+    val ceiling = when {
+        maxQuantity != null && maxQuantity > 0 -> maxQuantity
+        smartMinQuantity > 0                   -> smartMinQuantity
+        minQuantity > 0                        -> maxOf(quantity, minQuantity * 2)
+        quantity > 0                           -> quantity
+        else                                   -> 1.0
+    }
+
+    val threshold = if (minQuantity > 0 && ceiling > 0) {
+        (minQuantity / ceiling).toFloat().coerceIn(0f, 0.9f)
+    } else {
+        globalLowThreshold
+    }
+
+    val ratio = (quantity / ceiling).toFloat().coerceIn(0f, 1f)
+
+    return StockBarState(ratio = ratio, threshold = threshold, ceiling = ceiling)
+}
+
+// ─── Item Stock Bar ──────────────────────────────────────────────────────
+
+/**
+ * Compact stock-level bar for use on any screen that shows items.
+ * Uses [computeStockBar] for ratio/threshold, then renders a [ThemedProgressBar].
+ */
+@Composable
+fun ItemStockBar(
+    quantity: Double,
+    minQuantity: Double,
+    smartMinQuantity: Double,
+    lowStockThreshold: Float,
+    modifier: Modifier = Modifier,
+    maxQuantity: Double? = null,
+    height: androidx.compose.ui.unit.Dp = 3.dp,
+) {
+    val state = computeStockBar(quantity, minQuantity, smartMinQuantity, maxQuantity, lowStockThreshold)
+    val stockColor = MaterialTheme.appColors.stockColor(state.ratio, state.threshold)
+    ThemedProgressBar(
+        progress = { state.ratio },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(height / 2)),
+        color = stockColor,
+        trackColor = MaterialTheme.colorScheme.surfaceVariant
+    )
 }
 
 // ─── Themed Divider ─────────────────────────────────────────────────────

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Inventory2
@@ -20,11 +19,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,12 +34,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
+import com.inventory.app.ui.theme.formSectionLabel
 import com.inventory.app.ui.components.EmptyState
+import com.inventory.app.ui.components.ItemStockBar
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
 
@@ -63,22 +63,16 @@ fun GlobalSearchScreen(
         } catch (_: Exception) { }
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Search") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        },
+    PageScaffold(
+        onBack = { navController.popBackStack() },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
         ) {
+            PageHeader("Search")
             SearchBar(
                 query = uiState.query,
                 onQueryChange = { viewModel.updateQuery(it) },
@@ -119,8 +113,7 @@ fun GlobalSearchScreen(
                         item {
                             Text(
                                 "Items (${uiState.items.size})",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.formSectionLabel,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
                         }
@@ -128,10 +121,19 @@ fun GlobalSearchScreen(
                             ListItem(
                                 headlineContent = { Text(item.name) },
                                 supportingContent = {
-                                    val parts = mutableListOf<String>()
-                                    item.brand?.let { parts.add(it) }
-                                    parts.add("Qty: ${item.quantity}")
-                                    Text(parts.joinToString(" | "))
+                                    Column {
+                                        val parts = mutableListOf<String>()
+                                        item.brand?.let { parts.add(it) }
+                                        parts.add("Qty: ${item.quantity}")
+                                        Text(parts.joinToString(" | "))
+                                        ItemStockBar(
+                                            quantity = item.quantity,
+                                            minQuantity = item.minQuantity,
+                                            smartMinQuantity = item.smartMinQuantity,
+                                            lowStockThreshold = uiState.lowStockThreshold,
+                                            maxQuantity = item.maxQuantity
+                                        )
+                                    }
                                 },
                                 leadingContent = {
                                     ThemedIcon(materialIcon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box, contentDescription = "Item", tint = MaterialTheme.colorScheme.primary)
@@ -148,8 +150,7 @@ fun GlobalSearchScreen(
                         item {
                             Text(
                                 "Categories (${uiState.categories.size})",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.formSectionLabel,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
                         }
@@ -172,8 +173,7 @@ fun GlobalSearchScreen(
                         item {
                             Text(
                                 "Locations (${uiState.locations.size})",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.formSectionLabel,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
                         }

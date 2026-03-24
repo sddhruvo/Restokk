@@ -87,7 +87,7 @@ private val AmoledDarkScheme = darkColorScheme(
 @Composable
 fun HomeInventoryTheme(
     appTheme: AppTheme = AppTheme.CLASSIC_GREEN,
-    visualStyle: VisualStyle = VisualStyle.MODERN,
+    visualStyle: VisualStyle = VisualStyle.PAPER_INK,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when (appTheme) {

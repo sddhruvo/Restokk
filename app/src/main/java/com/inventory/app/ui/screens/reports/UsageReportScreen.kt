@@ -17,9 +17,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,10 +33,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.formatQty
+import com.inventory.app.ui.theme.emphasisBody
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.domain.model.UsageType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,28 +56,22 @@ fun UsageReportScreen(
         }
     }
 
-    ThemedScaffold(
-        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Usage Report") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        }
-    ) { padding ->
+    PageScaffold(
+        onBack = { navController.popBackStack() },
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
+    ) { contentPadding ->
         if (uiState.isLoading) {
             LoadingState()
-            return@ThemedScaffold
+            return@PageScaffold
         }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(horizontal = 16.dp),
+            contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { PageHeader("Usage Report") }
             // Period chips
             item {
                 Row(
@@ -97,7 +92,7 @@ fun UsageReportScreen(
             item {
                 AppCard(
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Total Usage", style = MaterialTheme.typography.bodyMedium)
@@ -105,7 +100,7 @@ fun UsageReportScreen(
                             "${uiState.totalUsage.formatQty()} items",
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -114,10 +109,10 @@ fun UsageReportScreen(
             // Usage by type
             if (uiState.usageByType.isNotEmpty()) {
                 item {
-                    Text("By Type", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("By Type", style = MaterialTheme.typography.sectionHeader)
                 }
                 val totalByType = uiState.usageByType.sumOf { it.totalQuantity }.coerceAtLeast(1.0)
-                items(uiState.usageByType) { row ->
+                items(uiState.usageByType, key = { it.type }) { row ->
                     AppCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
@@ -126,8 +121,7 @@ fun UsageReportScreen(
                             ) {
                                 Text(
                                     UsageType.fromValue(row.type).label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    style = MaterialTheme.typography.labelLarge
                                 )
                                 Text(
                                     "${row.count} times (${row.totalQuantity.formatQty()} units)",
@@ -147,10 +141,10 @@ fun UsageReportScreen(
             // Top consumed
             if (uiState.topConsumed.isNotEmpty()) {
                 item {
-                    Text("Most Consumed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Most Consumed", style = MaterialTheme.typography.sectionHeader)
                 }
                 val maxConsumed = uiState.topConsumed.maxOfOrNull { it.totalQuantity } ?: 1.0
-                items(uiState.topConsumed) { row ->
+                items(uiState.topConsumed, key = { "consumed_${it.itemName}" }) { row ->
                     AppCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
@@ -158,7 +152,7 @@ fun UsageReportScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(row.itemName, style = MaterialTheme.typography.bodyMedium)
-                                Text(row.totalQuantity.formatQty(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text(row.totalQuantity.formatQty(), style = MaterialTheme.typography.emphasisBody)
                             }
                             ThemedProgressBar(
                                 progress = { (row.totalQuantity / maxConsumed).toFloat() },
@@ -173,10 +167,10 @@ fun UsageReportScreen(
             // Top wasted
             if (uiState.topWasted.isNotEmpty()) {
                 item {
-                    Text("Most Wasted", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Most Wasted", style = MaterialTheme.typography.sectionHeader)
                 }
                 val maxWasted = uiState.topWasted.maxOfOrNull { it.totalQuantity } ?: 1.0
-                items(uiState.topWasted) { row ->
+                items(uiState.topWasted, key = { "wasted_${it.itemName}" }) { row ->
                     AppCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
@@ -184,7 +178,7 @@ fun UsageReportScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(row.itemName, style = MaterialTheme.typography.bodyMedium)
-                                Text(row.totalQuantity.formatQty(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text(row.totalQuantity.formatQty(), style = MaterialTheme.typography.emphasisBody)
                             }
                             ThemedProgressBar(
                                 progress = { (row.totalQuantity / maxWasted).toFloat() },

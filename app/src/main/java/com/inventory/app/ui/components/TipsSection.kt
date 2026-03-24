@@ -16,9 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inventory.app.R
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.domain.tips.Tip
 
 @Composable
@@ -30,7 +30,7 @@ fun TipsSection(
     if (tips.isEmpty()) return
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Tips", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Tips", style = MaterialTheme.typography.sectionHeader)
         AppCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(4.dp)) {
                 tips.forEach { tip ->

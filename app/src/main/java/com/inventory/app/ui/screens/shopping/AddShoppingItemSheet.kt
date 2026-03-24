@@ -40,6 +40,7 @@ import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.ThemedTextField
 
+
 data class SheetRequest(
     val itemId: Long? = null,
     val shoppingItemId: Long? = null
@@ -116,7 +117,8 @@ fun AddShoppingItemSheet(
                     onValueChange = {},
                     label = { Text("Item") },
                     modifier = Modifier.fillMaxWidth(),
-                    readOnly = true
+                    readOnly = true,
+                    inkEndcaps = true
                 )
             } else {
                 AutoCompleteTextField(

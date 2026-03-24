@@ -3,6 +3,7 @@ package com.inventory.app.ui.screens.items
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.dao.PurchaseHistoryDao
+import com.inventory.app.data.repository.SmartDefaultRepository
 import com.inventory.app.data.local.entity.CategoryEntity
 import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.data.local.entity.PurchaseHistoryEntity
@@ -19,12 +20,17 @@ import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
 import com.inventory.app.data.repository.StorageLocationRepository
 import com.inventory.app.data.repository.UnitRepository
+import com.inventory.app.domain.model.ProductMatcher
+import com.inventory.app.domain.model.ProductMatchResult
+import com.inventory.app.domain.model.ResolvedDefaults
 import com.inventory.app.domain.model.ShoppingMatch
 import com.inventory.app.domain.model.SmartDefaults
+import com.inventory.app.domain.model.SuggestedAction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -81,7 +87,21 @@ data class ItemFormUiState(
     val currencySymbol: String = "",
     val createdAt: java.time.LocalDateTime? = null,
     val isScanningExpiry: Boolean = false,
-    val expiryScanError: String? = null
+    val expiryScanError: String? = null,
+    // Smart default correction tracking — records what was auto-filled from server-sourced layers
+    val smartDefaultAppliedCategory: String? = null,
+    val smartDefaultAppliedSubcategory: String? = null,
+    val smartDefaultAppliedLocation: String? = null,
+    val smartDefaultAppliedUnit: String? = null,
+    val smartDefaultSource: String? = null,  // "static" | "cache" | "remote"
+    // SI-1: Expiry date auto-fill tracking
+    val expiryDateAutoFilled: Boolean = false,
+    val smartDefaultAppliedExpiryDays: Int? = null,
+    // SI-2: Quantity auto-fill tracking
+    val quantityAutoFilled: Boolean = false,
+    // ProductMatcher: duplicate detection
+    val duplicateMatches: List<ProductMatcher.MatchCandidate> = emptyList(),
+    val duplicateSuggestedAction: SuggestedAction = SuggestedAction.CREATE_NEW
 )
 
 @HiltViewModel
@@ -93,7 +113,8 @@ class ItemFormViewModel @Inject constructor(
     private val purchaseHistoryDao: PurchaseHistoryDao,
     private val shoppingListRepository: ShoppingListRepository,
     private val settingsRepository: SettingsRepository,
-    private val grokRepository: GrokRepository
+    private val grokRepository: GrokRepository,
+    private val smartDefaultRepository: SmartDefaultRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ItemFormUiState())
@@ -151,18 +172,18 @@ class ItemFormViewModel @Inject constructor(
         .map { it.toFormSnapshot() != savedSnapshot }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // Track which fields user has manually changed (don't override them with smart defaults)
-    private var userSetCategory = false
-    private var userSetSubcategory = false
-    private var userSetLocation = false
-    private var userSetUnit = false
-    private var userSetExpiry = false
-    private var userSetQuantity = false
-    private var userSetPrice = false
+    // Track which fields the user has EXPLICITLY interacted with (tapped dropdown, typed value).
+    // Distinguished from "auto-filled by smart defaults" — only explicit user interaction counts.
+    // This set persists across name changes so user choices are never overwritten.
+    private val userTouchedFields = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    // Field name constants defined in companion object below
 
     private var smartDefaultJob: Job? = null
+    private var remoteDefaultJob: Job? = null
     private var suggestionJob: Job? = null
     private var subcategoryJob: Job? = null
+    private var duplicateCheckJob: Job? = null
     private var regionCode: String = "US"
 
     init {
@@ -189,14 +210,11 @@ class ItemFormViewModel @Inject constructor(
     }
 
     fun loadItem(id: Long) {
-        // Mark all as user-set when editing (don't auto-change anything)
-        userSetCategory = true
-        userSetSubcategory = true
-        userSetLocation = true
-        userSetUnit = true
-        userSetExpiry = true
-        userSetQuantity = true
-        userSetPrice = true
+        // Mark all as user-touched when editing (don't auto-change anything)
+        userTouchedFields.addAll(listOf(
+            FIELD_CATEGORY, FIELD_SUBCATEGORY, FIELD_LOCATION,
+            FIELD_UNIT, FIELD_EXPIRY, FIELD_QUANTITY, FIELD_PRICE
+        ))
 
         viewModelScope.launch {
             itemRepository.getById(id)?.let { item ->
@@ -233,13 +251,16 @@ class ItemFormViewModel @Inject constructor(
         }
     }
 
-    fun prefill(barcode: String?, name: String?, brand: String?, quantity: String? = null) {
+    fun prefill(barcode: String?, name: String?, brand: String?, quantity: String? = null, size: String? = null) {
+        // Build description from size info if available
+        val desc = size?.takeIf { it.isNotBlank() }?.let { "Size: $it" }
         _uiState.update {
             it.copy(
                 barcode = barcode ?: it.barcode,
                 name = name ?: it.name,
                 brand = brand ?: it.brand,
-                quantity = quantity ?: it.quantity
+                quantity = quantity ?: it.quantity,
+                description = desc ?: it.description
             )
         }
         // Apply smart defaults for prefilled name
@@ -278,11 +299,24 @@ class ItemFormViewModel @Inject constructor(
 
         // Debounce smart defaults - wait 500ms after user stops typing
         smartDefaultJob?.cancel()
+        remoteDefaultJob?.cancel()
         if (!_uiState.value.isEditing && v.length >= 3) {
             smartDefaultJob = viewModelScope.launch {
                 delay(500)
+                clearAutoFilledFields()
                 applySmartDefaults(v)
             }
+        }
+
+        // Debounce duplicate check — 400ms after user stops typing
+        duplicateCheckJob?.cancel()
+        if (!_uiState.value.isEditing && v.length >= 2) {
+            duplicateCheckJob = viewModelScope.launch {
+                delay(400)
+                checkForDuplicates(v)
+            }
+        } else {
+            _uiState.update { it.copy(duplicateMatches = emptyList(), duplicateSuggestedAction = SuggestedAction.CREATE_NEW) }
         }
     }
 
@@ -290,22 +324,53 @@ class ItemFormViewModel @Inject constructor(
         _uiState.update { it.copy(name = name, nameSuggestions = emptyList(), nameError = null) }
         // Apply smart defaults immediately for selected suggestion
         if (!_uiState.value.isEditing) {
+            smartDefaultJob?.cancel()
+            remoteDefaultJob?.cancel()
+            clearAutoFilledFields()
             applySmartDefaults(name)
+        }
+        // Also check for duplicates immediately
+        duplicateCheckJob?.cancel()
+        duplicateCheckJob = viewModelScope.launch {
+            checkForDuplicates(name)
+        }
+    }
+
+    private suspend fun checkForDuplicates(name: String) {
+        if (name.isBlank()) return
+        val barcode = _uiState.value.barcode.ifBlank { null }
+        val result = try {
+            itemRepository.findMatchingItems(name, barcode)
+        } catch (_: Exception) { null }
+
+        if (result != null && result.matches.isNotEmpty()) {
+            // If editing, filter out the item being edited
+            val editingId = _uiState.value.editingId
+            val filtered = if (editingId != null) {
+                result.matches.filter { it.itemId != editingId }
+            } else result.matches
+
+            val action = if (filtered.isEmpty()) SuggestedAction.CREATE_NEW
+            else result.suggestedAction
+
+            _uiState.update { it.copy(duplicateMatches = filtered, duplicateSuggestedAction = action) }
+        } else {
+            _uiState.update { it.copy(duplicateMatches = emptyList(), duplicateSuggestedAction = SuggestedAction.CREATE_NEW) }
         }
     }
 
     fun updateDescription(v: String) { if (v.length > 500) return; _uiState.update { it.copy(description = v) } }
     fun updateBarcode(v: String) { _uiState.update { it.copy(barcode = v) } }
     fun updateBrand(v: String) { _uiState.update { it.copy(brand = v) } }
-    fun updateQuantity(v: String) { userSetQuantity = true; _uiState.update { it.copy(quantity = v, quantityError = null) } }
+    fun updateQuantity(v: String) { userTouchedFields.add(FIELD_QUANTITY); _uiState.update { it.copy(quantity = v, quantityError = null, quantityAutoFilled = false) } }
     fun updateMinQuantity(v: String) { _uiState.update { it.copy(minQuantity = v, minQuantityError = null) } }
     fun updateMaxQuantity(v: String) { _uiState.update { it.copy(maxQuantity = v, maxQuantityError = null) } }
-    fun updateExpiryDate(v: String) { userSetExpiry = true; _uiState.update { it.copy(expiryDate = v, expiryDateError = null) } }
+    fun updateExpiryDate(v: String) { userTouchedFields.add(FIELD_EXPIRY); _uiState.update { it.copy(expiryDate = v, expiryDateError = null, expiryDateAutoFilled = false, smartDefaultAppliedExpiryDays = null) } }
     fun updateExpiryWarningDays(v: String) { _uiState.update { it.copy(expiryWarningDays = v) } }
     fun updateOpenedDate(v: String) { _uiState.update { it.copy(openedDate = v, openedDateError = null) } }
     fun updateDaysAfterOpening(v: String) { _uiState.update { it.copy(daysAfterOpening = v) } }
     fun updatePurchaseDate(v: String) { _uiState.update { it.copy(purchaseDate = v) } }
-    fun updatePurchasePrice(v: String) { userSetPrice = true; _uiState.update { it.copy(purchasePrice = v, priceError = null) } }
+    fun updatePurchasePrice(v: String) { userTouchedFields.add(FIELD_PRICE); _uiState.update { it.copy(purchasePrice = v, priceError = null) } }
     fun updateFavorite(v: Boolean) { _uiState.update { it.copy(isFavorite = v) } }
     fun updatePaused(v: Boolean) { _uiState.update { it.copy(isPaused = v) } }
     fun updateNotes(v: String) { if (v.length > 1000) return; _uiState.update { it.copy(notes = v) } }
@@ -325,7 +390,7 @@ class ItemFormViewModel @Inject constructor(
                             (bitmap.width * scale).toInt(),
                             (bitmap.height * scale).toInt(),
                             true
-                        ).also { if (it !== bitmap) bitmap.recycle() }
+                        )
                     } else bitmap
 
                     // Compress — keep quality high for text readability
@@ -398,134 +463,191 @@ If no expiry date found, return exactly: NONE""",
     }
 
     fun selectCategory(id: Long?) {
-        userSetCategory = true
+        userTouchedFields.add(FIELD_CATEGORY)
         _uiState.update { it.copy(selectedCategoryId = id, selectedSubcategoryId = null, subcategories = emptyList()) }
         id?.let { catId ->
             loadSubcategories(catId)
             // Apply category-level location default if user hasn't set location manually
-            if (!userSetLocation) {
+            if (FIELD_LOCATION !in userTouchedFields) {
                 applyCategoryDefaults(catId)
             }
         }
     }
 
-    fun selectSubcategory(id: Long?) { userSetSubcategory = true; _uiState.update { it.copy(selectedSubcategoryId = id) } }
-    fun selectLocation(id: Long?) { userSetLocation = true; _uiState.update { it.copy(selectedLocationId = id) } }
-    fun selectUnit(id: Long?) { userSetUnit = true; _uiState.update { it.copy(selectedUnitId = id) } }
+    fun selectSubcategory(id: Long?) { userTouchedFields.add(FIELD_SUBCATEGORY); _uiState.update { it.copy(selectedSubcategoryId = id) } }
+    fun selectLocation(id: Long?) { userTouchedFields.add(FIELD_LOCATION); _uiState.update { it.copy(selectedLocationId = id) } }
+    fun selectUnit(id: Long?) { userTouchedFields.add(FIELD_UNIT); _uiState.update { it.copy(selectedUnitId = id) } }
 
     /**
-     * Apply smart defaults based on item name.
-     * Looks up the name in SmartDefaults and auto-fills category, subcategory,
-     * unit, location, and expiry date — only for fields the user hasn't manually changed.
+     * Apply smart defaults via the unified 5-layer cascade in SmartDefaultRepository.
+     * Only fills fields the user hasn't explicitly interacted with.
      */
     private fun applySmartDefaults(itemName: String) {
-        val defaults = SmartDefaults.lookup(itemName, regionCode) ?: return
-
         viewModelScope.launch {
-            // Wait until categories/units/locations are loaded (they load async in init)
-            // Retry up to 10 times with 100ms delay — covers slow DB reads
-            var attempts = 0
-            while (_uiState.value.categories.isEmpty() && attempts < 10) {
-                delay(100)
-                attempts++
+            // Wait until categories are loaded (they load async in init)
+            try {
+                kotlinx.coroutines.withTimeout(2000) {
+                    _uiState.first { it.categories.isNotEmpty() }
+                }
+            } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+                // Categories didn't load in 2s — proceed anyway
             }
 
-            // Re-read current state before each field update to avoid overwriting
-            // fields the user may have changed during the async lookups.
-
-            // Find matching category from loaded list
-            if (!userSetCategory) {
-                val current = _uiState.value
-                val category = current.categories.find {
-                    it.name.equals(defaults.category, ignoreCase = true)
-                }
-                if (category != null) {
-                    _uiState.update { it.copy(
-                        selectedCategoryId = if (it.selectedCategoryId == null) category.id else it.selectedCategoryId
-                    ) }
-                    loadSubcategories(category.id)
-
-                    // Wait for subcategories to load, then match subcategory
-                    if (!userSetSubcategory && defaults.subcategory != null) {
-                        var subAttempts = 0
-                        while (_uiState.value.subcategories.isEmpty() && subAttempts < 20) {
-                            delay(50)
-                            subAttempts++
-                        }
-                        val sub = _uiState.value.subcategories.find {
-                            it.name.equals(defaults.subcategory, ignoreCase = true)
-                        }
-                        sub?.let { matched ->
-                            _uiState.update { s ->
-                                s.copy(selectedSubcategoryId = if (s.selectedSubcategoryId == null) matched.id else s.selectedSubcategoryId)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Find matching unit
-            if (!userSetUnit && defaults.unit != null) {
-                val current = _uiState.value
-                val unit = current.units.find {
-                    it.abbreviation.equals(defaults.unit, ignoreCase = true)
-                }
-                unit?.let { matched ->
-                    _uiState.update { s ->
-                        s.copy(selectedUnitId = if (s.selectedUnitId == null) matched.id else s.selectedUnitId)
-                    }
-                }
-            }
-
-            // Find matching location
-            if (!userSetLocation && defaults.location != null) {
-                val current = _uiState.value
-                val location = current.locations.find {
-                    it.name.equals(defaults.location, ignoreCase = true)
-                }
-                location?.let { matched ->
-                    _uiState.update { s ->
-                        s.copy(selectedLocationId = if (s.selectedLocationId == null) matched.id else s.selectedLocationId)
-                    }
-                }
-            }
-
-            // Set expiry date based on shelf life
-            if (!userSetExpiry && defaults.shelfLifeDays != null) {
-                val expiryDate = LocalDate.now().plusDays(defaults.shelfLifeDays.toLong())
-                _uiState.update {
-                    it.copy(expiryDate = if (it.expiryDate.isBlank()) expiryDate.toString() else it.expiryDate)
-                }
-            }
-
-            // Also check purchase history for price/quantity/unit defaults
-            val purchaseDefaults = purchaseHistoryDao.getLatestPurchaseDefaultsByName(itemName)
-            if (purchaseDefaults != null) {
-                if (!userSetQuantity) {
-                    val qty = purchaseDefaults.quantity
-                    if (qty > 0) {
-                        _uiState.update {
-                            val defaultQty = if (qty == qty.toLong().toDouble()) qty.toLong().toString() else "%.2f".format(qty)
-                            it.copy(quantity = if (it.quantity == "1" || it.quantity.isBlank()) defaultQty else it.quantity)
-                        }
-                    }
-                }
-                if (!userSetUnit && purchaseDefaults.unitId != null) {
-                    _uiState.update {
-                        it.copy(selectedUnitId = if (it.selectedUnitId == null) purchaseDefaults.unitId else it.selectedUnitId)
-                    }
-                }
-                if (!userSetPrice) {
-                    val price = purchaseDefaults.totalPrice
-                    if (price != null && price > 0) {
-                        _uiState.update {
-                            it.copy(purchasePrice = if (it.purchasePrice.isBlank()) "%.2f".format(price) else it.purchasePrice)
-                        }
-                    }
-                }
-            }
-
+            val result = smartDefaultRepository.resolve(itemName, regionCode)
+            applyResolvedDefaults(result.local)
+            applyPurchaseHistoryDefaults(itemName)
             _uiState.update { it.copy(smartDefaultsApplied = true) }
+
+            // Async remote (layers 4+5)
+            result.remoteDeferred?.let { deferred ->
+                remoteDefaultJob?.cancel()
+                remoteDefaultJob = viewModelScope.launch remoteFetch@{
+                    delay(800) // longer debounce for network calls
+                    if (_uiState.value.name != itemName) return@remoteFetch
+                    val remote = deferred.await() ?: return@remoteFetch
+                    if (_uiState.value.name != itemName) return@remoteFetch
+                    // Only apply if user hasn't touched these fields
+                    if (FIELD_CATEGORY !in userTouchedFields &&
+                        FIELD_UNIT !in userTouchedFields &&
+                        FIELD_LOCATION !in userTouchedFields &&
+                        FIELD_EXPIRY !in userTouchedFields
+                    ) {
+                        applyResolvedDefaults(remote)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Apply resolved defaults to the form state.
+     * Only fills fields the user hasn't explicitly interacted with.
+     * Fields were already cleared by clearAutoFilledFields() before this call.
+     */
+    private fun applyResolvedDefaults(defaults: ResolvedDefaults) {
+        if (FIELD_CATEGORY !in userTouchedFields && defaults.categoryId != null) {
+            _uiState.update { it.copy(
+                selectedCategoryId = defaults.categoryId,
+                smartDefaultAppliedCategory = defaults.categoryName,
+                smartDefaultSource = defaults.source
+            ) }
+            loadSubcategories(defaults.categoryId)
+
+            if (FIELD_SUBCATEGORY !in userTouchedFields && defaults.subcategoryId != null) {
+                // Wait briefly for subcategories to load after loadSubcategories
+                viewModelScope.launch {
+                    var subAttempts = 0
+                    while (_uiState.value.subcategories.isEmpty() && subAttempts < 20) {
+                        delay(50)
+                        subAttempts++
+                    }
+                    if (FIELD_SUBCATEGORY !in userTouchedFields) {
+                        _uiState.update { it.copy(
+                            selectedSubcategoryId = defaults.subcategoryId,
+                            smartDefaultAppliedSubcategory = defaults.subcategoryName
+                        ) }
+                    }
+                }
+            }
+        }
+
+        if (FIELD_UNIT !in userTouchedFields && defaults.unitId != null) {
+            _uiState.update { it.copy(
+                selectedUnitId = defaults.unitId,
+                smartDefaultAppliedUnit = defaults.unitAbbreviation
+            ) }
+        }
+
+        if (FIELD_LOCATION !in userTouchedFields && defaults.locationId != null) {
+            _uiState.update { it.copy(
+                selectedLocationId = defaults.locationId,
+                smartDefaultAppliedLocation = defaults.locationName
+            ) }
+        }
+
+        if (FIELD_EXPIRY !in userTouchedFields && defaults.shelfLifeDays != null) {
+            val expiryDate = LocalDate.now().plusDays(defaults.shelfLifeDays.toLong())
+            val wasBlank = _uiState.value.expiryDate.isBlank()
+            _uiState.update {
+                it.copy(
+                    expiryDate = if (wasBlank) expiryDate.toString() else it.expiryDate,
+                    expiryDateAutoFilled = wasBlank,
+                    smartDefaultAppliedExpiryDays = if (wasBlank) defaults.shelfLifeDays else null
+                )
+            }
+        }
+
+        if (FIELD_QUANTITY !in userTouchedFields && defaults.quantity != null && defaults.quantity > 0) {
+            val qty = defaults.quantity
+            val defaultQty = if (qty == qty.toLong().toDouble()) qty.toLong().toString() else "%.2f".format(qty)
+            _uiState.update {
+                it.copy(quantity = if (it.quantity == "1" || it.quantity.isBlank()) defaultQty else it.quantity)
+            }
+        }
+
+        if (FIELD_PRICE !in userTouchedFields && defaults.price != null && defaults.price > 0) {
+            _uiState.update {
+                it.copy(purchasePrice = if (it.purchasePrice.isBlank()) "%.2f".format(defaults.price) else it.purchasePrice)
+            }
+        }
+    }
+
+    /**
+     * Clear fields that were auto-filled by smart defaults (not user-touched).
+     * Called before re-applying smart defaults when the item name changes.
+     */
+    private fun clearAutoFilledFields() {
+        _uiState.update {
+            it.copy(
+                selectedCategoryId = if (FIELD_CATEGORY in userTouchedFields) it.selectedCategoryId else null,
+                selectedSubcategoryId = if (FIELD_SUBCATEGORY in userTouchedFields) it.selectedSubcategoryId else null,
+                selectedLocationId = if (FIELD_LOCATION in userTouchedFields) it.selectedLocationId else null,
+                selectedUnitId = if (FIELD_UNIT in userTouchedFields) it.selectedUnitId else null,
+                expiryDate = if (FIELD_EXPIRY in userTouchedFields) it.expiryDate else "",
+                quantity = if (FIELD_QUANTITY in userTouchedFields) it.quantity else "1",
+                // Clear correction tracking for fresh comparison
+                smartDefaultAppliedCategory = null,
+                smartDefaultAppliedSubcategory = null,
+                smartDefaultAppliedLocation = null,
+                smartDefaultAppliedUnit = null,
+                smartDefaultSource = null,
+                smartDefaultsApplied = false,
+                expiryDateAutoFilled = false,
+                smartDefaultAppliedExpiryDays = null,
+                quantityAutoFilled = false
+            )
+        }
+    }
+
+    private suspend fun applyPurchaseHistoryDefaults(itemName: String) {
+        val purchaseDefaults = purchaseHistoryDao.getLatestPurchaseDefaultsByName(itemName)
+        if (purchaseDefaults != null) {
+            if (FIELD_QUANTITY !in userTouchedFields) {
+                val qty = purchaseDefaults.quantity
+                if (qty > 0) {
+                    _uiState.update {
+                        val defaultQty = if (qty == qty.toLong().toDouble()) qty.toLong().toString() else "%.2f".format(qty)
+                        val shouldFill = it.quantity == "1" || it.quantity.isBlank()
+                        it.copy(
+                            quantity = if (shouldFill) defaultQty else it.quantity,
+                            quantityAutoFilled = shouldFill
+                        )
+                    }
+                }
+            }
+            if (FIELD_UNIT !in userTouchedFields && purchaseDefaults.unitId != null) {
+                _uiState.update {
+                    it.copy(selectedUnitId = if (it.selectedUnitId == null) purchaseDefaults.unitId else it.selectedUnitId)
+                }
+            }
+            if (FIELD_PRICE !in userTouchedFields) {
+                val price = purchaseDefaults.totalPrice
+                if (price != null && price > 0) {
+                    _uiState.update {
+                        it.copy(purchasePrice = if (it.purchasePrice.isBlank()) "%.2f".format(price) else it.purchasePrice)
+                    }
+                }
+            }
         }
     }
 
@@ -538,7 +660,7 @@ If no expiry date found, return exactly: NONE""",
         val catDefaults = SmartDefaults.getCategoryDefaults(category.name, regionCode) ?: return
 
         // Auto-fill location
-        if (!userSetLocation && catDefaults.location != null) {
+        if (FIELD_LOCATION !in userTouchedFields && catDefaults.location != null) {
             val location = state.locations.find {
                 it.name.equals(catDefaults.location, ignoreCase = true)
             }
@@ -546,11 +668,63 @@ If no expiry date found, return exactly: NONE""",
         }
 
         // Auto-fill unit
-        if (!userSetUnit && catDefaults.unit != null) {
+        if (FIELD_UNIT !in userTouchedFields && catDefaults.unit != null) {
             val unit = state.units.find {
                 it.abbreviation.equals(catDefaults.unit, ignoreCase = true)
             }
             unit?.let { _uiState.update { s -> s.copy(selectedUnitId = it.id) } }
+        }
+    }
+
+    /**
+     * Phase 4: Detect if user overrode server-provided smart defaults and submit anonymous corrections.
+     * Only fires for "cache" or "remote" sourced defaults (not personal history or static dictionary).
+     * Fire-and-forget — never blocks save.
+     */
+    private fun submitCorrectionsIfNeeded(state: ItemFormUiState) {
+        val source = state.smartDefaultSource ?: return
+        // Only submit corrections for server-sourced data (cache = seed/server, remote = Firestore/AI)
+        if (source != "cache" && source != "remote") return
+
+        // Check consent (auto-opt-in on first use)
+        viewModelScope.launch {
+            val consent = settingsRepository.getString(SettingsRepository.KEY_CORRECTION_CONSENT, "")
+            if (consent == "no") return@launch
+            if (consent.isEmpty()) {
+                // Auto opt-in silently
+                settingsRepository.set(SettingsRepository.KEY_CORRECTION_CONSENT, "yes")
+            }
+
+            val itemName = state.name.trim()
+
+            // Compare each field: what was auto-filled vs what user selected at save time
+            state.smartDefaultAppliedCategory?.let { appliedCategory ->
+                val currentCategory = state.categories.find { it.id == state.selectedCategoryId }?.name
+                if (currentCategory != null && !currentCategory.equals(appliedCategory, ignoreCase = true)) {
+                    smartDefaultRepository.submitCorrection(itemName, "category", appliedCategory, currentCategory, regionCode)
+                }
+            }
+
+            state.smartDefaultAppliedSubcategory?.let { appliedSub ->
+                val currentSub = state.subcategories.find { it.id == state.selectedSubcategoryId }?.name
+                if (currentSub != null && !currentSub.equals(appliedSub, ignoreCase = true)) {
+                    smartDefaultRepository.submitCorrection(itemName, "subcategory", appliedSub, currentSub, regionCode)
+                }
+            }
+
+            state.smartDefaultAppliedLocation?.let { appliedLocation ->
+                val currentLocation = state.locations.find { it.id == state.selectedLocationId }?.name
+                if (currentLocation != null && !currentLocation.equals(appliedLocation, ignoreCase = true)) {
+                    smartDefaultRepository.submitCorrection(itemName, "location", appliedLocation, currentLocation, regionCode)
+                }
+            }
+
+            state.smartDefaultAppliedUnit?.let { appliedUnit ->
+                val currentUnit = state.units.find { it.id == state.selectedUnitId }?.abbreviation
+                if (currentUnit != null && !currentUnit.equals(appliedUnit, ignoreCase = true)) {
+                    smartDefaultRepository.submitCorrection(itemName, "unit", appliedUnit, currentUnit, regionCode)
+                }
+            }
         }
     }
 
@@ -660,7 +834,7 @@ If no expiry date found, return exactly: NONE""",
                     if (duplicate != null) {
                         // Merge: add quantity to existing item, update metadata
                         val mergedQty = duplicate.quantity + qty
-                        val mergedSmartMin = maxOf(duplicate.smartMinQuantity, mergedQty)
+                        val mergedSmartMin = maxOf(duplicate.smartMinQuantity, qty)
                         itemRepository.update(duplicate.copy(
                             quantity = mergedQty,
                             smartMinQuantity = mergedSmartMin,
@@ -705,6 +879,11 @@ If no expiry date found, return exactly: NONE""",
                         )
                         newId
                     }
+                }
+
+                // Fire-and-forget correction submission if user overrode server-provided defaults
+                if (isNewItem) {
+                    submitCorrectionsIfNeeded(state)
                 }
 
                 // Auto-strike matching shopping list items (only for new items)
@@ -774,6 +953,15 @@ If no expiry date found, return exactly: NONE""",
 
     companion object {
         /** One-shot flag: set by Dashboard "Show me" → consumed by ItemFormScreen to show tour overlay */
-        var pendingTourMode: Boolean = false
+        val pendingTourMode = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        // Field name constants for userTouchedFields tracking
+        private const val FIELD_CATEGORY = "category"
+        private const val FIELD_SUBCATEGORY = "subcategory"
+        private const val FIELD_LOCATION = "location"
+        private const val FIELD_UNIT = "unit"
+        private const val FIELD_EXPIRY = "expiry"
+        private const val FIELD_QUANTITY = "quantity"
+        private const val FIELD_PRICE = "price"
     }
 }

@@ -42,9 +42,9 @@ interface ItemDao {
     @Query("""
         SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
-        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
+        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) * :thresholdRatio
     """)
-    fun getLowStockCount(): Flow<Int>
+    fun getLowStockCount(thresholdRatio: Double = 0.25): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM items WHERE is_active = 1 AND is_paused = 0 AND quantity <= 0")
     fun getOutOfStockCount(): Flow<Int>
@@ -166,11 +166,11 @@ interface ItemDao {
     @Query("""
         SELECT * FROM items WHERE is_active = 1 AND is_paused = 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
-        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
+        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) * :thresholdRatio
         ORDER BY (quantity / (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)) ASC
         LIMIT :limit
     """)
-    fun getLowStockItems(limit: Int = 5): Flow<List<ItemWithDetails>>
+    fun getLowStockItems(limit: Int = 5, thresholdRatio: Double = 0.25): Flow<List<ItemWithDetails>>
 
     // Items at location
     @Transaction
@@ -230,9 +230,9 @@ interface ItemDao {
     @Query("""
         SELECT * FROM items WHERE is_active = 1 AND is_paused = 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
-        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
+        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) * :thresholdRatio
     """)
-    suspend fun getLowStockItemsList(): List<ItemEntity>
+    suspend fun getLowStockItemsList(thresholdRatio: Double = 0.25): List<ItemEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(item: ItemEntity): Long
@@ -263,6 +263,9 @@ interface ItemDao {
 
     @Query("UPDATE items SET expiry_date = :date, updated_at = :now WHERE id = :id AND expiry_date IS NULL")
     suspend fun updateExpiryDateIfNull(id: Long, date: Long?, now: Long)
+
+    @Query("UPDATE items SET expiry_date = :date, updated_at = :now WHERE id = :id")
+    suspend fun updateExpiryDateForce(id: Long, date: Long, now: Long)
 
     @Query("UPDATE items SET barcode = :barcode, updated_at = :now WHERE id = :id AND (barcode IS NULL OR barcode = '')")
     suspend fun updateBarcodeIfEmpty(id: Long, barcode: String, now: Long)
@@ -300,10 +303,10 @@ interface ItemDao {
         SELECT * FROM items WHERE is_active = 1 AND is_paused = 0
         AND quantity > 0
         AND (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) > 0
-        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)
+        AND quantity < (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END) * :thresholdRatio
         ORDER BY (quantity / (CASE WHEN min_quantity > 0 THEN min_quantity ELSE smart_min_quantity END)) ASC
     """)
-    fun getLowStockItemsReport(): Flow<List<ItemWithDetails>>
+    fun getLowStockItemsReport(thresholdRatio: Double = 0.25): Flow<List<ItemWithDetails>>
 
     // All out of stock (for reports, exclude paused)
     @Transaction
@@ -317,6 +320,14 @@ interface ItemDao {
     // Most recently added active item (for Smart Defaults tour)
     @Query("SELECT id FROM items WHERE is_active = 1 ORDER BY id DESC LIMIT 1")
     suspend fun getLastAddedItemId(): Long?
+
+    // Personal history: find most recent item by exact name (includes deleted items for learning)
+    @Query("""
+        SELECT * FROM items
+        WHERE LOWER(name) = LOWER(:name)
+        ORDER BY created_at DESC LIMIT 1
+    """)
+    suspend fun findMostRecentByName(name: String): ItemEntity?
 
     // All active item names + IDs (lightweight, for AI matching context)
     @Query("SELECT id, name FROM items WHERE is_active = 1 ORDER BY name")

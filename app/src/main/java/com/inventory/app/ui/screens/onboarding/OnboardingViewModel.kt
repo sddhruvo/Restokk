@@ -57,11 +57,7 @@ class OnboardingViewModel @Inject constructor(
         val customCountryName = savedStateHandle.get<String>(SS_CUSTOM_COUNTRY_NAME)
         val customCurrency = savedStateHandle.get<String>(SS_CUSTOM_CURRENCY)
         val region = if (regionCode == "CUSTOM" && customCountryName != null && customCurrency != null) {
-            val datePreview = try {
-                java.time.LocalDate.of(2026, 2, 19)
-                    .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
-            } catch (_: Exception) { "19 Feb 2026" }
-            RegionInfo("CUSTOM", customCountryName, customCurrency, datePreview, "\uD83C\uDF10")
+            RegionInfo.fromConfig(com.inventory.app.domain.model.RegionRegistry.custom(customCountryName, customCurrency))
         } else if (regionCode != null) {
             popularRegions.find { it.countryCode == regionCode } ?: detected
         } else detected

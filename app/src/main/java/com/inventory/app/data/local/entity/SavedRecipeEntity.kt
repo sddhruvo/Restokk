@@ -22,5 +22,11 @@ data class SavedRecipeEntity(
     @ColumnInfo(name = "source_settings_json") val sourceSettingsJson: String? = null,
     @ColumnInfo(name = "is_active") val isActive: Boolean = true,
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
-    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
+    // Phase 1B additions
+    val source: String = "ai",                              // "ai" | "manual" | "captured"
+    @ColumnInfo(name = "meal_type") val mealType: String? = null,   // breakfast/lunch/dinner/snack/dessert
+    val tags: String? = null,                               // JSON array: ["quick","weeknight"]
+    @ColumnInfo(name = "is_draft") val isDraft: Boolean = false,    // in-progress recipes
+    @ColumnInfo(name = "cover_photo_uri") val coverPhotoUri: String? = null
 )

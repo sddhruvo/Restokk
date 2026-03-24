@@ -7,8 +7,10 @@ import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.data.local.entity.StorageLocationEntity
 import com.inventory.app.data.repository.CategoryRepository
 import com.inventory.app.data.repository.ItemRepository
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.StorageLocationRepository
 import com.inventory.app.data.repository.UnitRepository
+import com.inventory.app.data.repository.UsageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,8 +46,15 @@ class ItemListViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
     private val categoryRepository: CategoryRepository,
     private val locationRepository: StorageLocationRepository,
-    private val unitRepository: UnitRepository
+    private val unitRepository: UnitRepository,
+    private val settingsRepository: SettingsRepository,
+    private val usageRepository: UsageRepository
 ) : ViewModel() {
+
+    /** Low stock threshold as a ratio (0.0–1.0). Default 25% = 0.25f. */
+    val lowStockThreshold = settingsRepository
+        .getStringFlow(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "25")
 
     private val _filterState = MutableStateFlow(FilterState())
 
@@ -53,7 +62,8 @@ class ItemListViewModel @Inject constructor(
         val search: String? = null,
         val categoryId: Long? = null,
         val locationId: Long? = null,
-        val sortBy: String = "updated"
+        val sortBy: String = "updated",
+        val refreshToken: Int = 0
     )
 
     private val _viewMode = MutableStateFlow(ViewMode.GRID)
@@ -122,11 +132,11 @@ class ItemListViewModel @Inject constructor(
     }
 
     fun deleteItem(id: Long) {
-        viewModelScope.launch { itemRepository.softDelete(id) }
+        viewModelScope.launch { usageRepository.softDeleteWithWasteDetection(id) }
     }
 
     fun restoreItem(id: Long) {
-        viewModelScope.launch { itemRepository.restore(id) }
+        viewModelScope.launch { usageRepository.restoreWithWasteCleanup(id) }
     }
 
     fun toggleFavorite(id: Long) {
@@ -146,10 +156,9 @@ class ItemListViewModel @Inject constructor(
 
     fun toggleSelection(id: Long) {
         _selectedIds.update { ids ->
-            if (id in ids) ids - id else ids + id
-        }
-        if (_selectedIds.value.isEmpty()) {
-            _selectionMode.value = false
+            val newIds = if (id in ids) ids - id else ids + id
+            if (newIds.isEmpty()) _selectionMode.value = false
+            newIds
         }
     }
 
@@ -158,15 +167,15 @@ class ItemListViewModel @Inject constructor(
     }
 
     fun refresh() {
-        // Force re-emission by resetting filter state
-        _filterState.update { it.copy() }
+        // Force re-emission by incrementing refresh token (breaks StateFlow equality dedup)
+        _filterState.update { it.copy(refreshToken = it.refreshToken + 1) }
     }
 
     fun deleteSelected() {
         val snapshot = _selectedIds.value.toSet()
         viewModelScope.launch {
             snapshot.forEach { id ->
-                itemRepository.softDelete(id)
+                usageRepository.softDeleteWithWasteDetection(id)
             }
             _selectedIds.update { current ->
                 current - snapshot

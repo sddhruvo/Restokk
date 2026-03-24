@@ -3,10 +3,6 @@ package com.inventory.app.ui.screens.items
 import com.inventory.app.ui.components.ThemedTextField
 import com.inventory.app.ui.components.ThemedSnackbarHost
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,13 +25,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import com.inventory.app.ui.components.ThemedSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,10 +50,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
-import com.inventory.app.ui.components.AnimatedSaveButton
-import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.SaveAction
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.DuplicateWarningBanner
 import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.components.AutoCompleteTextField
 import com.inventory.app.ui.components.DatePickerField
@@ -67,7 +62,6 @@ import com.inventory.app.ui.components.ExpandableSection
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.appColors
-import com.inventory.app.ui.theme.visuals
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +72,7 @@ fun ItemFormScreen(
     name: String? = null,
     brand: String? = null,
     quantity: String? = null,
+    size: String? = null,
     viewModel: ItemFormViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -87,7 +82,7 @@ fun ItemFormScreen(
     val aiGate = rememberAiSignInGate()
 
     // Smart Defaults tour — read & clear one-shot flag
-    val tourMode = remember { ItemFormViewModel.pendingTourMode.also { ItemFormViewModel.pendingTourMode = false } }
+    val tourMode = remember { ItemFormViewModel.pendingTourMode.getAndSet(false) }
     var showTourOverlay by remember { mutableStateOf(tourMode) }
     var tourStep by remember { mutableStateOf(TourStep.DONE) }
     var categoryRowY by remember { mutableIntStateOf(0) }
@@ -95,13 +90,13 @@ fun ItemFormScreen(
     var scaffoldTopPadding by remember { mutableIntStateOf(0) }
 
     // Observe scanned expiry date result from ExpiryDateScannerScreen
-    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-    LaunchedEffect(savedStateHandle) {
-        savedStateHandle?.getStateFlow<String?>("scannedExpiryDate", null)
-            ?.collect { date ->
+    LaunchedEffect(Unit) {
+        val handle = navController.currentBackStackEntry?.savedStateHandle ?: return@LaunchedEffect
+        handle.getStateFlow<String?>("scannedExpiryDate", null)
+            .collect { date ->
                 if (date != null) {
                     viewModel.updateExpiryDate(date)
-                    savedStateHandle.remove<String>("scannedExpiryDate")
+                    handle.remove<String>("scannedExpiryDate")
                 }
             }
     }
@@ -149,9 +144,9 @@ fun ItemFormScreen(
         itemId?.let { viewModel.loadItem(it) }
     }
 
-    LaunchedEffect(barcode, name, brand, quantity) {
+    LaunchedEffect(barcode, name, brand, quantity, size) {
         if (itemId == null) {
-            viewModel.prefill(barcode, name, brand, quantity)
+            viewModel.prefill(barcode, name, brand, quantity, size)
         }
     }
 
@@ -186,63 +181,39 @@ fun ItemFormScreen(
         )
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text(if (itemId != null) "Edit Item" else "Add Item") },
-                navigationIcon = {
-                    InkBackButton(onClick = {
-                        if (isDirty) showDiscardDialog = true
-                        else navController.popBackStack()
-                    })
-                }
-            )
+    val formTitle = if (itemId != null) "Edit Item" else "Add Item"
+
+    PageScaffold(
+        onBack = {
+            if (isDirty) showDiscardDialog = true
+            else navController.popBackStack()
         },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
-        bottomBar = {
-            AnimatedVisibility(
+        actions = {
+            SaveAction(
                 visible = isDirty || uiState.isSaving || uiState.isSaved,
-                enter = slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = spring(dampingRatio = 0.7f, stiffness = 200f)
-                ),
-                exit = slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = spring(dampingRatio = 0.7f, stiffness = 200f)
-                )
-            ) {
-                Surface(
-                    tonalElevation = if (MaterialTheme.visuals.useElevation) 3.dp else 0.dp,
-                    shadowElevation = if (MaterialTheme.visuals.useElevation) 8.dp else 0.dp
-                ) {
-                    AnimatedSaveButton(
-                        text = if (itemId != null) "Update Item" else "Create Item",
-                        onClick = { viewModel.save() },
-                        isLoading = uiState.isSaving,
-                        isSaved = uiState.isSaved,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    )
-                }
-            }
+                onClick = { viewModel.save() },
+                isLoading = uiState.isSaving,
+                isSaved = uiState.isSaved
+            )
         }
-    ) { padding ->
+    ) { contentPadding ->
         val density = LocalDensity.current
         // Capture scaffold top padding in px for tour overlay positioning
-        LaunchedEffect(padding) {
-            scaffoldTopPadding = with(density) { padding.calculateTopPadding().toPx() }.toInt()
+        LaunchedEffect(contentPadding) {
+            scaffoldTopPadding = with(density) { contentPadding.calculateTopPadding().toPx() }.toInt()
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .verticalScroll(scrollState)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            PageHeader(formTitle)
             // ── Essential Fields ──────────────────────────────────────
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -264,6 +235,15 @@ fun ItemFormScreen(
                         modifier = Modifier.fillMaxWidth(),
                         isError = uiState.nameError != null,
                         supportingText = uiState.nameError?.let { { Text(it) } }
+                    )
+
+                    // Duplicate detection warning
+                    DuplicateWarningBanner(
+                        matches = uiState.duplicateMatches,
+                        suggestedAction = uiState.duplicateSuggestedAction,
+                        onNavigateToItem = { itemId ->
+                            navController.navigate(Screen.ItemDetail.createRoute(itemId))
+                        }
                     )
 
                     if (uiState.smartDefaultsApplied) {
@@ -325,7 +305,11 @@ fun ItemFormScreen(
                             modifier = Modifier.weight(1f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             isError = uiState.quantityError != null,
-                            supportingText = uiState.quantityError?.let { { Text(it) } }
+                            supportingText = when {
+                                uiState.quantityError != null -> {{ Text(uiState.quantityError!!) }}
+                                uiState.quantityAutoFilled -> {{ Text("From your last purchase", color = MaterialTheme.colorScheme.tertiary) }}
+                                else -> null
+                            }
                         )
                         DropdownField(
                             label = "Unit",
@@ -358,13 +342,17 @@ fun ItemFormScreen(
                             label = { Text("Expiry Date") },
                             modifier = Modifier.weight(1f),
                             isError = uiState.expiryDateError != null,
-                            supportingText = uiState.expiryDateError?.let { { Text(it) } }
+                            supportingText = when {
+                                uiState.expiryDateError != null -> {{ Text(uiState.expiryDateError!!) }}
+                                uiState.expiryDateAutoFilled && uiState.smartDefaultAppliedExpiryDays != null -> {{
+                                    Text("Suggested (${uiState.smartDefaultAppliedExpiryDays} day shelf life)", color = MaterialTheme.colorScheme.tertiary)
+                                }}
+                                else -> null
+                            }
                         )
                         IconButton(
                             onClick = {
-                                aiGate.requireSignIn("scan expiry dates") {
-                                    navController.navigate(Screen.ExpiryDateScan.route)
-                                }
+                                navController.navigate(Screen.ExpiryDateScan.route)
                             },
                             modifier = Modifier.padding(top = 8.dp)
                         ) {
@@ -526,7 +514,7 @@ fun ItemFormScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Favorite")
+                                Text("Favorite", style = MaterialTheme.typography.bodyLarge)
                                 ThemedSwitch(
                                     checked = uiState.isFavorite,
                                     onCheckedChange = { viewModel.updateFavorite(it) }
@@ -540,7 +528,7 @@ fun ItemFormScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("Pause Alerts")
+                                    Text("Pause Alerts", style = MaterialTheme.typography.bodyLarge)
                                     Text(
                                         "Hide from expiry & low stock warnings",
                                         style = MaterialTheme.typography.bodySmall,

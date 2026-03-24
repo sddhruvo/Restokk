@@ -1,5 +1,6 @@
 package com.inventory.app.ui.screens.items
 
+import com.inventory.app.ui.navigation.LocalBottomNavHeight
 import com.inventory.app.ui.components.ThemedDropdownMenu
 import com.inventory.app.ui.components.ThemedFilterChip
 import com.inventory.app.ui.components.ThemedSnackbarHost
@@ -58,14 +59,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.CollapsingPageScaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -91,6 +90,7 @@ import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.formatQty
+import com.inventory.app.ui.components.computeStockBar
 import com.inventory.app.ui.components.EmptyStateIllustration
 import com.inventory.app.ui.components.AnimatedFab
 import com.inventory.app.ui.components.LoadingState
@@ -122,6 +122,8 @@ fun ItemListScreen(
     }
     val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val uiState by viewModel.uiState.collectAsState()
+    val lowStockPct by viewModel.lowStockThreshold.collectAsState()
+    val lowStockRatio = (lowStockPct.toFloatOrNull() ?: 25f) / 100f
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var searchActive by rememberSaveable { mutableStateOf(uiState.searchQuery.isNotBlank()) }
@@ -161,88 +163,61 @@ fun ItemListScreen(
         )
     }
 
-    ThemedScaffold(
-        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
-        topBar = {
+    CollapsingPageScaffold(
+        title = if (uiState.selectionMode) "${uiState.selectedIds.size} selected" else "Items",
+        onBack = if (uiState.selectionMode) ({ viewModel.exitSelectionMode() }) else null,
+        actions = {
             if (uiState.selectionMode) {
-                ThemedTopAppBar(
-                    title = {
-                        AnimatedContent(
-                            targetState = uiState.selectedIds.size,
-                            transitionSpec = {
-                                slideInVertically { -it } + fadeIn() togetherWith
-                                        slideOutVertically { it } + fadeOut()
-                            },
-                            label = "selectionCount"
-                        ) { count ->
-                            Text("$count selected")
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { viewModel.exitSelectionMode() }) {
-                            ThemedIcon(materialIcon = Icons.Filled.Close, inkIconRes = R.drawable.ic_ink_close, contentDescription = "Cancel selection")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { viewModel.selectAll() }) {
-                            ThemedIcon(materialIcon = Icons.Filled.SelectAll, inkIconRes = R.drawable.ic_ink_select_all, contentDescription = "Select all")
-                        }
-                        IconButton(
-                            onClick = { showDeleteConfirmation = true },
-                            enabled = uiState.selectedIds.isNotEmpty()
-                        ) {
-                            ThemedIcon(
-                                materialIcon = Icons.Filled.Delete,
-                                inkIconRes = R.drawable.ic_ink_delete,
-                                contentDescription = "Delete selected",
-                                tint = if (uiState.selectedIds.isNotEmpty()) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                IconButton(onClick = { viewModel.selectAll() }) {
+                    ThemedIcon(materialIcon = Icons.Filled.SelectAll, inkIconRes = R.drawable.ic_ink_select_all, contentDescription = "Select all")
+                }
+                IconButton(
+                    onClick = { showDeleteConfirmation = true },
+                    enabled = uiState.selectedIds.isNotEmpty()
+                ) {
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.Delete,
+                        inkIconRes = R.drawable.ic_ink_delete,
+                        contentDescription = "Delete selected",
+                        tint = if (uiState.selectedIds.isNotEmpty()) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                )
+                }
             } else {
-                ThemedTopAppBar(
-                    title = { Text("Items") },
-                    actions = {
-                        IconButton(onClick = { searchActive = !searchActive }) {
-                            ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search")
-                        }
-                        IconButton(onClick = { showSortMenu = true }) {
-                            ThemedIcon(materialIcon = Icons.Filled.Sort, inkIconRes = R.drawable.ic_ink_sort, contentDescription = "Sort")
-                        }
-                        ThemedDropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            sortOptions.forEach { (key, label) ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            label,
-                                            fontWeight = if (uiState.sortBy == key) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.updateSort(key)
-                                        showSortMenu = false
-                                    }
+                IconButton(onClick = { searchActive = !searchActive }) {
+                    ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search")
+                }
+                IconButton(onClick = { showSortMenu = true }) {
+                    ThemedIcon(materialIcon = Icons.Filled.Sort, inkIconRes = R.drawable.ic_ink_sort, contentDescription = "Sort")
+                }
+                ThemedDropdownMenu(
+                    expanded = showSortMenu,
+                    onDismissRequest = { showSortMenu = false }
+                ) {
+                    sortOptions.forEach { (key, label) ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    label,
+                                    fontWeight = if (uiState.sortBy == key) FontWeight.Bold else FontWeight.Normal
                                 )
+                            },
+                            onClick = {
+                                viewModel.updateSort(key)
+                                showSortMenu = false
                             }
-                        }
-                        IconButton(onClick = { viewModel.toggleViewMode() }) {
-                            Icon(
-                                if (uiState.viewMode == ViewMode.GRID) Icons.Filled.ViewList else Icons.Filled.GridView,
-                                contentDescription = "Toggle view"
-                            )
-                        }
+                        )
                     }
-                )
+                }
+                IconButton(onClick = { viewModel.toggleViewMode() }) {
+                    Icon(
+                        if (uiState.viewMode == ViewMode.GRID) Icons.Filled.ViewList else Icons.Filled.GridView,
+                        contentDescription = "Toggle view"
+                    )
+                }
             }
         },
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
         floatingActionButton = {
             AnimatedFab(
                 onClick = { navController.navigate(Screen.ItemForm.createRoute()) },
@@ -282,31 +257,6 @@ fun ItemListScreen(
                 ) {}
             }
 
-            // Filter chips
-            AnimatedVisibility(
-                visible = !uiState.selectionMode,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
-                    modifier = Modifier.padding(bottom = Dimens.spacingSm)
-                ) {
-                    items(uiState.categories) { category ->
-                        ThemedFilterChip(
-                            selected = uiState.selectedCategoryId == category.id,
-                            onClick = {
-                                viewModel.selectCategory(
-                                    if (uiState.selectedCategoryId == category.id) null else category.id
-                                )
-                            },
-                            label = { Text(category.name) }
-                        )
-                    }
-                }
-            }
-
             // Content
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
@@ -330,16 +280,45 @@ fun ItemListScreen(
                                     val (activeItems, pausedItems) = uiState.items.partition { !it.isPaused }
                                     LazyVerticalGrid(
                                         columns = GridCells.Fixed(2),
-                                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+                                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
                                         verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                                     ) {
+                                        // Filter chips — scroll with content
+                                        item(span = { GridItemSpan(maxLineSpan) }, key = "filter_chips") {
+                                            Column {
+                                                AnimatedVisibility(
+                                                    visible = !uiState.selectionMode,
+                                                    enter = expandVertically() + fadeIn(),
+                                                    exit = shrinkVertically() + fadeOut()
+                                                ) {
+                                                    LazyRow(
+                                                        contentPadding = PaddingValues(horizontal = 0.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                                                        modifier = Modifier.padding(bottom = Dimens.spacingXs)
+                                                    ) {
+                                                        items(uiState.categories, key = { it.id }) { category ->
+                                                            ThemedFilterChip(
+                                                                selected = uiState.selectedCategoryId == category.id,
+                                                                onClick = {
+                                                                    viewModel.selectCategory(
+                                                                        if (uiState.selectedCategoryId == category.id) null else category.id
+                                                                    )
+                                                                },
+                                                                label = { Text(category.name) }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                         items(activeItems, key = { it.id }) { item ->
                                             ItemGridCard(
                                                 item = item,
                                                 unitAbbr = item.unitId?.let { uiState.unitMap[it] },
                                                 isSelected = item.id in uiState.selectedIds,
                                                 selectionMode = uiState.selectionMode,
+                                                lowStockRatio = lowStockRatio,
                                                 onClick = {
                                                     if (uiState.selectionMode) {
                                                         viewModel.toggleSelection(item.id)
@@ -375,7 +354,7 @@ fun ItemListScreen(
                                                     ThemedDivider(modifier = Modifier.weight(1f))
                                                 }
                                             }
-                                            items(pausedItems, key = { it.id }) { item ->
+                                            items(pausedItems, key = { "paused_${it.id}" }) { item ->
                                                 ItemGridCard(
                                                     item = item,
                                                     unitAbbr = item.unitId?.let { uiState.unitMap[it] },
@@ -404,14 +383,43 @@ fun ItemListScreen(
                                 ViewMode.LIST -> {
                                     val (activeItems, pausedItems) = uiState.items.partition { !it.isPaused }
                                     LazyColumn(
-                                        contentPadding = PaddingValues(bottom = 80.dp)
+                                        contentPadding = PaddingValues(horizontal = Dimens.spacingLg)
                                     ) {
+                                        // Filter chips — scroll with content
+                                        item(key = "filter_chips") {
+                                            Column {
+                                                AnimatedVisibility(
+                                                    visible = !uiState.selectionMode,
+                                                    enter = expandVertically() + fadeIn(),
+                                                    exit = shrinkVertically() + fadeOut()
+                                                ) {
+                                                    LazyRow(
+                                                        contentPadding = PaddingValues(horizontal = 0.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                                                        modifier = Modifier.padding(bottom = Dimens.spacingXs)
+                                                    ) {
+                                                        items(uiState.categories, key = { it.id }) { category ->
+                                                            ThemedFilterChip(
+                                                                selected = uiState.selectedCategoryId == category.id,
+                                                                onClick = {
+                                                                    viewModel.selectCategory(
+                                                                        if (uiState.selectedCategoryId == category.id) null else category.id
+                                                                    )
+                                                                },
+                                                                label = { Text(category.name) }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                         items(activeItems, key = { it.id }) { item ->
                                             ItemListRow(
                                                 item = item,
                                                 unitAbbr = item.unitId?.let { uiState.unitMap[it] },
                                                 isSelected = item.id in uiState.selectedIds,
                                                 selectionMode = uiState.selectionMode,
+                                                lowStockRatio = lowStockRatio,
                                                 onClick = {
                                                     if (uiState.selectionMode) {
                                                         viewModel.toggleSelection(item.id)
@@ -447,7 +455,7 @@ fun ItemListScreen(
                                                     ThemedDivider(modifier = Modifier.weight(1f))
                                                 }
                                             }
-                                            items(pausedItems, key = { it.id }) { item ->
+                                            items(pausedItems, key = { "paused_${it.id}" }) { item ->
                                                 ItemListRow(
                                                     item = item,
                                                     unitAbbr = item.unitId?.let { uiState.unitMap[it] },
@@ -489,6 +497,7 @@ private fun ItemGridCard(
     unitAbbr: String? = null,
     isSelected: Boolean,
     selectionMode: Boolean,
+    lowStockRatio: Float = 0.25f,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFavorite: () -> Unit,
@@ -501,18 +510,11 @@ private fun ItemGridCard(
         label = "selectionScale"
     )
 
-    // Effective min: manual minQuantity if set, otherwise smart (peak) min
-    val effectiveMin = if (item.minQuantity > 0) item.minQuantity else item.smartMinQuantity
-    val hasEffectiveMin = effectiveMin > 0
-    val stockRatio = if (hasEffectiveMin) (item.quantity / effectiveMin).toFloat().coerceIn(0f, 1f) else 1f
+    val stockState = computeStockBar(item.quantity, item.minQuantity, item.smartMinQuantity, item.maxQuantity, lowStockRatio)
+    val stockRatio = stockState.ratio
     val appColors = MaterialTheme.appColors
-    val stockColor = when {
-        !hasEffectiveMin -> null
-        item.quantity <= 0 -> appColors.statusExpired
-        stockRatio < 0.3f -> appColors.statusExpired
-        stockRatio < 0.6f -> appColors.statusLowStock
-        else -> appColors.statusInStock
-    }
+    val stockColor = appColors.stockColor(stockRatio, stockState.threshold)
+    val hasEffectiveMin = stockState.ceiling > 0 && (item.minQuantity > 0 || item.smartMinQuantity > 0 || item.maxQuantity?.let { it > 0 } == true)
 
     val statusColor = when {
         item.expiryDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }?.let { it < 0 } == true -> appColors.statusExpired
@@ -604,14 +606,13 @@ private fun ItemGridCard(
             if (hasEffectiveMin) {
                 val stockLabel = when {
                     item.quantity <= 0 -> "Out of stock"
-                    stockRatio < 0.3f -> "Low"
-                    stockRatio < 0.6f -> "Getting low"
+                    stockRatio <= stockState.threshold -> "Low"
                     else -> "OK"
                 }
                 val qtyText = buildString {
                     append(item.quantity.formatQty())
                     unitAbbr?.let { append(" $it") }
-                    append(" / ${effectiveMin.formatQty()}")
+                    append(" / ${stockState.ceiling.formatQty()}")
                     unitAbbr?.let { append(" $it") }
                     append(" · $stockLabel")
                 }
@@ -623,7 +624,7 @@ private fun ItemGridCard(
                     Text(
                         text = qtyText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = stockColor ?: MaterialTheme.colorScheme.onSurfaceVariant
+                        color = stockColor
                     )
                     if (!selectionMode) {
                         IconButton(
@@ -647,11 +648,11 @@ private fun ItemGridCard(
                         .fillMaxWidth()
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = stockColor ?: appColors.statusInStock,
+                    color = stockColor,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             } else {
-                // No min quantity — simple qty display
+                // No min quantity — qty display with stock bar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -662,8 +663,8 @@ private fun ItemGridCard(
                             append(item.quantity.formatQty())
                             unitAbbr?.let { append(" $it") }
                         },
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.labelLarge,
+                        color = stockColor
                     )
                     if (!selectionMode) {
                         IconButton(
@@ -680,6 +681,16 @@ private fun ItemGridCard(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(Dimens.spacingXs))
+                ThemedProgressBar(
+                    progress = { stockRatio },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = stockColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
             }
 
             // Expiry chips (stock status is now shown by the progress bar)
@@ -717,6 +728,7 @@ private fun ItemListRow(
     unitAbbr: String? = null,
     isSelected: Boolean,
     selectionMode: Boolean,
+    lowStockRatio: Float = 0.25f,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFavorite: () -> Unit,
@@ -730,17 +742,11 @@ private fun ItemListRow(
         label = "rowBgColor"
     )
 
-    val effectiveMin = if (item.minQuantity > 0) item.minQuantity else item.smartMinQuantity
-    val hasEffectiveMin = effectiveMin > 0
-    val stockRatio = if (hasEffectiveMin) (item.quantity / effectiveMin).toFloat().coerceIn(0f, 1f) else 1f
+    val stockState = computeStockBar(item.quantity, item.minQuantity, item.smartMinQuantity, item.maxQuantity, lowStockRatio)
+    val stockRatio = stockState.ratio
     val appColors = MaterialTheme.appColors
-    val stockColor = when {
-        !hasEffectiveMin -> null
-        item.quantity <= 0 -> appColors.statusExpired
-        stockRatio < 0.3f -> appColors.statusExpired
-        stockRatio < 0.6f -> appColors.statusLowStock
-        else -> appColors.statusInStock
-    }
+    val stockColor = appColors.stockColor(stockRatio, stockState.threshold)
+    val hasEffectiveMin = item.minQuantity > 0 || item.smartMinQuantity > 0 || item.maxQuantity?.let { it > 0 } == true
 
     ListItem(
         headlineContent = {
@@ -770,12 +776,11 @@ private fun ItemListRow(
                     append(item.quantity.formatQty())
                     unitAbbr?.let { append(" $it") }
                     if (hasEffectiveMin) {
-                        append(" / ${effectiveMin.formatQty()}")
+                        append(" / ${stockState.ceiling.formatQty()}")
                         unitAbbr?.let { append(" $it") }
                         val stockLabel = when {
                             item.quantity <= 0 -> "Out of stock"
-                            stockRatio < 0.3f -> "Low"
-                            stockRatio < 0.6f -> "Getting low"
+                            stockRatio <= stockState.threshold -> "Low"
                             else -> "OK"
                         }
                         append(" · $stockLabel")
@@ -784,22 +789,20 @@ private fun ItemListRow(
                 Text(
                     text = qtyText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = stockColor ?: MaterialTheme.colorScheme.onSurfaceVariant
+                    color = stockColor
                 )
 
-                // Stock progress bar
-                if (hasEffectiveMin) {
-                    Spacer(modifier = Modifier.height(Dimens.spacingXs))
-                    ThemedProgressBar(
-                        progress = { stockRatio },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(1.5.dp)),
-                        color = stockColor ?: appColors.statusInStock,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                }
+                // Stock progress bar (always shown)
+                Spacer(modifier = Modifier.height(Dimens.spacingXs))
+                ThemedProgressBar(
+                    progress = { stockRatio },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.5.dp)),
+                    color = stockColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
 
                 // Expiry chips
                 val expiryChips = mutableListOf<Pair<String, Color>>()

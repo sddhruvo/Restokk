@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import com.inventory.app.ui.components.InkBackButton
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
@@ -23,18 +22,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.ExperimentalMaterial3Api
 import com.inventory.app.ui.components.ThemedFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -61,7 +59,6 @@ import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.appColors
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryListScreen(
     navController: NavController,
@@ -72,15 +69,8 @@ fun CategoryListScreen(
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<CategoryWithItemCountRow?>(null) }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Categories") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        },
+    PageScaffold(
+        onBack = { navController.popBackStack() },
         floatingActionButton = {
             ThemedFab(
                 onClick = { navController.navigate(Screen.CategoryForm.createRoute()) }
@@ -89,7 +79,7 @@ fun CategoryListScreen(
             }
         },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         when {
             uiState.isLoading -> LoadingState()
             uiState.categories.isEmpty() -> EmptyState(
@@ -100,11 +90,10 @@ fun CategoryListScreen(
                 onAction = { navController.navigate(Screen.CategoryForm.createRoute()) }
             )
             else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = contentPadding
             ) {
+                item { PageHeader("Categories") }
                 itemsIndexed(uiState.categories, key = { _, it -> it.id }) { index, category ->
                     ListItem(
                         headlineContent = { Text(category.name) },
@@ -162,8 +151,8 @@ fun CategoryListScreen(
                                     } else {
                                         getCategoryIcon(category.icon) // Custom category — use DB icon
                                     }
-                                    Icon(
-                                        resolvedIcon,
+                                    ThemedIcon(
+                                        materialIcon = resolvedIcon,
                                         contentDescription = "Category icon",
                                         modifier = Modifier.size(24.dp),
                                         tint = CategoryVisuals.contrastColor(bgColor)

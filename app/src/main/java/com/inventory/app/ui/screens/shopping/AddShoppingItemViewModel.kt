@@ -10,6 +10,7 @@ import com.inventory.app.data.local.entity.UnitEntity
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
+import com.inventory.app.data.repository.SmartDefaultRepository
 import com.inventory.app.data.repository.UnitRepository
 import com.inventory.app.domain.model.Priority
 import com.inventory.app.domain.model.ShoppingListMatcher
@@ -56,6 +57,7 @@ class AddShoppingItemViewModel @Inject constructor(
     private val shoppingListRepository: ShoppingListRepository,
     private val itemRepository: ItemRepository,
     private val unitRepository: UnitRepository,
+    private val smartDefaultRepository: SmartDefaultRepository,
     private val itemDao: ItemDao,
     private val purchaseHistoryDao: PurchaseHistoryDao,
     private val storageLocationDao: StorageLocationDao,
@@ -224,13 +226,10 @@ class AddShoppingItemViewModel @Inject constructor(
                     _uiState.update { it.copy(selectedUnitId = purchaseDefaults.unitId) }
                 }
             } else if (!userSetUnit) {
-                // Fallback to hardcoded smart defaults for unit
-                val defaults = SmartDefaults.lookup(name, regionCode)
-                if (defaults?.unit != null) {
-                    val unit = _uiState.value.units.find {
-                        it.abbreviation.equals(defaults.unit, ignoreCase = true)
-                    }
-                    unit?.let { _uiState.update { s -> s.copy(selectedUnitId = it.id) } }
+                // Fallback to full 5-layer smart defaults for unit
+                val result = smartDefaultRepository.resolve(name, regionCode, includeRemote = false)
+                result.local.unitId?.let { unitId ->
+                    _uiState.update { it.copy(selectedUnitId = unitId) }
                 }
             }
         }

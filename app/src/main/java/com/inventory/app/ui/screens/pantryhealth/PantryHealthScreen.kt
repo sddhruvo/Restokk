@@ -22,7 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
@@ -37,10 +38,8 @@ import androidx.compose.material3.FilterChip
 import com.inventory.app.ui.components.ThemedFilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,7 +53,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -64,7 +62,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.domain.model.ScoreFactor
+import com.inventory.app.domain.model.WasteSummary
 import com.inventory.app.R
+import com.inventory.app.util.FormatUtils
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.ScoreLineChart
 import com.inventory.app.ui.components.ThemedIcon
@@ -73,6 +73,8 @@ import com.inventory.app.ui.theme.Dimens
 import com.inventory.app.ui.theme.InkTokens
 import com.inventory.app.ui.theme.appColors
 import com.inventory.app.ui.theme.isInk
+import com.inventory.app.ui.theme.sectionHeader
+import com.inventory.app.ui.theme.statValue
 import com.inventory.app.ui.theme.visuals
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
@@ -88,24 +90,18 @@ fun PantryHealthScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Home Score") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        }
-    ) { padding ->
+    PageScaffold(
+        onBack = { navController.popBackStack() }
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(Dimens.spacingLg),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            PageHeader("Home Score")
             // Section 1: Score Hero
             ScoreHeroSection(
                 score = uiState.score,
@@ -130,7 +126,13 @@ fun PantryHealthScreen(
                 onFactorClick = { route -> navController.navigate(route) }
             )
 
-            // Section 4: Tips
+            // Section 4: Monthly Waste
+            WasteSummarySection(
+                waste = uiState.wasteThisMonth,
+                currencySymbol = uiState.currencySymbol
+            )
+
+            // Section 5: Tips
             TipsSection(
                 tips = uiState.tips,
                 onTipAction = { route -> navController.navigate(route) }
@@ -162,7 +164,11 @@ private fun ScoreHeroSection(
     )
 
     val scoreColor = MaterialTheme.appColors.scoreToColor(score)
-    val themeFontFamily = MaterialTheme.typography.bodyLarge.fontFamily
+    val scoreTypography = MaterialTheme.typography.displayMedium.copy(
+        fontSize = 48.sp,
+        fontWeight = FontWeight.Bold
+    )
+    val labelTypography = MaterialTheme.typography.titleMedium
     val isInk = MaterialTheme.visuals.isInk
     val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
     val density = LocalDensity.current
@@ -250,12 +256,7 @@ private fun ScoreHeroSection(
                 }
 
                 val scoreText = "$score"
-                val scoreStyle = TextStyle(
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = scoreColor,
-                    fontFamily = themeFontFamily
-                )
+                val scoreStyle = scoreTypography.copy(color = scoreColor)
                 val scoreLayout = textMeasurer.measure(scoreText, scoreStyle)
                 drawText(
                     textLayoutResult = scoreLayout,
@@ -265,12 +266,7 @@ private fun ScoreHeroSection(
                     )
                 )
 
-                val labelStyle = TextStyle(
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = scoreColor.copy(alpha = 0.8f),
-                    fontFamily = themeFontFamily
-                )
+                val labelStyle = labelTypography.copy(color = scoreColor.copy(alpha = 0.8f))
                 val labelLayout = textMeasurer.measure(label, labelStyle)
                 drawText(
                     textLayoutResult = labelLayout,
@@ -290,19 +286,18 @@ private fun ScoreHeroSection(
             modifier = Modifier.padding(bottom = Dimens.spacingXs)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("$engagementScore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("$engagementScore", style = MaterialTheme.typography.sectionHeader)
                 Text("Engagement", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("$conditionScore", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("$conditionScore", style = MaterialTheme.typography.sectionHeader)
                 Text("Condition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         Text(
             motivationText,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -329,7 +324,7 @@ private fun ScoreTrendSection(
     onPeriodSelected: (Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
-        Text("Score Trend", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Score Trend", style = MaterialTheme.typography.sectionHeader)
 
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
             ThemedFilterChip(
@@ -382,7 +377,7 @@ private fun ScoreBreakdownSection(
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
         // Engagement section
         if (engagementFactors.isNotEmpty()) {
-            Text("Building Your Score", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Building Your Score", style = MaterialTheme.typography.sectionHeader)
             engagementFactors.forEach { factor ->
                 EngagementFactorCard(factor = factor, onClick = { onFactorClick(factor.route) })
             }
@@ -391,7 +386,7 @@ private fun ScoreBreakdownSection(
         // Condition section
         if (conditionFactors.isNotEmpty()) {
             Spacer(modifier = Modifier.height(Dimens.spacingXs))
-            Text("Issues to Fix", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Issues to Fix", style = MaterialTheme.typography.sectionHeader)
             conditionFactors.forEach { factor ->
                 ConditionFactorCard(factor = factor, onClick = { onFactorClick(factor.route) })
             }
@@ -452,9 +447,8 @@ private fun EngagementFactorCard(
                     )
                     Text(
                         "+${factor.points} pts",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.appColors.statusInStock,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.appColors.statusInStock
                     )
                 }
                 Text(
@@ -539,9 +533,8 @@ private fun ConditionFactorCard(
                     )
                     Text(
                         "-${factor.points} pts",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.appColors.statusExpired,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.appColors.statusExpired
                     )
                 }
                 Text(
@@ -558,6 +551,124 @@ private fun ConditionFactorCard(
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+// ─── Section 4: Waste Summary ─────────────────────────────────────────
+
+@Composable
+private fun WasteSummarySection(
+    waste: WasteSummary?,
+    currencySymbol: String
+) {
+    if (waste == null) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+        Text(
+            "Monthly Waste",
+            style = MaterialTheme.typography.sectionHeader
+        )
+
+        if (waste.totalItemCount == 0) {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(Dimens.spacingLg),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
+                ) {
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.CheckCircle,
+                        inkIconRes = R.drawable.ic_ink_check_circle,
+                        contentDescription = null,
+                        tint = MaterialTheme.appColors.statusInStock,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Column {
+                        Text(
+                            "Zero Waste!",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "Nothing wasted this month. Great job!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(Dimens.spacingLg)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column {
+                            Text(
+                                "Estimated waste",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (waste.totalCost > 0) {
+                                Text(
+                                    FormatUtils.formatPrice(waste.totalCost, currencySymbol),
+                                    style = MaterialTheme.typography.statValue,
+                                    color = MaterialTheme.appColors.statusExpired
+                                )
+                            }
+                            if (waste.hasPartialData) {
+                                Text(
+                                    "${waste.itemsWithoutPrice} item${if (waste.itemsWithoutPrice != 1) "s" else ""} without price data",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "${waste.totalItemCount} item${if (waste.totalItemCount != 1) "s" else ""}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    if (waste.topWastedItems.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(Dimens.spacingMd))
+                        Text(
+                            "Top wasted",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(Dimens.spacingXs))
+                        waste.topWastedItems.take(3).forEach { item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    item.itemName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    item.cost?.let { FormatUtils.formatPrice(it, currencySymbol) } ?: "—",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.appColors.statusExpired
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

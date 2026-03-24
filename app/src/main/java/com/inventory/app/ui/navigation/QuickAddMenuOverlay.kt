@@ -35,7 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.inventory.app.ui.TestTags
 import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.ui.theme.visuals
 import kotlinx.coroutines.delay
@@ -69,7 +71,8 @@ fun QuickAddMenuOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
+                .testTag(TestTags.QuickAdd.SCRIM)
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -109,9 +112,17 @@ fun QuickAddMenuOverlay(
                         animationSpec = tween(PaperInkMotion.DurationShort)
                     ) + fadeOut(animationSpec = tween(PaperInkMotion.DurationShort))
                 ) {
+                    val menuTestTag = when (item.label) {
+                        "Add Item" -> TestTags.QuickAdd.MENU_ADD_ITEM
+                        "Scan Barcode" -> TestTags.QuickAdd.MENU_SCAN_BARCODE
+                        "Kitchen Scan" -> TestTags.QuickAdd.MENU_KITCHEN_SCAN
+                        "Scan Receipt" -> TestTags.QuickAdd.MENU_SCAN_RECEIPT
+                        else -> "quickAdd.menu.unknown"
+                    }
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .testTag(menuTestTag)
                             .clickable {
                                 onItemClick(item)
                             },

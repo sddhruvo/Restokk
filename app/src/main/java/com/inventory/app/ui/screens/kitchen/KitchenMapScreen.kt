@@ -34,7 +34,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -48,10 +49,8 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -108,22 +107,15 @@ fun KitchenMapScreen(
     val uiState by viewModel.uiState.collectAsState()
     val aiGate = rememberAiSignInGate()
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("My Kitchen") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        }
-    ) { padding ->
+    PageScaffold(
+        onBack = { navController.popBackStack() }
+    ) { contentPadding ->
         when {
             uiState.isLoading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding),
+                        .padding(contentPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     ThemedCircularProgress()
@@ -148,7 +140,7 @@ fun KitchenMapScreen(
                     },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                 )
             }
 
@@ -156,11 +148,12 @@ fun KitchenMapScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                         .verticalScroll(rememberScrollState())
                         .padding(Dimens.spacingLg),
                     verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                 ) {
+                    PageHeader("My Kitchen")
                     // Scan CTA card — Write-In entrance
                     WriteInAnimatedItem(index = 0) {
                         ScanCtaCard(onClick = {
@@ -310,9 +303,9 @@ private fun ScanCtaCard(onClick: () -> Unit) {
 @Composable
 private fun WobblyShelfLines(modifier: Modifier = Modifier) {
     val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
+    val lineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
 
     Canvas(modifier = modifier) {
-        val lineColor = Color.Black.copy(alpha = 0.07f)
         val lineCount = 3
         for (i in 1..lineCount) {
             val baseY = size.height * i / (lineCount + 1)
@@ -542,8 +535,8 @@ private fun ZoneIconAnimated(icon: androidx.compose.ui.graphics.vector.ImageVect
         launch { offsetY.animateTo(0f, BouncySpring) }
     }
 
-    Icon(
-        icon,
+    ThemedIcon(
+        materialIcon = icon,
         contentDescription = null,
         modifier = Modifier
             .size(Dimens.iconSizeMd)

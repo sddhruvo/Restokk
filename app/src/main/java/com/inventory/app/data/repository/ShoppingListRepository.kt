@@ -50,6 +50,13 @@ class ShoppingListRepository @Inject constructor(
         return id
     }
 
+    suspend fun addItems(items: List<ShoppingListItemEntity>) {
+        database.withTransaction {
+            items.forEach { shoppingListDao.insert(it) }
+        }
+        WidgetUpdater.requestUpdate(context)
+    }
+
     suspend fun togglePurchased(id: Long) {
         val acquired = toggleMutex.withLock {
             toggleInProgress.add(id) // Returns false if already toggling this item
@@ -68,6 +75,8 @@ class ShoppingListRepository @Inject constructor(
                     if (!shoppingItem.isPurchased) {
                         // Marking as purchased → create purchase history + increase inventory qty + update purchase date
                         val item = itemRepository.getById(itemId)
+                        // Save item's current purchaseDate for undo restoration
+                        shoppingListDao.savePreviousPurchaseDate(id, item?.purchaseDate)
                         // Get unit price from latest purchase history (most reliable)
                         // purchase_price in items table is TOTAL price, not per-unit
                         val latestPrices = purchaseHistoryDao.getLatestPricesForItems(listOf(itemId))
@@ -98,13 +107,11 @@ class ShoppingListRepository @Inject constructor(
                         val purchaseId = purchaseHistoryDao.getLatestShoppingListPurchaseId(itemId)
                         if (purchaseId != null) {
                             purchaseHistoryDao.delete(purchaseId)
-                        }
-                        itemRepository.adjustQuantity(itemId, -shoppingItem.quantity)
+                            itemRepository.adjustQuantity(itemId, -shoppingItem.quantity)
 
-                        // Restore purchase date to the next most recent purchase (or null if none)
-                        val previousDate = purchaseHistoryDao.getLatestPurchaseDate(itemId)
-                        val restoredDate = previousDate?.let { LocalDate.ofEpochDay(it) }
-                        itemRepository.updatePurchaseDate(itemId, restoredDate)
+                            // Restore the pre-toggle purchase date (saved during toggle ON)
+                            itemRepository.updatePurchaseDate(itemId, shoppingItem.previousPurchaseDate)
+                        }
                     }
                 }
             }
@@ -140,6 +147,16 @@ class ShoppingListRepository @Inject constructor(
 
     suspend fun markAsPurchasedOnly(id: Long) {
         shoppingListDao.markAsPurchasedOnly(id, now())
+    }
+
+    suspend fun adjustPurchasedQuantity(shoppingListId: Long, itemId: Long, delta: Double) {
+        database.withTransaction {
+            itemRepository.adjustQuantity(itemId, delta)
+            val purchaseId = purchaseHistoryDao.getLatestShoppingListPurchaseId(itemId)
+            if (purchaseId != null) {
+                purchaseHistoryDao.adjustPurchaseQuantity(purchaseId, delta)
+            }
+        }
     }
 
     suspend fun getActiveItemIds(): Set<Long> = shoppingListDao.getActiveItemIds().toSet()

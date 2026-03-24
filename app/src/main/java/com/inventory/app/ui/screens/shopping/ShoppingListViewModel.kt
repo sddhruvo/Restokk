@@ -9,6 +9,7 @@ import com.inventory.app.data.local.entity.relations.ShoppingListItemWithDetails
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
+import com.inventory.app.data.repository.UnitRepository
 import com.inventory.app.domain.model.ConsumptionPrediction
 import com.inventory.app.domain.model.ConsumptionVelocityCalculator
 import com.inventory.app.domain.model.PurchaseDataPoint
@@ -16,6 +17,7 @@ import com.inventory.app.ui.components.CelebrationType
 import com.inventory.app.domain.model.SmartDefaults
 import com.inventory.app.util.CategoryMatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +53,16 @@ data class QuickAddSuggestion(
     val defaultQuantity: Double = 1.0
 )
 
+data class QuantityConfirmationState(
+    val shoppingListId: Long,
+    val itemId: Long,
+    val itemName: String,
+    val originalQuantity: Double,
+    val currentQuantity: Double,
+    val unitAbbreviation: String?,
+    val isExpanded: Boolean = false
+)
+
 data class ShoppingListUiState(
     val activeItems: List<ShoppingListItemWithDetails> = emptyList(),
     val purchasedItems: List<ShoppingListItemWithDetails> = emptyList(),
@@ -59,6 +71,7 @@ data class ShoppingListUiState(
     val error: String? = null,
     val itemPrices: Map<Long, Double> = emptyMap(),
     val estimatedTotal: Double = 0.0,
+    val itemsWithoutPrice: Int = 0,
     val currencySymbol: String = "",
     val sortBy: String = "priority",
     val recentlyDeletedItem: ShoppingListItemEntity? = null,
@@ -71,7 +84,8 @@ data class ShoppingListUiState(
     val storePriceInfo: Map<Long, StorePriceInfo> = emptyMap(),
     val quickAddSuggestions: List<QuickAddSuggestion> = emptyList(),
     val inferredCategories: Map<Long, String> = emptyMap(),
-    val celebrationType: CelebrationType? = null
+    val celebrationType: CelebrationType? = null,
+    val quantityConfirmation: QuantityConfirmationState? = null
 )
 
 @HiltViewModel
@@ -80,7 +94,8 @@ class ShoppingListViewModel @Inject constructor(
     private val purchaseHistoryDao: PurchaseHistoryDao,
     private val settingsRepository: SettingsRepository,
     private val categoryDao: CategoryDao,
-    private val itemRepository: ItemRepository
+    private val itemRepository: ItemRepository,
+    private val unitRepository: UnitRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ShoppingListUiState())
@@ -92,6 +107,8 @@ class ShoppingListViewModel @Inject constructor(
     private var celebrationTypeCache: CelebrationType? = null
     // Mutex to prevent race condition on rapid add (check-then-insert)
     private val addMutex = Mutex()
+    // Auto-dismiss job for quantity confirmation bar
+    private var autoDismissJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -155,6 +172,7 @@ class ShoppingListViewModel @Inject constructor(
                     }
 
                     var activeTotal = 0.0
+                    var itemsWithoutPrice = 0
                     val itemCosts = mutableMapOf<Long, Double>()
                     for (item in allItems) {
                         val itemId = item.shoppingItem.itemId
@@ -171,7 +189,10 @@ class ShoppingListViewModel @Inject constructor(
                                 ?: lp?.let { if (it.totalPrice != null && it.quantity > 0) it.totalPrice / it.quantity else null }
                                 ?: matchedItem.purchasePrice
                         }
-                        if (unitPrice == null) continue
+                        if (unitPrice == null) {
+                            if (!item.shoppingItem.isPurchased) itemsWithoutPrice++
+                            continue
+                        }
                         val cost = unitPrice * item.shoppingItem.quantity
                         itemCosts[item.shoppingItem.id] = cost
                         if (!item.shoppingItem.isPurchased) activeTotal += cost
@@ -217,6 +238,7 @@ class ShoppingListViewModel @Inject constructor(
                             isLoading = false,
                             itemPrices = itemCosts,
                             estimatedTotal = activeTotal,
+                            itemsWithoutPrice = itemsWithoutPrice,
                             storePriceInfo = storeInfoMap,
                             inferredCategories = inferred,
                             celebrationType = celebration
@@ -232,11 +254,90 @@ class ShoppingListViewModel @Inject constructor(
     fun togglePurchased(id: Long) {
         viewModelScope.launch {
             try {
+                // Check if we're un-marking while confirmation bar is showing for this item
+                val currentConfirmation = _uiState.value.quantityConfirmation
+                if (currentConfirmation != null && currentConfirmation.shoppingListId == id) {
+                    // Dismiss confirmation bar — undo will handle quantity reversal
+                    autoDismissJob?.cancel()
+                    _uiState.update { it.copy(quantityConfirmation = null) }
+                }
+
+                // Fetch the item BEFORE toggling to know the direction
+                val shoppingItem = shoppingListRepository.getById(id)
+                val wasPurchased = shoppingItem?.isPurchased ?: false
+
                 shoppingListRepository.togglePurchased(id)
+
+                // Show confirmation bar only when marking as purchased (not un-marking)
+                // and only for items linked to inventory (not custom-name items)
+                if (!wasPurchased && shoppingItem?.itemId != null) {
+                    val item = itemRepository.getById(shoppingItem.itemId)
+                    val unitAbbr = item?.unitId?.let { unitRepository.getById(it)?.abbreviation }
+                    val itemName = item?.name ?: ""
+                    val qty = shoppingItem.quantity
+
+                    _uiState.update {
+                        it.copy(
+                            quantityConfirmation = QuantityConfirmationState(
+                                shoppingListId = id,
+                                itemId = shoppingItem.itemId,
+                                itemName = itemName,
+                                originalQuantity = qty,
+                                currentQuantity = qty,
+                                unitAbbreviation = unitAbbr
+                            )
+                        )
+                    }
+
+                    // Auto-dismiss after 4 seconds
+                    autoDismissJob?.cancel()
+                    autoDismissJob = viewModelScope.launch {
+                        kotlinx.coroutines.delay(4000)
+                        _uiState.update { it.copy(quantityConfirmation = null) }
+                    }
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Failed to update item: ${e.message}") }
             }
         }
+    }
+
+    fun expandQuantityConfirmation() {
+        autoDismissJob?.cancel()
+        _uiState.update { state ->
+            state.quantityConfirmation?.let {
+                state.copy(quantityConfirmation = it.copy(isExpanded = true))
+            } ?: state
+        }
+    }
+
+    fun updateConfirmationQuantity(newQty: Double) {
+        _uiState.update { state ->
+            state.quantityConfirmation?.let {
+                state.copy(quantityConfirmation = it.copy(currentQuantity = newQty))
+            } ?: state
+        }
+    }
+
+    fun confirmAdjustedQuantity() {
+        val conf = _uiState.value.quantityConfirmation ?: return
+        val delta = conf.currentQuantity - conf.originalQuantity
+        autoDismissJob?.cancel()
+        _uiState.update { it.copy(quantityConfirmation = null) }
+        if (delta != 0.0) {
+            viewModelScope.launch {
+                try {
+                    shoppingListRepository.adjustPurchasedQuantity(conf.shoppingListId, conf.itemId, delta)
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(error = "Failed to adjust quantity: ${e.message}") }
+                }
+            }
+        }
+    }
+
+    fun dismissQuantityConfirmation() {
+        autoDismissJob?.cancel()
+        _uiState.update { it.copy(quantityConfirmation = null) }
     }
 
     fun deleteItem(id: Long) {
@@ -515,14 +616,21 @@ class ShoppingListViewModel @Inject constructor(
                     seenNames.add(key)
 
                     val categoryName = CategoryMatcher.matchCategory(item.itemName)
+                    // SI-5: Pre-fill quantity from last purchase
+                    val lastPurchase = purchaseHistoryDao.getLatestPurchaseDefaultsByName(item.itemName)
+                    val lastQty = lastPurchase?.quantity?.takeIf { it > 0 } ?: 1.0
+                    val qtyHint = if (lastQty != 1.0) {
+                        val fmtQty = if (lastQty == lastQty.toLong().toDouble()) lastQty.toLong().toString() else "%.1f".format(lastQty)
+                        " · last bought $fmtQty"
+                    } else ""
                     results.add(QuickAddSuggestion(
                         itemId = item.itemId,
                         name = item.itemName,
                         source = "frequent",
                         categoryName = categoryName,
                         purchaseCount = item.purchaseCount,
-                        contextLabel = "bought ${item.purchaseCount}×",
-                        defaultQuantity = 1.0
+                        contextLabel = "bought ${item.purchaseCount}×$qtyHint",
+                        defaultQuantity = lastQty
                     ))
                 }
 
@@ -543,13 +651,16 @@ class ShoppingListViewModel @Inject constructor(
                         } else {
                             "in inventory"
                         }
+                        // SI-5: Pre-fill quantity from last purchase
+                        val lastPurchase = purchaseHistoryDao.getLatestPurchaseDefaultsByName(item.name)
+                        val lastQty = lastPurchase?.quantity?.takeIf { it > 0 } ?: 1.0
                         results.add(QuickAddSuggestion(
                             itemId = item.id,
                             name = item.name,
                             source = "inventory",
                             categoryName = categoryName,
                             contextLabel = stockLabel,
-                            defaultQuantity = 1.0
+                            defaultQuantity = lastQty
                         ))
                     }
                 }
@@ -601,7 +712,7 @@ class ShoppingListViewModel @Inject constructor(
                     val qty: Double
                     val name: String
                     if (match != null) {
-                        qty = match.groupValues[1].toDoubleOrNull() ?: 1.0
+                        qty = (match.groupValues[1].toDoubleOrNull() ?: 1.0).coerceAtLeast(1.0)
                         name = match.groupValues[2].trim()
                     } else {
                         qty = 1.0

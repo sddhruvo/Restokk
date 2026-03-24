@@ -20,7 +20,8 @@ data class ExpiringReportUiState(
     val expiringCount: Int = 0,
     val warningDays: Int = 7,
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val lowStockThreshold: Float = 0.25f
 )
 
 @HiltViewModel
@@ -36,8 +37,9 @@ class ExpiringReportViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val days = settingsRepository.getInt(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 7)
-            _uiState.update { it.copy(warningDays = days) }
+            val days = settingsRepository.getInt(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 3)
+            val threshold = (settingsRepository.getString(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25").toDoubleOrNull() ?: 25.0) / 100.0
+            _uiState.update { it.copy(warningDays = days, lowStockThreshold = threshold.toFloat()) }
             loadData()
         }
     }

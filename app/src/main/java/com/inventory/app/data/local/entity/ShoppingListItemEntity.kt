@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity(
@@ -35,6 +36,7 @@ data class ShoppingListItemEntity(
     @ColumnInfo(name = "purchased_at") val purchasedAt: LocalDateTime? = null,
     val priority: Int = 0,
     val notes: String? = null,
+    @ColumnInfo(name = "previous_purchase_date") val previousPurchaseDate: LocalDate? = null,
     @ColumnInfo(name = "created_at") val createdAt: LocalDateTime = LocalDateTime.now(),
     @ColumnInfo(name = "updated_at") val updatedAt: LocalDateTime = LocalDateTime.now()
 )

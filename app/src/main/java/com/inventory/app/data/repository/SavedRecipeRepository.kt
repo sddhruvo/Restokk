@@ -34,5 +34,16 @@ class SavedRecipeRepository @Inject constructor(
 
     fun getCount(): Flow<Int> = savedRecipeDao.getCount()
 
+    fun getManualRecipeCount(): Flow<Int> = savedRecipeDao.getManualRecipeCount()
+
     suspend fun deleteByName(name: String) = savedRecipeDao.deleteByName(name)
+
+    suspend fun update(recipe: SavedRecipeEntity) = savedRecipeDao.update(recipe)
+
+    fun getDrafts(): Flow<List<SavedRecipeEntity>> = savedRecipeDao.getDrafts()
+
+    fun getActiveNonDrafts(): Flow<List<SavedRecipeEntity>> = savedRecipeDao.getActiveNonDrafts()
+
+    suspend fun getPagedActive(limit: Int, offset: Int): List<SavedRecipeEntity> =
+        savedRecipeDao.getPagedActive(limit, offset)
 }

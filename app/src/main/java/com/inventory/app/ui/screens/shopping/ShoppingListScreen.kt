@@ -43,7 +43,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -90,7 +89,6 @@ import androidx.compose.material3.IconButton
 import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.surfaceColorAtElevation
 import com.inventory.app.ui.components.ThemedScaffold
@@ -106,6 +104,7 @@ import androidx.compose.material3.TextButton
 import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -147,10 +146,18 @@ import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.InkWashSwipeBackground
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.components.formatQty
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import com.inventory.app.ui.navigation.LocalBottomNavHeight
+import com.inventory.app.ui.navigation.LocalBottomNavSlide
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.Dimens
 import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.ui.theme.appColors
+import com.inventory.app.ui.theme.emphasisBody
+import com.inventory.app.ui.theme.formSectionLabel
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.ui.theme.visuals
 import com.inventory.app.util.CategoryVisuals
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -264,6 +271,17 @@ fun ShoppingListScreen(
         "name" -> "A-Z"; "quantity" -> "Qty"; else -> "Priority"
     }
 
+    val bottomNavHeight = LocalBottomNavHeight.current
+
+    // Prevent window resize on keyboard open — bar floats independently
+    val window = (context as android.app.Activity).window
+    DisposableEffect(Unit) {
+        val original = window.attributes.softInputMode
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+        onDispose { window.setSoftInputMode(original) }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     ThemedScaffold(
         topBar = {
             ThemedTopAppBar(
@@ -355,31 +373,7 @@ fun ShoppingListScreen(
                 }
             )
         },
-        bottomBar = {
-            QuickAddBar(
-                text = quickAddText,
-                onTextChange = { newText ->
-                    quickAddText = newText
-                    viewModel.updateQuickAddQuery(newText)
-                },
-                onSubmit = {
-                    viewModel.quickAddItem(quickAddText)
-                    quickAddText = ""
-                    focusManager.clearFocus()
-                },
-                onFullFormClick = {
-                    showShoppingSheet(null, null)
-                },
-                suggestions = uiState.quickAddSuggestions,
-                onSuggestionClick = { suggestion ->
-                    viewModel.quickAddSuggestionItem(suggestion)
-                    quickAddText = ""
-                    focusManager.clearFocus()
-                },
-                onDismissSuggestions = { viewModel.clearQuickAddSuggestions() },
-                focusRequester = quickAddFocusRequester
-            )
-        },
+        bottomBar = {},
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
@@ -395,7 +389,7 @@ fun ShoppingListScreen(
                     },
                     onGenerateFromLowStock = { viewModel.generateFromLowStock() },
                     onBatchAdd = { viewModel.showBatchAdd() },
-                    modifier = Modifier.padding(padding)
+                    modifier = Modifier.padding(padding).padding(bottom = 56.dp + bottomNavHeight)
                 )
             }
             else -> {
@@ -414,10 +408,10 @@ fun ShoppingListScreen(
                 val filteredActive = sortItems(uiState.activeItems.filter { matchesSearch(it) })
                 val filteredPurchased = sortItems(uiState.purchasedItems.filter { matchesSearch(it) })
 
+                Box(modifier = Modifier.fillMaxSize().padding(padding).padding(bottom = 56.dp + bottomNavHeight)) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
                 ) {
                     AnimatedVisibility(
                         visible = isSearchVisible,
@@ -559,14 +553,20 @@ fun ShoppingListScreen(
                                         Column(horizontalAlignment = Alignment.End) {
                                             Text(
                                                 "${uiState.currencySymbol}${"%.2f".format(uiState.estimatedTotal)}",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.sectionHeader,
                                                 color = contentColor
                                             )
                                             if (hasBudget) {
                                                 Text(
                                                     "of ${uiState.currencySymbol}${"%.2f".format(budget)}",
                                                     style = MaterialTheme.typography.bodySmall,
+                                                    color = contentColor.copy(alpha = 0.7f)
+                                                )
+                                            }
+                                            if (uiState.itemsWithoutPrice > 0) {
+                                                Text(
+                                                    "excl. ${uiState.itemsWithoutPrice} item${if (uiState.itemsWithoutPrice > 1) "s" else ""} without prices",
+                                                    style = MaterialTheme.typography.labelSmall,
                                                     color = contentColor.copy(alpha = 0.7f)
                                                 )
                                             }
@@ -639,16 +639,15 @@ fun ShoppingListScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                                     ) {
-                                        Icon(
-                                            catVisual.icon,
+                                        ThemedIcon(
+                                            materialIcon = catVisual.icon,
                                             contentDescription = null,
                                             modifier = Modifier.size(18.dp),
                                             tint = catVisual.color
                                         )
                                         Text(
                                             "$categoryName (${groupItems.size})",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.formSectionLabel,
                                             color = catVisual.color
                                         )
                                     }
@@ -675,8 +674,7 @@ fun ShoppingListScreen(
                             item {
                                 Text(
                                     "To Buy (${filteredActive.size})",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.formSectionLabel,
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm)
                                 )
@@ -713,8 +711,7 @@ fun ShoppingListScreen(
                             ) {
                                 Text(
                                     "Recently Purchased (${filteredPurchased.size})",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.formSectionLabel,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -739,9 +736,72 @@ fun ShoppingListScreen(
                     }
                     }
                 }
+
+                // Quantity confirmation bar overlay
+                val qtyConf = uiState.quantityConfirmation
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = qtyConf != null,
+                    enter = androidx.compose.animation.slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = 0.5f, stiffness = 200f
+                        )
+                    ) + androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = 1.0f, stiffness = 200f
+                        )
+                    ) + androidx.compose.animation.fadeOut(),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    qtyConf?.let { conf ->
+                        com.inventory.app.ui.components.SmartQuantityBar(
+                            quantity = conf.currentQuantity,
+                            itemName = conf.itemName,
+                            unitAbbreviation = conf.unitAbbreviation,
+                            sourceHint = "",
+                            mode = if (conf.isExpanded) com.inventory.app.ui.components.QuantityBarMode.STEPPER
+                                   else com.inventory.app.ui.components.QuantityBarMode.CONFIRM_ONLY,
+                            onQuantityChange = { viewModel.updateConfirmationQuantity(it) },
+                            onConfirm = { viewModel.confirmAdjustedQuantity() },
+                            onExpand = { viewModel.expandQuantityConfirmation() },
+                            onDismiss = { viewModel.dismissQuantityConfirmation() },
+                            modifier = Modifier.padding(Dimens.spacingMd)
+                        )
+                    }
+                }
+            }
             }
         }
     }
+
+    // Floating QuickAddBar — independent of content layout
+    QuickAddBar(
+        text = quickAddText,
+        onTextChange = { newText ->
+            quickAddText = newText
+            viewModel.updateQuickAddQuery(newText)
+        },
+        onSubmit = {
+            viewModel.quickAddItem(quickAddText)
+            quickAddText = ""
+            focusManager.clearFocus()
+        },
+        onFullFormClick = {
+            showShoppingSheet(null, null)
+        },
+        suggestions = uiState.quickAddSuggestions,
+        onSuggestionClick = { suggestion ->
+            viewModel.quickAddSuggestionItem(suggestion)
+            quickAddText = ""
+            focusManager.clearFocus()
+        },
+        onDismissSuggestions = { viewModel.clearQuickAddSuggestions() },
+        focusRequester = quickAddFocusRequester,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
+    } // Box
 }
 
 @Composable
@@ -1475,8 +1535,7 @@ private fun PredictionListContent(
                 Spacer(modifier = Modifier.height(Dimens.spacingSm))
                 Text(
                     "Running Low Soon",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.sectionHeader
                 )
                 Text(
                     "Based on your purchase history",
@@ -1514,8 +1573,7 @@ private fun PredictionListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     prediction.itemName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
@@ -1637,8 +1695,9 @@ private fun ShoppingListEmptyState(
                     .fillMaxWidth()
                     .padding(top = 48.dp, bottom = 16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.ShoppingCart,
+                ThemedIcon(
+                    materialIcon = Icons.Outlined.ShoppingCart,
+                    inkIconRes = R.drawable.ic_ink_shopping,
                     contentDescription = null,
                     modifier = Modifier
                         .size(72.dp)
@@ -1877,13 +1936,21 @@ private fun QuickAddBar(
     suggestions: List<QuickAddSuggestion>,
     onSuggestionClick: (QuickAddSuggestion) -> Unit,
     onDismissSuggestions: () -> Unit,
-    focusRequester: FocusRequester = remember { FocusRequester() }
+    focusRequester: FocusRequester = remember { FocusRequester() },
+    modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val bottomNavHeight = LocalBottomNavHeight.current
+    val navSlide = LocalBottomNavSlide.current
+    @OptIn(ExperimentalLayoutApi::class)
+    val isKeyboardOpen = WindowInsets.isImeVisible
+    // Reduce bottom padding as nav bar slides away (1f = fully hidden → 0 padding)
+    val effectiveNavPadding = bottomNavHeight * (1f - navSlide)
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .then(if (!isKeyboardOpen) Modifier.padding(bottom = effectiveNavPadding) else Modifier)
             .imePadding()
     ) {
         // Suggestions dropdown (appears above the bar)
@@ -1964,7 +2031,7 @@ private fun QuickAddBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
             ) {
-                OutlinedTextField(
+                ThemedTextField(
                     value = text,
                     onValueChange = onTextChange,
                     modifier = Modifier
@@ -2202,8 +2269,7 @@ private fun AnimatedQuantityDisplay(
         ) { targetQuantity ->
             Text(
                 targetQuantity.formatQty(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.emphasisBody
             )
         }
 

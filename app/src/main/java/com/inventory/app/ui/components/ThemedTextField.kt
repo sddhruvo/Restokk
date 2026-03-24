@@ -34,9 +34,14 @@ import com.inventory.app.ui.theme.isInk
 import com.inventory.app.ui.theme.visuals
 
 /**
- * Drop-in replacement for [OutlinedTextField] with a hand-drawn wobbly ink border
+ * Drop-in replacement for [OutlinedTextField] with a hand-drawn wobbly ink underline
  * in Paper & Ink mode. The native Material3 border is hidden; a custom wobble
- * border is drawn via [Modifier.drawBehind].
+ * underline is drawn via [Modifier.drawBehind].
+ *
+ * All fields get a wobbly bottom underline (like writing on ruled paper).
+ * When [inkEndcaps] is true, small upward ink ticks are drawn at each end of the
+ * underline, creating an open-bottom bracket `⌊___⌋` — used for interactive fields
+ * (dropdowns, date pickers) to hint "tap here" without a full border box.
  *
  * Focus animates border alpha from [InkTokens.borderSubtle] → [InkTokens.borderBold].
  * Error state switches border to [MaterialTheme.colorScheme.error] with a shake animation.
@@ -68,6 +73,7 @@ fun ThemedTextField(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     shape: Shape = MaterialTheme.shapes.small,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    inkEndcaps: Boolean = false,
 ) {
     val isInk = MaterialTheme.visuals.isInk
     if (!isInk) {
@@ -126,8 +132,6 @@ fun ThemedTextField(
     val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
     val strokeWidthPx = with(density) { InkTokens.strokeMedium.toPx() }
     val wobbleAmplitudePx = with(density) { InkTokens.wobbleSmall.toPx() }
-    val cornerRadiusPx = with(density) { 8.dp.toPx() } // matches shapes.small
-
     // Hide native border, make container transparent
     val inkColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = Color.Transparent,
@@ -146,13 +150,16 @@ fun ThemedTextField(
         modifier = modifier
             .graphicsLayer { translationX = shakeAnim.value }
             .drawBehind {
-                val path = buildWobbleBorderPath(
+                val insetPx = 4.dp.toPx()
+                val endcapPx = if (inkEndcaps) 6.dp.toPx() else 0f
+                val path = buildWobbleUnderlinePath(
                     width = size.width,
-                    height = size.height,
-                    cornerRadius = cornerRadiusPx,
+                    y = size.height,
                     wobbleAmplitude = wobbleAmplitudePx,
                     wobbleSeed = wobbleSeed,
-                    segments = 3
+                    segments = 5,
+                    inset = insetPx,
+                    endcapHeight = endcapPx
                 )
 
                 // Bleed layer

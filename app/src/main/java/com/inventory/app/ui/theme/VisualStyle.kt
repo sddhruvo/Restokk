@@ -27,7 +27,7 @@ enum class VisualStyle(val key: String, val displayName: String) {
 
     companion object {
         fun fromKey(key: String): VisualStyle =
-            entries.firstOrNull { it.key == key } ?: MODERN
+            entries.firstOrNull { it.key == key } ?: PAPER_INK
     }
 }
 
@@ -293,6 +293,7 @@ object InkTokens {
     const val fillBleed = 0.08f       // Bleed layers underneath strokes (spread effect)
     const val fillLight = 0.12f       // Chip selected, button fill (subtle wash)
     const val fillMedium = 0.15f      // FAB fill (slightly more prominent)
+    const val fillCard = 0.94f        // Card surface — blocks bleed-through from swipe backgrounds, faint paper texture still visible
     const val fillOpaque = 0.92f      // Snackbar container (readable above content)
 
     // ── Border alphas (ink density at different interaction states) ──

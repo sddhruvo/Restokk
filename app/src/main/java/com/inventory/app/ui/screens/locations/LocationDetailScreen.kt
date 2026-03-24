@@ -9,7 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,17 +18,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import com.inventory.app.ui.theme.sectionHeader
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -35,6 +34,7 @@ import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.EmptyState
 import com.inventory.app.ui.components.LoadingState
+import com.inventory.app.ui.components.ItemStockBar
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.Screen
 
@@ -54,33 +54,27 @@ fun LocationDetailScreen(
         }
     }
 
-    ThemedScaffold(
-        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text(uiState.locationName ?: "Location") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                },
-                actions = {
-                    if (viewModel.locationId > 0L) {
-                        IconButton(onClick = {
-                            navController.navigate(Screen.LocationForm.createRoute(viewModel.locationId))
-                        }) {
-                            ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit location")
-                        }
-                    }
+    PageScaffold(
+        onBack = { navController.popBackStack() },
+        actions = {
+            if (viewModel.locationId > 0L) {
+                IconButton(onClick = {
+                    navController.navigate(Screen.LocationForm.createRoute(viewModel.locationId))
+                }) {
+                    ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit location")
                 }
-            )
-        }
-    ) { padding ->
+            }
+        },
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
+    ) { contentPadding ->
         when {
             uiState.isLoading -> LoadingState()
             else -> Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(contentPadding)
             ) {
+                PageHeader(uiState.locationName ?: "Location")
                 uiState.description?.let { desc ->
                     AppCard(
                         modifier = Modifier
@@ -103,8 +97,7 @@ fun LocationDetailScreen(
 
                 Text(
                     text = "Items at this location (${uiState.items.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.sectionHeader,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
@@ -117,15 +110,24 @@ fun LocationDetailScreen(
                 } else {
                     LazyColumn {
                         items(uiState.items, key = { it.item.id }) { itemWithDetails ->
+                            val item = itemWithDetails.item
                             ListItem(
-                                headlineContent = { Text(itemWithDetails.item.name) },
+                                headlineContent = { Text(item.name) },
                                 supportingContent = {
-                                    val qty = itemWithDetails.item.quantity
-                                    val unit = itemWithDetails.unit?.abbreviation ?: ""
-                                    Text("$qty $unit")
+                                    Column {
+                                        val unit = itemWithDetails.unit?.abbreviation ?: ""
+                                        Text("${item.quantity} $unit")
+                                        ItemStockBar(
+                                            quantity = item.quantity,
+                                            minQuantity = item.minQuantity,
+                                            smartMinQuantity = item.smartMinQuantity,
+                                            lowStockThreshold = uiState.lowStockThreshold,
+                                            maxQuantity = item.maxQuantity
+                                        )
+                                    }
                                 },
                                 modifier = Modifier.clickable {
-                                    navController.navigate(Screen.ItemDetail.createRoute(itemWithDetails.item.id))
+                                    navController.navigate(Screen.ItemDetail.createRoute(item.id))
                                 }
                             )
                         }

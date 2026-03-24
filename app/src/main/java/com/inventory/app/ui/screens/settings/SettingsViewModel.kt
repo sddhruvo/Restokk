@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.db.InventoryDatabase
 import com.inventory.app.data.repository.AuthRepository
 import com.inventory.app.data.repository.SettingsRepository
+import com.inventory.app.domain.model.RegionRegistry
+import com.inventory.app.ui.screens.onboarding.RegionInfo
 import com.inventory.app.ui.theme.AppTheme
 import com.inventory.app.ui.theme.VisualStyle
 import com.inventory.app.util.FormatUtils
@@ -20,18 +22,18 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val expiryWarningDays: String = "7",
+    val expiryWarningDays: String = "3",
     val currencySymbol: String = "",
     val defaultQuantity: String = "1",
     val appTheme: AppTheme = AppTheme.CLASSIC_GREEN,
     val visualStyle: VisualStyle = VisualStyle.MODERN,
     val shoppingBudget: String = "",
     val autoClearDays: String = "",
+    val lowStockThreshold: String = "25",
     val isSaved: Boolean = false,
     val isLoading: Boolean = true,
     val hasBeenTouched: Boolean = false,
     val expiryWarningDaysError: String? = null,
-    val currencyError: String? = null,
     val defaultQuantityError: String? = null,
     val shoppingBudgetError: String? = null,
     val autoClearDaysError: String? = null,
@@ -43,12 +45,20 @@ data class SettingsUiState(
     val isAnonymous: Boolean = true,
     val authLoading: Boolean = false,
     val authError: String? = null,
+    // Region & measurement
+    val regionCode: String = "US",
+    val regionName: String = "United States",
+    val regionFlag: String = "\uD83C\uDDFA\uD83C\uDDF8",
+    val measurementSystem: String = "",  // "" = auto, "METRIC", "IMPERIAL"
+    val dateFormat: String = "",  // "" = auto from region, "MONTH_FIRST", "DAY_FIRST"
+    val showRegionPicker: Boolean = false,
     // Notification settings (instant-save, not deferred to Save button)
     val notificationsEnabled: Boolean = true,
     val notifExpiryEnabled: Boolean = true,
     val notifRestockEnabled: Boolean = true,
     val notifShoppingEnabled: Boolean = true,
-    val userPreference: String = "INVENTORY"
+    val userPreference: String = "INVENTORY",
+    val dashboardHighlightEnabled: Boolean = true
 )
 
 @HiltViewModel
@@ -138,11 +148,19 @@ class SettingsViewModel @Inject constructor(
 
     private fun loadSettings() {
         viewModelScope.launch {
-            val expiryDays = settingsRepository.getInt(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 7)
+            val expiryDays = settingsRepository.getInt(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 3)
             val currency = settingsRepository.getString(SettingsRepository.KEY_CURRENCY_SYMBOL, FormatUtils.getDefaultCurrencySymbol())
             val defaultQty = settingsRepository.getString(SettingsRepository.KEY_DEFAULT_QUANTITY, "1")
             val budget = settingsRepository.getString(SettingsRepository.KEY_SHOPPING_BUDGET, "")
             val autoClear = settingsRepository.getString(SettingsRepository.KEY_AUTO_CLEAR_DAYS, "")
+            val lowStockThreshold = settingsRepository.getString(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25")
+
+            // Region & measurement
+            val regionCode = settingsRepository.getString(SettingsRepository.KEY_REGION_CODE, "US")
+            val regionConfig = RegionRegistry.findByCode(regionCode)
+            val measurementOverride = settingsRepository.getString(SettingsRepository.KEY_MEASUREMENT_SYSTEM, "")
+            val dateFormatOverride = settingsRepository.getString(SettingsRepository.KEY_DATE_FORMAT, "")
+            FormatUtils.dateFormatOverride = dateFormatOverride
 
             // Theme: read new key, migrate from old dark_mode if needed
             var themeKey = settingsRepository.getString(SettingsRepository.KEY_APP_THEME, "")
@@ -154,7 +172,7 @@ class SettingsViewModel @Inject constructor(
             }
 
             // Visual style
-            val visualStyleKey = settingsRepository.getString(SettingsRepository.KEY_VISUAL_STYLE, VisualStyle.MODERN.key)
+            val visualStyleKey = settingsRepository.getString(SettingsRepository.KEY_VISUAL_STYLE, VisualStyle.PAPER_INK.key)
 
             // Notification settings (default: all enabled)
             val notifEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIFICATIONS_ENABLED, true)
@@ -162,6 +180,7 @@ class SettingsViewModel @Inject constructor(
             val notifRestock = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_RESTOCK_ENABLED, true)
             val notifShopping = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_SHOPPING_ENABLED, true)
             val preference = settingsRepository.getString(OnboardingViewModel.KEY_USER_PREFERENCE, "INVENTORY")
+            val highlightEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_DASHBOARD_HIGHLIGHT_ENABLED, true)
 
             _uiState.update {
                 it.copy(
@@ -172,22 +191,56 @@ class SettingsViewModel @Inject constructor(
                     visualStyle = VisualStyle.fromKey(visualStyleKey),
                     shoppingBudget = budget,
                     autoClearDays = autoClear,
+                    lowStockThreshold = lowStockThreshold,
+                    regionCode = regionCode,
+                    regionName = regionConfig?.countryName ?: regionCode,
+                    regionFlag = regionConfig?.flag ?: "\uD83C\uDF10",
+                    measurementSystem = measurementOverride,
+                    dateFormat = dateFormatOverride,
                     isLoading = false,
                     notificationsEnabled = notifEnabled,
                     notifExpiryEnabled = notifExpiry,
                     notifRestockEnabled = notifRestock,
                     notifShoppingEnabled = notifShopping,
-                    userPreference = preference
+                    userPreference = preference,
+                    dashboardHighlightEnabled = highlightEnabled
                 )
             }
         }
     }
 
     fun updateExpiryWarningDays(v: String) { _uiState.update { it.copy(expiryWarningDays = v, isSaved = false, expiryWarningDaysError = null, hasBeenTouched = true) } }
-    fun updateCurrencySymbol(v: String) { _uiState.update { it.copy(currencySymbol = v, isSaved = false, currencyError = null, hasBeenTouched = true) } }
     fun updateDefaultQuantity(v: String) { _uiState.update { it.copy(defaultQuantity = v, isSaved = false, defaultQuantityError = null, hasBeenTouched = true) } }
     fun updateShoppingBudget(v: String) { _uiState.update { it.copy(shoppingBudget = v, isSaved = false, shoppingBudgetError = null, hasBeenTouched = true) } }
     fun updateAutoClearDays(v: String) { _uiState.update { it.copy(autoClearDays = v, isSaved = false, autoClearDaysError = null, hasBeenTouched = true) } }
+    fun updateLowStockThreshold(v: String) { _uiState.update { it.copy(lowStockThreshold = v, isSaved = false, hasBeenTouched = true) } }
+
+    fun toggleRegionPicker() {
+        _uiState.update { it.copy(showRegionPicker = !it.showRegionPicker) }
+    }
+
+    fun updateRegion(region: RegionInfo) {
+        _uiState.update {
+            it.copy(
+                regionCode = region.countryCode,
+                regionName = region.countryName,
+                regionFlag = region.flag,
+                currencySymbol = region.currencySymbol,
+                measurementSystem = "",  // reset to auto
+                showRegionPicker = false,
+                hasBeenTouched = true,
+                isSaved = false
+            )
+        }
+    }
+
+    fun updateMeasurementSystem(system: String) {
+        _uiState.update { it.copy(measurementSystem = system, hasBeenTouched = true, isSaved = false) }
+    }
+
+    fun updateDateFormat(format: String) {
+        _uiState.update { it.copy(dateFormat = format, hasBeenTouched = true, isSaved = false) }
+    }
 
     fun toggleNotificationsEnabled(enabled: Boolean) {
         _uiState.update { it.copy(notificationsEnabled = enabled) }
@@ -204,6 +257,10 @@ class SettingsViewModel @Inject constructor(
     fun toggleNotifShopping(enabled: Boolean) {
         _uiState.update { it.copy(notifShoppingEnabled = enabled) }
         viewModelScope.launch { settingsRepository.setBoolean(SettingsRepository.KEY_NOTIF_SHOPPING_ENABLED, enabled) }
+    }
+    fun toggleDashboardHighlight(enabled: Boolean) {
+        _uiState.update { it.copy(dashboardHighlightEnabled = enabled) }
+        viewModelScope.launch { settingsRepository.setBoolean(SettingsRepository.KEY_DASHBOARD_HIGHLIGHT_ENABLED, enabled) }
     }
 
     fun updateUserPreference(pref: String) {
@@ -243,10 +300,6 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(expiryWarningDaysError = "Enter a number between 1 and 365") }
             hasError = true
         }
-        if (state.currencySymbol.isBlank()) {
-            _uiState.update { it.copy(currencyError = "Currency symbol is required") }
-            hasError = true
-        }
         val defaultQty = state.defaultQuantity.toDoubleOrNull()
         if (defaultQty == null || defaultQty <= 0) {
             _uiState.update { it.copy(defaultQuantityError = "Enter a positive number") }
@@ -280,6 +333,11 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.set(SettingsRepository.KEY_DEFAULT_QUANTITY, state.defaultQuantity)
             settingsRepository.set(SettingsRepository.KEY_SHOPPING_BUDGET, state.shoppingBudget)
             settingsRepository.set(SettingsRepository.KEY_AUTO_CLEAR_DAYS, state.autoClearDays)
+            settingsRepository.set(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, state.lowStockThreshold)
+            settingsRepository.set(SettingsRepository.KEY_REGION_CODE, state.regionCode)
+            settingsRepository.set(SettingsRepository.KEY_MEASUREMENT_SYSTEM, state.measurementSystem)
+            settingsRepository.set(SettingsRepository.KEY_DATE_FORMAT, state.dateFormat)
+            FormatUtils.dateFormatOverride = state.dateFormat
             _uiState.update { it.copy(isSaved = true, hasBeenTouched = false) }
             delay(100)
             _uiState.update { it.copy(isSaved = false) }

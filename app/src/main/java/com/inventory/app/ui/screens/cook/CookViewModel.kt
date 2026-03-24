@@ -15,7 +15,12 @@ import com.inventory.app.data.local.entity.ShoppingListItemEntity
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
 import com.inventory.app.domain.model.CuisineData
 import com.inventory.app.domain.model.RegionalCuisine
+import com.inventory.app.domain.model.IngredientMatcher
+import com.inventory.app.domain.model.StepIngredientLinker
+import com.inventory.app.domain.model.RecipeIngredient
+import com.inventory.app.domain.model.convertStepsToRichFormat
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.util.NonFoodCategories
 import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -92,13 +97,6 @@ enum class Equipment(val label: String) {
 
 // ── Data models ────────────────────────────────────────────────────────
 
-data class RecipeIngredient(
-    val name: String = "",
-    val amount: String = "",
-    val unit: String = "",
-    val have_it: Boolean = true
-)
-
 data class SuggestedRecipe(
     val name: String = "",
     val cuisine_origin: String = "",
@@ -149,6 +147,13 @@ data class CookSettingsSnapshot(
     val dietary: List<String> = emptyList(),
     val equipment: List<String> = emptyList(),
     val flexible: Boolean = true
+)
+
+data class RecentCookPreference(
+    val snapshot: CookSettingsSnapshot,
+    val label: String,
+    val frequency: Int = 1,
+    val lastUsedMs: Long = System.currentTimeMillis()
 )
 
 // ── UI State ───────────────────────────────────────────────────────────
@@ -205,6 +210,12 @@ data class CookUiState(
     val currentTip: CookTip? = null,
     val dismissedTips: Set<CookTipId> = emptySet(),
 
+    // SI-4: Recent cook preferences
+    val recentPreferences: List<RecentCookPreference> = emptyList(),
+
+    // Cook-from-card
+    val cookingRecipeName: String? = null,
+    val navigateToCookPlayback: Long? = null
 ) {
     val canCook: Boolean get() = selectedMood != null
 }
@@ -228,6 +239,7 @@ class CookViewModel @Inject constructor(
         loadPreference()
         loadInventory()
         loadSavedRecipeState()
+        loadRecentPreferences()
         // Consume "Cook Again" settings if pending
         pendingCookAgainSettings?.let { json ->
             pendingCookAgainSettings = null
@@ -237,8 +249,9 @@ class CookViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        // Clear static holder to prevent leaking between navigations
+        // Clear static holders to prevent leaking between navigations
         pendingCookAgainSettings = null
+        pendingExpiringItemIds = null
     }
 
     private fun loadPreference() {
@@ -254,7 +267,9 @@ class CookViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val items = itemRepository.getAllActiveWithDetails().first()
-                val summaries = items.map { iwd ->
+                val summaries = items
+                    .filter { iwd -> !NonFoodCategories.isNonFood(iwd.category?.name ?: "") }
+                    .map { iwd ->
                     val daysUntilExpiry = iwd.item.expiryDate?.let {
                         ChronoUnit.DAYS.between(LocalDate.now(), it)
                     }
@@ -271,9 +286,28 @@ class CookViewModel @Inject constructor(
                 )
                 _uiState.update { it.copy(inventoryItems = summaries) }
                 evaluateConfiguratorTips()
+                applyPendingExpiringIds(summaries)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to load inventory: ${e.message}")
             }
+        }
+    }
+
+    private fun applyPendingExpiringIds(summaries: List<InventoryItemSummary>) {
+        val ids = pendingExpiringItemIds ?: return
+        pendingExpiringItemIds = null // Consume once
+
+        val idSet = ids.toSet()
+        val matched = summaries
+            .filter { it.id in idSet }
+            .sortedBy { it.daysUntilExpiry ?: Long.MAX_VALUE }
+            .take(3)
+
+        if (matched.isNotEmpty()) {
+            _uiState.update { it.copy(
+                heroIngredients = matched,
+                selectedMood = MealMood.USE_UP
+            ) }
         }
     }
 
@@ -293,35 +327,44 @@ class CookViewModel @Inject constructor(
 
     // ── Save / unsave recipes ──────────────────────────────────────
 
+    private fun buildSavedRecipeEntity(recipe: SuggestedRecipe): SavedRecipeEntity {
+        val state = _uiState.value
+        val snapshot = CookSettingsSnapshot(
+            mood = state.selectedMood?.name,
+            cuisine = state.selectedCuisine?.name,
+            cuisineCountry = state.selectedCuisine?.country,
+            spice = state.spiceLevel.name,
+            effort = state.effortLevel.name,
+            style = state.styleLevel.name,
+            mealType = state.mealType.name,
+            servings = state.servings,
+            dietary = state.dietaryFilters.map { it.name },
+            equipment = state.equipment.map { it.name },
+            flexible = state.flexibleIngredients
+        )
+        return SavedRecipeEntity(
+            name = recipe.name,
+            description = recipe.description,
+            cuisineOrigin = recipe.cuisine_origin,
+            timeMinutes = recipe.time_minutes,
+            difficulty = recipe.difficulty,
+            servings = recipe.servings,
+            ingredientsJson = gson.toJson(recipe.ingredients),
+            stepsJson = gson.toJson(
+                StepIngredientLinker.linkIngredientsToSteps(
+                    recipe.ingredients,
+                    convertStepsToRichFormat(recipe.steps)
+                )
+            ),
+            tips = recipe.tips,
+            sourceSettingsJson = gson.toJson(snapshot)
+        )
+    }
+
     fun saveRecipe(recipe: SuggestedRecipe) {
         viewModelScope.launch {
             try {
-                val state = _uiState.value
-                val snapshot = CookSettingsSnapshot(
-                    mood = state.selectedMood?.name,
-                    cuisine = state.selectedCuisine?.name,
-                    cuisineCountry = state.selectedCuisine?.country,
-                    spice = state.spiceLevel.name,
-                    effort = state.effortLevel.name,
-                    style = state.styleLevel.name,
-                    mealType = state.mealType.name,
-                    servings = state.servings,
-                    dietary = state.dietaryFilters.map { it.name },
-                    equipment = state.equipment.map { it.name },
-                    flexible = state.flexibleIngredients
-                )
-                val entity = SavedRecipeEntity(
-                    name = recipe.name,
-                    description = recipe.description,
-                    cuisineOrigin = recipe.cuisine_origin,
-                    timeMinutes = recipe.time_minutes,
-                    difficulty = recipe.difficulty,
-                    servings = recipe.servings,
-                    ingredientsJson = gson.toJson(recipe.ingredients),
-                    stepsJson = gson.toJson(recipe.steps),
-                    tips = recipe.tips,
-                    sourceSettingsJson = gson.toJson(snapshot)
-                )
+                val entity = buildSavedRecipeEntity(recipe)
                 // Upsert: update existing recipe if one with same name exists
                 val existing = savedRecipeRepository.findByName(recipe.name)
                 val isUpdate = existing != null
@@ -341,6 +384,34 @@ class CookViewModel @Inject constructor(
                 Log.w(TAG, "Failed to save recipe: ${e.message}")
             }
         }
+    }
+
+    fun saveAndCook(recipe: SuggestedRecipe) {
+        if (_uiState.value.cookingRecipeName != null) return
+        _uiState.update { it.copy(cookingRecipeName = recipe.name) }
+
+        viewModelScope.launch {
+            try {
+                val existing = savedRecipeRepository.findByName(recipe.name)
+                val recipeId = if (existing != null) {
+                    existing.id
+                } else {
+                    val entity = buildSavedRecipeEntity(recipe)
+                    savedRecipeRepository.insert(entity)
+                }
+                _uiState.update { it.copy(
+                    cookingRecipeName = null,
+                    navigateToCookPlayback = recipeId
+                ) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to save & cook: ${e.message}")
+                _uiState.update { it.copy(cookingRecipeName = null) }
+            }
+        }
+    }
+
+    fun consumeCookPlaybackNavigation() {
+        _uiState.update { it.copy(navigateToCookPlayback = null) }
     }
 
     fun unsaveRecipe(recipeName: String) {
@@ -382,6 +453,67 @@ class CookViewModel @Inject constructor(
             _uiState.update { it.copy(
                 currentTip = CookTip(CookTipId.FIRST_COOK, "Settings couldn't be loaded — using defaults. Pick a mood to get started!")
             )}
+        }
+    }
+
+    // ── SI-4: Recent preferences ──────────────────────────────────
+
+    private fun loadRecentPreferences() {
+        viewModelScope.launch {
+            try {
+                val json = settingsRepository.getString(KEY_RECENT_COOK_PREFS, "")
+                if (json.isBlank()) return@launch
+                val type = object : TypeToken<List<RecentCookPreference>>() {}.type
+                val prefs: List<RecentCookPreference> = gson.fromJson(json, type) ?: return@launch
+                _uiState.update { it.copy(recentPreferences = prefs.distinctBy { p -> p.label }.take(3)) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load recent cook preferences: ${e.message}")
+            }
+        }
+    }
+
+    private fun saveCurrentPreferences() {
+        viewModelScope.launch {
+            try {
+                val state = _uiState.value
+                val snapshot = CookSettingsSnapshot(
+                    mood = state.selectedMood?.name,
+                    cuisine = state.selectedCuisine?.name,
+                    cuisineCountry = state.selectedCuisine?.country,
+                    spice = state.spiceLevel.name,
+                    effort = state.effortLevel.name,
+                    style = state.styleLevel.name,
+                    mealType = state.mealType.name,
+                    servings = state.servings,
+                    dietary = state.dietaryFilters.map { it.name },
+                    equipment = state.equipment.map { it.name },
+                    flexible = state.flexibleIngredients
+                )
+                val label = buildString {
+                    append(state.selectedMood?.label ?: "Any")
+                    append(" \u00B7 ")
+                    append(state.selectedCuisine?.name ?: "Surprise")
+                }
+
+                val existing = _uiState.value.recentPreferences.distinctBy { it.label }.toMutableList()
+                val matchIdx = existing.indexOfFirst { it.label == label }
+                if (matchIdx >= 0) {
+                    existing[matchIdx] = existing[matchIdx].copy(
+                        frequency = existing[matchIdx].frequency + 1,
+                        lastUsedMs = System.currentTimeMillis()
+                    )
+                } else {
+                    existing.add(0, RecentCookPreference(snapshot, label, 1, System.currentTimeMillis()))
+                }
+                val sorted = existing
+                    .sortedWith(compareByDescending<RecentCookPreference> { it.frequency }.thenByDescending { it.lastUsedMs })
+                    .take(3)
+
+                _uiState.update { it.copy(recentPreferences = sorted) }
+                settingsRepository.set(KEY_RECENT_COOK_PREFS, gson.toJson(sorted))
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to save cook preferences: ${e.message}")
+            }
         }
     }
 
@@ -580,6 +712,7 @@ class CookViewModel @Inject constructor(
                                 }).takeLast(15)
                             )}
                             evaluateResultsTips()
+                            saveCurrentPreferences()
                             settingsRepository.setBoolean("recipe_result_viewed", true)
                         }
                     },
@@ -613,21 +746,20 @@ class CookViewModel @Inject constructor(
 
     fun addMissingToShoppingList(recipe: SuggestedRecipe) {
         viewModelScope.launch {
-            recipe.missingIngredients.forEach { ingredient ->
-                try {
-                    shoppingListRepository.addItem(
-                        ShoppingListItemEntity(
-                            customName = ingredient.name,
-                            quantity = 1.0,
-                            notes = "For: ${recipe.name}"
-                        )
+            try {
+                val items = recipe.missingIngredients.map { ingredient ->
+                    ShoppingListItemEntity(
+                        customName = ingredient.name,
+                        quantity = 1.0,
+                        notes = "For: ${recipe.name}"
                     )
-                    _uiState.update {
-                        it.copy(addedToShoppingList = it.addedToShoppingList + ingredient.name)
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to add ${ingredient.name} to shopping list: ${e.message}")
                 }
+                shoppingListRepository.addItems(items)
+                _uiState.update {
+                    it.copy(addedToShoppingList = it.addedToShoppingList + recipe.missingIngredients.map { it.name })
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to add ingredients to shopping list: ${e.message}")
             }
         }
     }
@@ -758,7 +890,7 @@ Suggest exactly 3 recipes.
             recipes.map { recipe ->
                 val matchedIngredients = recipe.ingredients.map { ing ->
                     val haveIt = inventory.any { inv ->
-                        ingredientMatch(inv.name, ing.name)
+                        IngredientMatcher.matches(inv.name, ing.name)
                     }
                     ing.copy(have_it = haveIt)
                 }
@@ -781,38 +913,13 @@ Suggest exactly 3 recipes.
 
     companion object {
         private const val TAG = "CookVM"
+        private const val KEY_RECENT_COOK_PREFS = "recent_cook_preferences"
 
         /** Temporary holder for "Cook Again" settings passed between SavedRecipes → Cook screens */
         var pendingCookAgainSettings: String? = null
 
-        /** Strict ingredient matching — all words of shorter name must appear in longer,
-         *  and extra words must not change the ingredient's nature
-         *  (e.g. "rice" ≠ "rice vinegar", "tomato" ≠ "tomato paste") */
-        fun ingredientMatch(inventoryName: String, ingredientName: String): Boolean {
-            val inv = inventoryName.lowercase().trim()
-            val ing = ingredientName.lowercase().trim()
-            if (inv == ing) return true
-
-            val invWords = inv.split(Regex("\\s+")).filter { it.isNotBlank() }
-            val ingWords = ing.split(Regex("\\s+")).filter { it.isNotBlank() }
-            if (invWords.isEmpty() || ingWords.isEmpty()) return false
-
-            // All words of the shorter name must appear in the longer name
-            val (shorter, longer) = if (invWords.size <= ingWords.size) invWords to ingWords else ingWords to invWords
-            if (!shorter.all { word -> longer.any { it == word } }) return false
-
-            // If the longer name has a nature-changing word not in the shorter name,
-            // it's a fundamentally different ingredient
-            val natureChangers = setOf(
-                "vinegar", "paste", "sauce", "powder", "flour", "noodles", "paper",
-                "extract", "essence", "wine", "stock", "broth", "cheese", "butter",
-                "milk", "oil", "cream", "syrup", "juice", "water", "starch", "flakes"
-            )
-            val extraWords = longer.toSet() - shorter.toSet()
-            if (extraWords.any { it in natureChangers }) return false
-
-            return true
-        }
+        /** Temporary holder for expiring item IDs passed from Dashboard/CookHub → AiCook */
+        var pendingExpiringItemIds: List<Long>? = null
 
         private val SYSTEM_PROMPT = """
 You are an expert culinary advisor specializing in authentic regional cuisine from around the world.

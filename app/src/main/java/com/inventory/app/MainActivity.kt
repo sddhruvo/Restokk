@@ -39,10 +39,14 @@ import com.inventory.app.ui.components.ThemedBackground
 import com.inventory.app.ui.components.rememberAiSignInGate
 import com.inventory.app.ui.navigation.AppNavigation
 import com.inventory.app.ui.navigation.BottomNavBar
+import com.inventory.app.ui.navigation.LocalBottomNavHeight
+import com.inventory.app.ui.navigation.LocalBottomNavSlide
 import com.inventory.app.ui.navigation.LocalNavigationGuard
 import com.inventory.app.ui.navigation.NavigationGuardState
 import com.inventory.app.ui.navigation.QuickAddMenuOverlay
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.screens.cook.LocalVolumeHandler
+import com.inventory.app.ui.screens.cook.VolumeHandlerState
 import com.inventory.app.ui.screens.onboarding.OnboardingViewModel
 import com.inventory.app.ui.screens.shopping.AddShoppingItemSheet
 import com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet
@@ -53,8 +57,28 @@ import com.inventory.app.ui.theme.LocalReduceMotion
 import com.inventory.app.ui.theme.VisualStyle
 import com.inventory.app.ui.theme.rememberReduceMotion
 import com.inventory.app.worker.SmartNotificationWorker
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.unit.IntOffset
 import androidx.core.view.WindowCompat
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.InstallStateUpdatedListener
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.InstallStatus
+import com.google.android.play.core.install.model.UpdateAvailability
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -82,6 +106,59 @@ class MainActivity : ComponentActivity() {
     // Notification deep link route (set from intent extras)
     private var pendingNavRoute: String? = null
 
+    // Volume button handler for cooking playback
+    private val volumeHandlerState = VolumeHandlerState()
+
+    private val appUpdateManager by lazy { AppUpdateManagerFactory.create(this) }
+
+    private val installStateListener = InstallStateUpdatedListener { state ->
+        if (state.installStatus() == InstallStatus.DOWNLOADED) {
+            appUpdateManager.completeUpdate()
+        }
+    }
+
+    private suspend fun checkForAppUpdate() {
+        try {
+            val lastCheck = settingsRepository.getString(SettingsRepository.KEY_LAST_UPDATE_CHECK, "0").toLongOrNull() ?: 0L
+            val twelveHoursMs = 12 * 60 * 60 * 1000L
+            if (System.currentTimeMillis() - lastCheck < twelveHoursMs) return
+
+            settingsRepository.set(SettingsRepository.KEY_LAST_UPDATE_CHECK, System.currentTimeMillis().toString())
+
+            val info = appUpdateManager.appUpdateInfo.await()
+            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
+                info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
+            ) {
+                appUpdateManager.registerListener(installStateListener)
+                appUpdateManager.startUpdateFlowForResult(
+                    info,
+                    this@MainActivity,
+                    AppUpdateOptions.defaultOptions(AppUpdateType.FLEXIBLE),
+                    REQUEST_CODE_UPDATE
+                )
+            }
+        } catch (_: Exception) { }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        appUpdateManager.unregisterListener(installStateListener)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
+            keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
+        ) {
+            val isUp = keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP
+            if (volumeHandlerState.onVolumeKey(isUp)) return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    companion object {
+        private const val REQUEST_CODE_UPDATE = 1001
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         val route = intent.getStringExtra(SmartNotificationWorker.EXTRA_NAV_ROUTE)
@@ -105,15 +182,15 @@ class MainActivity : ComponentActivity() {
             val appTheme = AppTheme.fromKey(themeKey)
 
             val visualStyleKey by settingsRepository
-                .getStringFlow(SettingsRepository.KEY_VISUAL_STYLE, VisualStyle.MODERN.key)
-                .collectAsState(initial = VisualStyle.MODERN.key)
+                .getStringFlow(SettingsRepository.KEY_VISUAL_STYLE, VisualStyle.PAPER_INK.key)
+                .collectAsState(initial = VisualStyle.PAPER_INK.key)
             val visualStyle = VisualStyle.fromKey(visualStyleKey)
             val shoppingBadgeCount by shoppingListRepository.getActiveCount()
                 .collectAsState(initial = 0)
 
             // Expiry warning days + expiring count for badge (reactive)
-            val warningDays by settingsRepository.getIntFlow(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 7)
-                .collectAsState(initial = 7)
+            val warningDays by settingsRepository.getIntFlow(SettingsRepository.KEY_EXPIRY_WARNING_DAYS, 3)
+                .collectAsState(initial = 3)
             val expiringBadgeCount by itemRepository.getExpiringSoonCount(warningDays)
                 .collectAsState(initial = 0)
 
@@ -128,6 +205,11 @@ class MainActivity : ComponentActivity() {
             // Ensure anonymous auth on launch (creates UID for analytics/quota)
             LaunchedEffect(Unit) {
                 try { authRepository.ensureAuthenticated() } catch (_: Exception) { }
+            }
+
+            // In-app update check (flexible, max once per 12 hours)
+            LaunchedEffect(Unit) {
+                checkForAppUpdate()
             }
 
             // One-time category icon backfill (v2 = fixed mapping from seeded icon keys)
@@ -213,27 +295,74 @@ class MainActivity : ComponentActivity() {
                         // Navigation guard state (discard dialogs for bottom nav)
                         val navigationGuardState = remember { NavigationGuardState() }
 
+                        // Bottom nav bar height — measured dynamically, propagated to all screens
+                        var bottomNavHeight by remember { mutableStateOf(80.dp) }
+                        val density = LocalDensity.current
+                        val showNavBar = currentRoute != Screen.Onboarding.route &&
+                            currentRoute?.startsWith("cooking-playback") != true
+
+                        // Overscroll-to-reveal: push nav bar DOWN when child scrollable
+                        // hits its bottom and the user keeps scrolling. Content stays put,
+                        // nav bar slides out of the way to reveal hidden items.
+                        var navBarSlide by remember { mutableFloatStateOf(0f) }
+                        val navBarHeightPx = with(density) { bottomNavHeight.toPx() }
+
+                        // Reset slide on navigation
+                        LaunchedEffect(currentRoute) { navBarSlide = 0f }
+
+                        val overscrollConnection = remember(navBarHeightPx) {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    // Scrolling up: restore nav bar first, before child scrolls
+                                    if (available.y > 0f && navBarSlide > 0f) {
+                                        val consumed = minOf(available.y, navBarSlide)
+                                        navBarSlide -= consumed
+                                        return Offset(0f, consumed)
+                                    }
+                                    return Offset.Zero
+                                }
+
+                                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                                    // Scrolling down: child hit bottom, slide nav bar down
+                                    if (available.y < 0f && navBarHeightPx > 0f) {
+                                        val newSlide = (navBarSlide - available.y).coerceAtMost(navBarHeightPx)
+                                        val actualConsumed = -(newSlide - navBarSlide)
+                                        navBarSlide = newSlide
+                                        return Offset(0f, actualConsumed)
+                                    }
+                                    return Offset.Zero
+                                }
+                            }
+                        }
+
                         CompositionLocalProvider(
                             LocalShowAddShoppingSheet provides { itemId, shoppingItemId ->
                                 sheetRequest = SheetRequest(itemId, shoppingItemId)
                             },
-                            LocalNavigationGuard provides navigationGuardState
+                            LocalNavigationGuard provides navigationGuardState,
+                            LocalVolumeHandler provides volumeHandlerState,
+                            LocalBottomNavHeight provides if (showNavBar) bottomNavHeight else 0.dp,
+                            LocalBottomNavSlide provides if (showNavBar && navBarHeightPx > 0f) (navBarSlide / navBarHeightPx).coerceIn(0f, 1f) else 0f
                         ) {
                             val aiGate = rememberAiSignInGate()
 
-                            Box(modifier = Modifier.fillMaxSize()) {
+                            @OptIn(ExperimentalComposeUiApi::class)
+                            Box(modifier = Modifier
+                                .fillMaxSize()
+                                .semantics { testTagsAsResourceId = true }
+                            ) {
                                 Scaffold(
                                     modifier = Modifier.fillMaxSize()
                                 ) { innerPadding ->
                                     ThemedBackground(
-                                        modifier = Modifier.padding(
-                                            top = innerPadding.calculateTopPadding(),
-                                            bottom = if (currentRoute != Screen.Onboarding.route) 72.dp else 0.dp
-                                        )
+                                        modifier = Modifier
+                                            .padding(top = innerPadding.calculateTopPadding())
+                                            .nestedScroll(overscrollConnection)
                                     ) {
                                         AppNavigation(
                                             navController = navController,
-                                            modifier = Modifier.fillMaxSize(),
+                                            modifier = Modifier
+                                                .fillMaxSize(),
                                             startDestination = startDest,
                                             windowWidthSizeClass = windowSizeClass.widthSizeClass
                                         )
@@ -266,7 +395,7 @@ class MainActivity : ComponentActivity() {
                                 )
 
                                 // Floating pill bottom nav (renders above content)
-                                if (currentRoute != Screen.Onboarding.route) {
+                                if (showNavBar) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize(),
@@ -274,6 +403,14 @@ class MainActivity : ComponentActivity() {
                                     ) {
                                         BottomNavBar(
                                             navController,
+                                            modifier = Modifier
+                                                .onGloballyPositioned { coordinates ->
+                                                    with(density) {
+                                                        val h = coordinates.size.height.toDp()
+                                                        if (h > 0.dp) bottomNavHeight = h
+                                                    }
+                                                }
+                                                .offset { IntOffset(0, navBarSlide.toInt()) },
                                             shoppingBadgeCount = shoppingBadgeCount,
                                             expiringBadgeCount = expiringBadgeCount,
                                             isQuickAddOpen = isQuickAddOpen,

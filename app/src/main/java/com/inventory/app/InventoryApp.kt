@@ -1,6 +1,9 @@
 package com.inventory.app
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -11,6 +14,8 @@ import com.inventory.app.data.local.dao.PurchaseHistoryDao
 import com.inventory.app.data.local.dao.SettingsDao
 import com.inventory.app.data.local.entity.PurchaseHistoryEntity
 import com.inventory.app.data.local.entity.SettingsEntity
+import com.inventory.app.data.repository.SettingsRepository
+import com.inventory.app.domain.model.UnitSystem
 import com.inventory.app.widget.WidgetUpdateWorker
 import com.inventory.app.worker.SmartNotificationWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -36,6 +41,9 @@ class InventoryApp : Application(), Configuration.Provider {
     @Inject
     lateinit var purchaseHistoryDao: PurchaseHistoryDao
 
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -43,9 +51,38 @@ class InventoryApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        createNotificationChannels()
         scheduleExpiryCheck()
         scheduleWidgetRefresh()
         backfillPurchaseHistory()
+        initializeUnitSystem()
+    }
+
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val mgr = getSystemService(NotificationManager::class.java)
+            mgr.createNotificationChannel(
+                NotificationChannel(
+                    "cooking_timers",
+                    "Cooking Timers",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply { description = "Live countdown timers while cooking" }
+            )
+        }
+    }
+
+    private fun initializeUnitSystem() {
+        // Initialize with default region immediately (synchronous, no I/O)
+        UnitSystem.initialize(this, "US")
+        // Then re-initialize with the user's actual region from settings (async)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val region = settingsRepository.getRegionCode()
+                if (region != "US") UnitSystem.initialize(this@InventoryApp, region)
+            } catch (_: Exception) {
+                // Default US stays active — safe fallback
+            }
+        }
     }
 
     private fun scheduleExpiryCheck() {

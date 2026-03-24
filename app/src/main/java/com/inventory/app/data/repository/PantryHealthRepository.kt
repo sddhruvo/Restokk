@@ -45,4 +45,7 @@ class PantryHealthRepository @Inject constructor(
         dao.getRecentLogs(days)
 
     suspend fun getLatest(): PantryHealthLogEntity? = dao.getLatest()
+
+    suspend fun getPreviousSnapshot(): PantryHealthLogEntity? =
+        dao.getPreviousSnapshot(LocalDate.now().toEpochDay())
 }

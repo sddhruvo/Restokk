@@ -1,52 +1,76 @@
 package com.inventory.app.ui.screens.cook
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.inventory.app.data.local.entity.SavedRecipeEntity
+import com.inventory.app.data.local.entity.ShoppingListItemEntity
+import com.inventory.app.data.repository.CookingLogRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.SavedRecipeRepository
+import com.inventory.app.data.repository.ShoppingListRepository
+import com.inventory.app.domain.model.IngredientMatcher
+import com.inventory.app.domain.model.RecipeIngredient
+import com.inventory.app.domain.model.RecipeStep
+import com.inventory.app.domain.model.parseStepsJson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 import javax.inject.Inject
+
+// ── One-shot events ───────────────────────────────────────────────────────
+
+sealed class SavedRecipesEvent {
+    data class ShoppingAdded(val count: Int) : SavedRecipesEvent()
+}
+
+// ── Display model ─────────────────────────────────────────────────────────
 
 data class SavedRecipeDisplay(
     val entity: SavedRecipeEntity,
     val ingredients: List<RecipeIngredient>,
-    val steps: List<String>,
+    val steps: List<RecipeStep>,
     val matchPercentage: Int,
     val matchedCount: Int,
-    val totalCount: Int
+    val totalCount: Int,
+    val cookCount: Int = 0
 )
+
+// ── UI state ──────────────────────────────────────────────────────────────
 
 data class SavedRecipesUiState(
     val recipes: List<SavedRecipeDisplay> = emptyList(),
     val favorites: List<SavedRecipeDisplay> = emptyList(),
+    val drafts: List<SavedRecipeDisplay> = emptyList(),
     val searchQuery: String = "",
     val isSearching: Boolean = false,
+    val isLoading: Boolean = true,
     val expandedRecipeId: Long? = null,
     val editingNotesId: Long? = null,
     val lastDeletedRecipeId: Long? = null,
     val lastDeletedRecipeName: String? = null
 )
 
+// ── ViewModel ─────────────────────────────────────────────────────────────
+
 @HiltViewModel
 class SavedRecipesViewModel @Inject constructor(
     private val savedRecipeRepository: SavedRecipeRepository,
     private val itemRepository: ItemRepository,
+    private val cookingLogRepository: CookingLogRepository,
+    private val shoppingListRepository: ShoppingListRepository,
     private val gson: Gson
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SavedRecipesUiState())
     val uiState = _uiState.asStateFlow()
 
-    private var currentInventoryNames: List<String> = emptyList()
+    private val _events = Channel<SavedRecipesEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
+
     private var collectionJob: Job? = null
     private var searchJob: Job? = null
 
@@ -54,41 +78,48 @@ class SavedRecipesViewModel @Inject constructor(
         loadData()
     }
 
+    // ── Load data: combine 3 flows with race-condition guard ──────────────
+
     private fun loadData() {
         collectionJob?.cancel()
-        collectionJob = viewModelScope.launch {
-            // Load inventory names for match calculation
-            try {
-                val items = itemRepository.getAllActiveWithDetails().first()
-                currentInventoryNames = items.map { it.item.name.lowercase() }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to load inventory: ${e.message}")
-            }
 
-            // Observe saved recipes
-            savedRecipeRepository.getAllActive().collect { entities ->
-                val displays = entities.map { toDisplay(it) }
-                val favs = displays.filter { it.entity.isFavorite }
-                _uiState.update { it.copy(recipes = displays, favorites = favs) }
-            }
+        collectionJob = viewModelScope.launch {
+            combine(
+                savedRecipeRepository.getActiveNonDrafts(),
+                savedRecipeRepository.getDrafts(),
+                cookingLogRepository.getCookCountMap(),
+                itemRepository.getAllActiveWithDetails()
+            ) { recipes, drafts, countMap, inventoryItems ->
+                val inventoryNames = inventoryItems.map { it.item.name.lowercase() }
+                val recipeDisplays = recipes.map { toDisplay(it, countMap, inventoryNames) }
+                val draftDisplays = drafts.map { toDisplay(it, countMap, inventoryNames) }
+                val favs = recipeDisplays.filter { it.entity.isFavorite }
+
+                _uiState.update {
+                    it.copy(
+                        recipes = recipeDisplays,
+                        favorites = favs,
+                        drafts = draftDisplays,
+                        isLoading = false
+                    )
+                }
+            }.collect {}
         }
     }
 
-    private fun toDisplay(entity: SavedRecipeEntity): SavedRecipeDisplay {
+    // ── Display conversion ────────────────────────────────────────────────
+
+    private fun toDisplay(entity: SavedRecipeEntity, countMap: Map<Long, Int>, inventoryNames: List<String>): SavedRecipeDisplay {
         val rawIngredients: List<RecipeIngredient> = try {
             val type = object : TypeToken<List<RecipeIngredient>>() {}.type
             gson.fromJson(entity.ingredientsJson, type) ?: emptyList()
         } catch (e: Exception) { emptyList() }
 
-        val steps: List<String> = try {
-            val type = object : TypeToken<List<String>>() {}.type
-            gson.fromJson(entity.stepsJson, type) ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+        val steps: List<RecipeStep> = parseStepsJson(entity.stepsJson, gson)
 
-        // Live-match each ingredient against current inventory (word-boundary matching)
         val ingredients = rawIngredients.map { ing ->
-            val haveIt = currentInventoryNames.any { inv ->
-                CookViewModel.ingredientMatch(inv, ing.name)
+            val haveIt = inventoryNames.any { inv ->
+                IngredientMatcher.matches(inv, ing.name)
             }
             ing.copy(have_it = haveIt)
         }
@@ -102,9 +133,12 @@ class SavedRecipesViewModel @Inject constructor(
             steps = steps,
             matchPercentage = pct,
             matchedCount = matched,
-            totalCount = total
+            totalCount = total,
+            cookCount = countMap[entity.id] ?: 0
         )
     }
+
+    // ── Search ────────────────────────────────────────────────────────────
 
     fun setSearch(query: String) {
         _uiState.update { it.copy(searchQuery = query, isSearching = query.isNotBlank()) }
@@ -114,14 +148,22 @@ class SavedRecipesViewModel @Inject constructor(
         } else {
             collectionJob?.cancel()
             searchJob = viewModelScope.launch {
-                savedRecipeRepository.search(query).collect { entities ->
-                    val displays = entities.map { toDisplay(it) }
+                combine(
+                    savedRecipeRepository.search(query),
+                    cookingLogRepository.getCookCountMap(),
+                    itemRepository.getAllActiveWithDetails()
+                ) { results, countMap, inventoryItems ->
+                    val inventoryNames = inventoryItems.map { it.item.name.lowercase() }
+                    val displays = results.map { toDisplay(it, countMap, inventoryNames) }
                     val favs = displays.filter { it.entity.isFavorite }
-                    _uiState.update { it.copy(recipes = displays, favorites = favs) }
-                }
+                    // Drafts stay pinned regardless of search query
+                    _uiState.update { it.copy(recipes = displays, favorites = favs, isLoading = false) }
+                }.collect {}
             }
         }
     }
+
+    // ── Standard actions ──────────────────────────────────────────────────
 
     fun toggleExpanded(recipeId: Long) {
         _uiState.update {
@@ -130,14 +172,12 @@ class SavedRecipesViewModel @Inject constructor(
     }
 
     fun toggleFavorite(recipeId: Long) {
-        viewModelScope.launch {
-            savedRecipeRepository.toggleFavorite(recipeId)
-        }
+        viewModelScope.launch { savedRecipeRepository.toggleFavorite(recipeId) }
     }
 
     fun deleteRecipe(recipeId: Long) {
-        // Find name before deleting (for undo snackbar)
         val name = _uiState.value.recipes.find { it.entity.id == recipeId }?.entity?.name
+            ?: _uiState.value.drafts.find { it.entity.id == recipeId }?.entity?.name
         viewModelScope.launch {
             savedRecipeRepository.softDelete(recipeId)
             _uiState.update { it.copy(lastDeletedRecipeId = recipeId, lastDeletedRecipeName = name) }
@@ -156,15 +196,11 @@ class SavedRecipesViewModel @Inject constructor(
     }
 
     fun updateNotes(recipeId: Long, notes: String?) {
-        viewModelScope.launch {
-            savedRecipeRepository.updateNotes(recipeId, notes)
-        }
+        viewModelScope.launch { savedRecipeRepository.updateNotes(recipeId, notes) }
     }
 
     fun updateRating(recipeId: Long, rating: Int) {
-        viewModelScope.launch {
-            savedRecipeRepository.updateRating(recipeId, rating)
-        }
+        viewModelScope.launch { savedRecipeRepository.updateRating(recipeId, rating) }
     }
 
     fun setEditingNotes(recipeId: Long?) {
@@ -175,7 +211,65 @@ class SavedRecipesViewModel @Inject constructor(
         return recipe.entity.sourceSettingsJson
     }
 
-    companion object {
-        private const val TAG = "SavedRecipesVM"
+    // ── Add missing ingredients to shopping list ──────────────────────────
+
+    fun addMissingToShoppingList(recipe: SavedRecipeDisplay) {
+        val missing = recipe.ingredients.filter { !it.have_it }
+        if (missing.isEmpty()) return
+
+        viewModelScope.launch {
+            missing.forEach { ing ->
+                shoppingListRepository.addItem(
+                    ShoppingListItemEntity(
+                        customName = ing.name,
+                        notes = "For: ${recipe.entity.name}",
+                        quantity = 1.0
+                    )
+                )
+            }
+            _events.send(SavedRecipesEvent.ShoppingAdded(missing.size))
+        }
     }
+
+    // ── Share text formatter ──────────────────────────────────────────────
+
+    fun getShareText(recipe: SavedRecipeDisplay): String {
+        return buildString {
+            appendLine(recipe.entity.name)
+
+            val meta = listOfNotNull(
+                recipe.entity.cuisineOrigin.takeIf { it.isNotBlank() },
+                if (recipe.entity.timeMinutes > 0) "${recipe.entity.timeMinutes} min" else null,
+                "Serves ${recipe.entity.servings}"
+            ).joinToString(" · ")
+            if (meta.isNotBlank()) appendLine(meta)
+
+            if (recipe.ingredients.isNotEmpty()) {
+                appendLine()
+                appendLine("INGREDIENTS")
+                recipe.ingredients.forEach { ing ->
+                    val amount = "${ing.amount} ${ing.unit}".trim()
+                    appendLine("- ${if (amount.isNotBlank()) "$amount " else ""}${ing.name}")
+                }
+            }
+
+            if (recipe.steps.isNotEmpty()) {
+                appendLine()
+                appendLine("STEPS")
+                recipe.steps.forEachIndexed { i, step ->
+                    appendLine("${i + 1}. ${step.instruction}")
+                }
+            }
+
+            if (!recipe.entity.tips.isNullOrBlank()) {
+                appendLine()
+                appendLine("TIPS")
+                appendLine(recipe.entity.tips)
+            }
+
+            appendLine()
+            append("— Shared from Restokk")
+        }
+    }
+
 }

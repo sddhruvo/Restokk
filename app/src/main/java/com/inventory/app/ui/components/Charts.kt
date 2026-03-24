@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -51,6 +52,7 @@ fun DrawScope.drawInkHatchedBar(
     wobbleSeed: Float,
 ) {
     val h = size.height
+    if (h < 1f) return // Prevent infinite loop when height is 0
     val cornerRadius = h / 2f
     val cr = androidx.compose.ui.geometry.CornerRadius(cornerRadius, cornerRadius)
 
@@ -88,11 +90,27 @@ fun DrawScope.drawInkHatchedBar(
     }
 }
 
-private val chartColors = listOf(
+// Light mode — standard Material palette
+private val chartColorsLight = listOf(
     Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800), Color(0xFF9C27B0),
     Color(0xFFE91E63), Color(0xFF00BCD4), Color(0xFFFF5722), Color(0xFF795548),
     Color(0xFF607D8B), Color(0xFF3F51B5), Color(0xFFCDDC39), Color(0xFF009688)
 )
+// Dark mode — brighter/lighter variants for contrast on dark backgrounds
+private val chartColorsDark = listOf(
+    Color(0xFF81C784), Color(0xFF64B5F6), Color(0xFFFFB74D), Color(0xFFCE93D8),
+    Color(0xFFF06292), Color(0xFF4DD0E1), Color(0xFFFF8A65), Color(0xFFA1887F),
+    Color(0xFF90A4AE), Color(0xFF7986CB), Color(0xFFDCE775), Color(0xFF80CBC4)
+)
+
+/**
+ * Returns theme-aware chart colors — brighter in dark mode for visibility.
+ */
+@Composable
+fun chartColors(): List<Color> {
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.4f
+    return if (isDark) chartColorsDark else chartColorsLight
+}
 
 data class ChartEntry(val label: String, val value: Float)
 
@@ -104,6 +122,7 @@ fun DonutChart(
     if (entries.isEmpty()) return
     val total = entries.sumOf { it.value.toDouble() }.toFloat()
     if (total <= 0f) return
+    val colors = chartColors()
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -119,7 +138,7 @@ fun DonutChart(
             entries.forEachIndexed { index, entry ->
                 val sweep = (entry.value / total) * 360f
                 drawArc(
-                    color = chartColors[index % chartColors.size],
+                    color = colors[index % colors.size],
                     startAngle = startAngle,
                     sweepAngle = sweep,
                     useCenter = false,
@@ -138,7 +157,7 @@ fun DonutChart(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Canvas(modifier = Modifier.size(10.dp)) {
-                        drawCircle(color = chartColors[index % chartColors.size])
+                        drawCircle(color = colors[index % colors.size])
                     }
                     Text(
                         "${entry.label} (${entry.value.toDouble().formatQty()})",
@@ -161,6 +180,7 @@ fun HorizontalBarChart(
     if (maxValue <= 0f) return
     val barBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     val progressStyle = MaterialTheme.visuals.progressStyle
+    val colors = chartColors()
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -187,7 +207,7 @@ fun HorizontalBarChart(
                         .padding(top = 4.dp)
                 ) {
                     val barWidth = (entry.value / maxValue) * size.width
-                    val barColor = chartColors[index % chartColors.size]
+                    val barColor = colors[index % colors.size]
                     when (progressStyle) {
                         is ProgressStyle.InkHatched -> {
                             drawInkHatchedBar(
@@ -229,22 +249,17 @@ fun SpendingLineChart(
 
     val lineColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val themeFontFamily = MaterialTheme.typography.bodyLarge.fontFamily
     val textMeasurer = rememberTextMeasurer()
 
     val maxValue = entries.maxOf { it.value }.coerceAtLeast(1f)
     val peakIndex = entries.indexOfFirst { it.value == entries.maxOf { e -> e.value } }
 
-    val labelStyle = TextStyle(
-        fontSize = 10.sp,
-        color = onSurfaceColor.copy(alpha = 0.6f),
-        fontFamily = themeFontFamily
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(
+        color = onSurfaceColor.copy(alpha = 0.6f)
     )
-    val peakStyle = TextStyle(
-        fontSize = 11.sp,
+    val peakStyle = MaterialTheme.typography.labelMedium.copy(
         fontWeight = FontWeight.Bold,
-        color = lineColor,
-        fontFamily = themeFontFamily
+        color = lineColor
     )
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -352,18 +367,13 @@ fun ScoreLineChart(
     val appColors = MaterialTheme.appColors
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val themeFontFamily = MaterialTheme.typography.bodyLarge.fontFamily
     val textMeasurer = rememberTextMeasurer()
 
-    val labelStyle = TextStyle(
-        fontSize = 10.sp,
-        color = onSurfaceColor.copy(alpha = 0.6f),
-        fontFamily = themeFontFamily
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(
+        color = onSurfaceColor.copy(alpha = 0.6f)
     )
-    val refLineStyle = TextStyle(
-        fontSize = 9.sp,
-        color = onSurfaceColor.copy(alpha = 0.4f),
-        fontFamily = themeFontFamily
+    val refLineStyle = MaterialTheme.typography.labelSmall.copy(
+        color = onSurfaceColor.copy(alpha = 0.4f)
     )
 
     Box(modifier = modifier.fillMaxWidth()) {

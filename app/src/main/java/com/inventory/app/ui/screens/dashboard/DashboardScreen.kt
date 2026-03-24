@@ -1,14 +1,19 @@
 package com.inventory.app.ui.screens.dashboard
 
 import com.inventory.app.ui.components.ThemedSnackbarHost
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.ui.graphics.luminance
+import com.inventory.app.domain.model.UrgencyLevel
+import com.inventory.app.domain.model.UrgencyResult
+import com.inventory.app.domain.model.UrgencyTarget
+import com.inventory.app.ui.theme.AppTheme
+import com.inventory.app.ui.theme.sectionHeader
+import com.inventory.app.ui.theme.VisualStyle
+import com.inventory.app.ui.theme.previewColor
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,40 +28,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Kitchen
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.PauseCircleOutline
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.inventory.app.ui.components.ThemedButton
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import com.inventory.app.ui.components.ThemedProgressBar
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import com.inventory.app.ui.components.ThemedScaffold
@@ -64,7 +48,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,7 +61,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -90,25 +72,16 @@ import androidx.navigation.NavController
 import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.EmpathyCartIcon
-import com.inventory.app.ui.components.EmpathyHeartIcon
-import com.inventory.app.ui.components.EmpathyTrendingIcon
-import com.inventory.app.ui.components.EmpathyWarningIcon
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.InkPersonality
 import com.inventory.app.ui.components.inkBreathe
-import com.inventory.app.ui.components.rememberAiSignInGate
-import com.inventory.app.ui.components.EmptyState
-import com.inventory.app.ui.components.ShimmerStatCard
 import com.inventory.app.ui.components.StaggeredAnimatedItem
 import com.inventory.app.ui.navigation.Screen
-import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.theme.AppShapes
 import com.inventory.app.ui.theme.Dimens
 import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.ui.theme.appColors
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,8 +94,6 @@ fun DashboardScreen(
     val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val aiGate = rememberAiSignInGate()
-
     val gridColumns = when (windowWidthSizeClass) {
         WindowWidthSizeClass.Expanded -> 4
         WindowWidthSizeClass.Medium -> 3
@@ -149,6 +120,7 @@ fun DashboardScreen(
         else -> "Here's your kitchen at a glance"
     }
     val subtitle = when {
+        uiState.contextualInsight.isNotBlank() -> uiState.contextualInsight
         uiState.totalItems == 0 -> "Start by adding your first item"
         uiState.expiringSoon > 0 -> "$prefTagline \u2014 ${uiState.expiringSoon} item${if (uiState.expiringSoon != 1) "s" else ""} expiring soon"
         else -> "$prefTagline \u2014 tracking ${uiState.totalItems} item${if (uiState.totalItems != 1) "s" else ""}"
@@ -188,7 +160,6 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .statusBarsPadding()
                 .verticalScroll(scrollState)
                 .padding(Dimens.spacingLg),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
@@ -227,6 +198,101 @@ fun DashboardScreen(
                             contentDescription = "Refresh",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    // Theme picker
+                    var showThemePicker by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showThemePicker = true }) {
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.Palette,
+                                inkIconRes = 0,
+                                contentDescription = "Theme",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showThemePicker,
+                            onDismissRequest = { showThemePicker = false }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Color palette row
+                                Text(
+                                    "Color",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    AppTheme.entries.forEach { theme ->
+                                        val isSelected = uiState.appTheme == theme
+                                        val borderColor = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                                .background(theme.previewColor)
+                                                .border(
+                                                    if (isSelected) 2.5.dp else 1.dp,
+                                                    borderColor,
+                                                    CircleShape
+                                                )
+                                                .clickable { viewModel.setAppTheme(theme) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) {
+                                                val checkTint = if (theme.previewColor.luminance() > 0.5f)
+                                                    Color.Black else Color.White
+                                                Icon(
+                                                    Icons.Filled.Check,
+                                                    contentDescription = null,
+                                                    tint = checkTint,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                // Visual style row
+                                Text(
+                                    "Style",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    VisualStyle.entries.forEach { style ->
+                                        val isSelected = uiState.visualStyle == style
+                                        val bg = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                            else MaterialTheme.colorScheme.onSurface
+                                        val border = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else Color.Transparent
+                                        Surface(
+                                            shape = MaterialTheme.shapes.small,
+                                            color = bg,
+                                            modifier = Modifier
+                                                .border(
+                                                    if (isSelected) 1.5.dp else 0.dp,
+                                                    border,
+                                                    MaterialTheme.shapes.small
+                                                )
+                                                .clickable { viewModel.setVisualStyle(style) }
+                                        ) {
+                                            Text(
+                                                style.displayName,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = textColor,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     IconButton(onClick = { navController.navigate(Screen.GlobalSearch.route) }) {
                         Box(
@@ -286,426 +352,105 @@ fun DashboardScreen(
                 )
             }
 
-            // Hero card / insight chip — contextual insight based on state + user preference
-            // Determine active insight type for stat card highlight
-            val activeInsightType: InsightType? = if (!uiState.isLoading && uiState.totalItems > 0) {
-                data class InsightEntry(val type: InsightType, val available: Boolean)
-                val entries = when (uiState.userPreference) {
-                    "WASTE" -> listOf(
-                        InsightEntry(InsightType.EXPIRING, uiState.expiringSoon > 0),
-                        InsightEntry(InsightType.SHOPPING, uiState.shoppingActive > 0),
-                        InsightEntry(InsightType.RECIPES, uiState.savedRecipeCount > 0)
-                    )
-                    "COOK" -> listOf(
-                        InsightEntry(InsightType.RECIPES, uiState.savedRecipeCount > 0),
-                        InsightEntry(InsightType.EXPIRING, uiState.expiringSoon > 0),
-                        InsightEntry(InsightType.SHOPPING, uiState.shoppingActive > 0)
-                    )
-                    else -> listOf(
-                        InsightEntry(InsightType.INVENTORY, true),
-                        InsightEntry(InsightType.EXPIRING, uiState.expiringSoon > 0),
-                        InsightEntry(InsightType.SHOPPING, uiState.shoppingActive > 0),
-                        InsightEntry(InsightType.RECIPES, uiState.savedRecipeCount > 0)
-                    )
-                }
-                entries.firstOrNull { it.available }?.type
-            } else null
-
-            if (!uiState.isLoading) {
-                if (uiState.totalItems == 0) {
-                    val heroSubtitle = when (uiState.userPreference) {
-                        "WASTE" -> "Start tracking expiry dates to reduce waste"
-                        "COOK" -> "Add ingredients to discover what you can cook"
-                        else -> "Scan your kitchen to see what you have"
-                    }
-                    KitchenScanHeroCard(subtitle = heroSubtitle) { navController.navigate(Screen.KitchenMap.route) }
-                } else {
-                    // Compact insight chip — same priority logic, compact visual
-                    when (activeInsightType) {
-                        InsightType.EXPIRING -> CompactInsightChip(
-                            icon = Icons.Filled.Timer, inkIconRes = R.drawable.ic_ink_clock,
-                            iconTint = MaterialTheme.appColors.accentOrange,
-                            text = "${uiState.expiringSoon} item${if (uiState.expiringSoon != 1) "s" else ""} expiring soon",
-                            onClick = { navController.navigate(Screen.ExpiringReport.route) }
-                        )
-                        InsightType.SHOPPING -> CompactInsightChip(
-                            icon = Icons.Filled.ShoppingCart, inkIconRes = R.drawable.ic_ink_shopping,
-                            iconTint = MaterialTheme.appColors.accentPurple,
-                            text = "${uiState.shoppingActive} item${if (uiState.shoppingActive != 1) "s" else ""} to buy",
-                            onClick = { navController.navigate(Screen.ShoppingList.route) }
-                        )
-                        InsightType.RECIPES -> CompactInsightChip(
-                            icon = Icons.Filled.MenuBook, inkIconRes = R.drawable.ic_ink_book,
-                            iconTint = MaterialTheme.appColors.accentGreen,
-                            text = "${uiState.savedRecipeCount} saved recipe${if (uiState.savedRecipeCount != 1) "s" else ""} \u2014 time to cook?",
-                            onClick = { navController.navigate(Screen.Cook.route) }
-                        )
-                        InsightType.INVENTORY -> CompactInsightChip(
-                            icon = Icons.Filled.Inventory2, inkIconRes = R.drawable.ic_ink_box,
-                            iconTint = MaterialTheme.appColors.accentBlue,
-                            text = "${uiState.totalItems} item${if (uiState.totalItems != 1) "s" else ""} in your kitchen",
-                            onClick = { navController.navigate(Screen.ItemList.createRoute()) }
-                        )
-                        null -> { /* no insight available */ }
-                    }
-                }
-            }
-
-            // Stats cards
+            // Hero Zone — urgency-driven priority card
             AnimateOnce(index = 1, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)) {
-                    if (uiState.isLoading) {
-                        AdaptiveGrid(
-                            columns = gridColumns,
-                            spacing = 12.dp,
-                            items = listOf<@Composable (Modifier) -> Unit>(
-                                { mod -> ShimmerStatCard(modifier = mod) },
-                                { mod -> ShimmerStatCard(modifier = mod) },
-                                { mod -> ShimmerStatCard(modifier = mod) },
-                                { mod -> ShimmerStatCard(modifier = mod) },
-                                { mod -> ShimmerStatCard(modifier = mod) }
-                            )
-                        )
-                    } else {
-                        AdaptiveGrid(
-                            columns = gridColumns,
-                            spacing = 12.dp,
-                            items = listOf<@Composable (Modifier) -> Unit>(
-                                { mod -> HealthScoreCard(mod, uiState.homeScore, uiState.homeScoreLabel) { navController.navigate(Screen.PantryHealth.route) } },
-                                { mod -> StatCard(mod, "Total Items", "${uiState.totalItems}", Icons.Filled.Inventory2, MaterialTheme.appColors.accentBlue, inkIconRes = R.drawable.ic_ink_box, isHighlighted = activeInsightType == InsightType.INVENTORY) { navController.navigate(Screen.ItemList.createRoute()) } },
-                                { mod -> StatCard(mod, "Expiring Soon", "${uiState.expiringSoon}", Icons.Filled.Warning, MaterialTheme.appColors.accentOrange, inkIconRes = R.drawable.ic_ink_warning, iconContent = { EmpathyWarningIcon(expiringCount = uiState.expiringSoon, modifier = Modifier.size(Dimens.iconSizeMd), tint = MaterialTheme.appColors.accentOrange) }, isHighlighted = activeInsightType == InsightType.EXPIRING) { navController.navigate(Screen.ExpiringReport.route) } },
-                                { mod -> StatCard(mod, "Low Stock", "${uiState.lowStock}", Icons.Filled.TrendingDown, MaterialTheme.appColors.accentGreen, inkIconRes = R.drawable.ic_ink_trending_down, iconContent = { EmpathyTrendingIcon(lowStockCount = uiState.lowStock, modifier = Modifier.size(Dimens.iconSizeMd), tint = MaterialTheme.appColors.accentGreen) }) { navController.navigate(Screen.LowStockReport.route) } },
-                                { mod -> StatCard(mod, "Total Value", "${uiState.currencySymbol}${String.format("%.2f", uiState.totalValue)}", Icons.Filled.AttachMoney, MaterialTheme.appColors.accentGreen) { navController.navigate(Screen.InventoryReport.route) } }
-                            )
-                        )
-                    }
-                }
-            }
-
-            // Quick actions
-            AnimateOnce(index = 2, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)) {
-                    Text("Quick Actions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    AdaptiveGrid(
-                    columns = gridColumns,
-                    spacing = 12.dp,
-                    items = listOf<@Composable (Modifier) -> Unit>(
-                        { mod -> QuickActionCard(mod, "Cook", Icons.Filled.Restaurant, MaterialTheme.appColors.accentOrange,
-                            subtitle = if (uiState.savedRecipeCount > 0) "${uiState.savedRecipeCount} saved" else null,
-                            inkIconRes = R.drawable.ic_ink_cook,
-                            breathePersonality = InkPersonality.SIMMER
-                        ) { navController.navigate(Screen.Cook.route) } },
-                        { mod -> QuickActionCard(mod, "Kitchen", Icons.Filled.Kitchen, MaterialTheme.appColors.accentGold,
-                            subtitle = if (uiState.lastScanItemCount > 0) "${uiState.lastScanItemCount} mapped" else null,
-                            inkIconRes = R.drawable.ic_ink_kitchen,
-                            breathePersonality = InkPersonality.SETTLE
-                        ) { navController.navigate(Screen.KitchenMap.route) } },
-                        { mod -> QuickActionCard(mod, "Reports", Icons.Filled.Assessment, MaterialTheme.appColors.accentBlue, inkIconRes = R.drawable.ic_ink_reports) { navController.navigate(Screen.Reports.route) } },
-                        { mod -> QuickActionCard(mod, "Scan", Icons.Filled.QrCodeScanner, MaterialTheme.appColors.accentGold, inkIconRes = R.drawable.ic_ink_barcode) { navController.navigate(Screen.BarcodeScan.route) } },
-                        { mod -> QuickActionCard(mod, "Receipt", Icons.Filled.Receipt, MaterialTheme.appColors.accentGreen, inkIconRes = R.drawable.ic_ink_receipt) { aiGate.requireSignIn("parse receipts") { navController.navigate(Screen.ReceiptScan.route) } } },
-                        { mod ->
-                            val totalShopping = uiState.shoppingActive + uiState.shoppingPurchased
-                            QuickActionCard(mod, "Shopping", Icons.Filled.ShoppingCart, MaterialTheme.appColors.accentPurple,
-                                subtitle = if (totalShopping > 0) "${uiState.shoppingPurchased}/$totalShopping done" else null,
-                                inkIconRes = R.drawable.ic_ink_shopping,
-                                iconContent = { EmpathyCartIcon(itemCount = uiState.shoppingActive, modifier = Modifier.size(Dimens.iconSizeLg), tint = MaterialTheme.appColors.accentPurple) }
-                            ) { navController.navigate(Screen.ShoppingList.route) }
-                        }
-                    )
-                )
-                }
-            }
-
-            // Expiring soon list
-            if (uiState.expiringItems.isNotEmpty()) {
-            AnimateOnce(index = 3, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Expiring Soon", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (uiState.expiringItems.size > 5) {
-                                TextButton(onClick = { navController.navigate(Screen.ExpiringReport.route) }) {
-                                    Text("View All (${uiState.expiringItems.size})")
+                HeroZone(
+                    urgencyResult = if (!uiState.isLoading) uiState.urgencyResult
+                        else UrgencyResult(UrgencyTarget.NONE, 0, UrgencyLevel.NONE),
+                    uiState = uiState,
+                    onNavigate = { route -> navController.navigate(route) },
+                    onAction = { action ->
+                        when (action) {
+                            is HeroAction.AddToShoppingList -> showShoppingSheet(action.itemId, action.categoryId)
+                            is HeroAction.PauseItem -> {
+                                viewModel.pauseItem(action.itemId)
+                                scope.launch {
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = "Paused",
+                                        actionLabel = "Undo",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        viewModel.unpauseItem(action.itemId)
+                                    }
                                 }
                             }
-                            IconButton(onClick = { navController.navigate(Screen.ItemForm.createRoute()) }) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    ThemedIcon(
-                                        materialIcon = Icons.Filled.Add,
-                                        inkIconRes = R.drawable.ic_ink_add,
-                                        contentDescription = "Add item",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(18.dp)
+                            is HeroAction.TossItem -> {
+                                viewModel.tossItem(action.itemId)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Item removed",
+                                        duration = SnackbarDuration.Short
                                     )
                                 }
                             }
-                        }
-                    }
-
-                    run {
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            uiState.expiringItems.take(5).forEach { item ->
-                                val daysUntil = item.item.expiryDate?.let {
-                                    ChronoUnit.DAYS.between(LocalDate.now(), it)
+                            is HeroAction.MarkStillGood -> {
+                                viewModel.markStillGood(action.itemId)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Expiry extended",
+                                        duration = SnackbarDuration.Short
+                                    )
                                 }
-                                val color = when {
-                                    daysUntil == null -> MaterialTheme.colorScheme.onSurface
-                                    daysUntil < 0 -> MaterialTheme.appColors.statusExpired
-                                    daysUntil <= 3 -> MaterialTheme.appColors.statusExpiring
-                                    else -> MaterialTheme.colorScheme.onSurface
-                                }
-                                ListItem(
-                                    headlineContent = { Text(item.item.name) },
-                                    supportingContent = {
-                                        Text(
-                                            when {
-                                                daysUntil == null -> ""
-                                                daysUntil < 0 -> "Expired ${-daysUntil} days ago"
-                                                daysUntil == 0L -> "Expires today"
-                                                else -> "Expires in $daysUntil days"
-                                            },
-                                            color = color
-                                        )
-                                    },
-                                    trailingContent = {
-                                        Row {
-                                            IconButton(
-                                                onClick = { showShoppingSheet(item.item.id, null) },
-                                                modifier = Modifier.size(40.dp)
-                                            ) {
-                                                ThemedIcon(
-                                                    materialIcon = Icons.Filled.AddShoppingCart,
-                                                    inkIconRes = R.drawable.ic_ink_add_to_cart,
-                                                    contentDescription = "Add ${item.item.name} to shopping list",
-                                                    modifier = Modifier.size(20.dp),
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.pauseItem(item.item.id)
-                                                    scope.launch {
-                                                        val result = snackbarHostState.showSnackbar(
-                                                            message = "${item.item.name} paused",
-                                                            actionLabel = "Undo",
-                                                            duration = SnackbarDuration.Short
-                                                        )
-                                                        if (result == SnackbarResult.ActionPerformed) {
-                                                            viewModel.unpauseItem(item.item.id)
-                                                        }
-                                                    }
-                                                },
-                                                modifier = Modifier.size(40.dp)
-                                            ) {
-                                                ThemedIcon(
-                                                    materialIcon = Icons.Filled.PauseCircleOutline,
-                                                    inkIconRes = R.drawable.ic_ink_pause,
-                                                    contentDescription = "Pause alerts for ${item.item.name}",
-                                                    modifier = Modifier.size(22.dp),
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.clickable {
-                                        navController.navigate(Screen.ItemDetail.createRoute(item.item.id))
-                                    }
-                                )
                             }
+                            is HeroAction.NavigateTo -> navController.navigate(action.route)
                         }
                     }
+                )
+            }
+
+            // Secondary Chips — compact stats for non-hero items
+            if (!uiState.isLoading) {
+                AnimateOnce(index = 2, hasAnimated = hasAnimated) {
+                    SecondaryChips(
+                        heroTarget = uiState.urgencyResult.target,
+                        uiState = uiState,
+                        onNavigate = { route -> navController.navigate(route) }
+                    )
                 }
             }
+
+            // Cook Card — context-adaptive
+            AnimateOnce(index = 3, hasAnimated = hasAnimated) {
+                CookCard(
+                    recipeCount = uiState.savedRecipeCount,
+                    totalItems = uiState.totalItems,
+                    expiringItems = uiState.expiringItems,
+                    isOffline = false,
+                    manualRecipeCount = uiState.manualRecipeCount,
+                    lastCookedName = uiState.lastCookedName,
+                    lastCookedDaysAgo = uiState.lastCookedDaysAgo,
+                    onNavigate = { route -> navController.navigate(route) }
+                )
             }
 
-            // Low stock list
-            if (uiState.lowStockItems.isNotEmpty()) {
+            // Quick Actions — slimmed to 3
             AnimateOnce(index = 4, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Low Stock", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        if (uiState.lowStockItems.size > 5) {
-                            TextButton(onClick = { navController.navigate(Screen.LowStockReport.route) }) {
-                                Text("View All (${uiState.lowStockItems.size})")
-                            }
-                        }
-                    }
-
-                    run {
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            uiState.lowStockItems.take(5).forEach { item ->
-                                val effectiveMin = if (item.item.minQuantity > 0) item.item.minQuantity else item.item.smartMinQuantity
-                                val ratio = if (effectiveMin > 0) {
-                                    (item.item.quantity / effectiveMin).toFloat().coerceIn(0f, 1f)
-                                } else 1f
-                                val barColor = if (ratio < 0.3f) MaterialTheme.appColors.statusExpired else MaterialTheme.appColors.statusLowStock
-                                ListItem(
-                                    headlineContent = { Text(item.item.name) },
-                                    supportingContent = {
-                                        Column {
-                                            Text(
-                                                "Qty: ${item.item.quantity.formatQty()} / ${effectiveMin.formatQty()}",
-                                                color = barColor
-                                            )
-                                            ThemedProgressBar(
-                                                progress = { ratio },
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 4.dp)
-                                                    .height(6.dp),
-                                                color = barColor,
-                                                trackColor = barColor.copy(alpha = 0.2f)
-                                            )
-                                        }
-                                    },
-                                    trailingContent = {
-                                        Row {
-                                            IconButton(
-                                                onClick = { showShoppingSheet(item.item.id, null) },
-                                                modifier = Modifier.size(40.dp)
-                                            ) {
-                                                ThemedIcon(
-                                                    materialIcon = Icons.Filled.AddShoppingCart,
-                                                    inkIconRes = R.drawable.ic_ink_add_to_cart,
-                                                    contentDescription = "Add ${item.item.name} to shopping list",
-                                                    modifier = Modifier.size(20.dp),
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.pauseItem(item.item.id)
-                                                    scope.launch {
-                                                        val result = snackbarHostState.showSnackbar(
-                                                            message = "${item.item.name} paused",
-                                                            actionLabel = "Undo",
-                                                            duration = SnackbarDuration.Short
-                                                        )
-                                                        if (result == SnackbarResult.ActionPerformed) {
-                                                            viewModel.unpauseItem(item.item.id)
-                                                        }
-                                                    }
-                                                },
-                                                modifier = Modifier.size(40.dp)
-                                            ) {
-                                                ThemedIcon(
-                                                    materialIcon = Icons.Filled.PauseCircleOutline,
-                                                    inkIconRes = R.drawable.ic_ink_pause,
-                                                    contentDescription = "Pause alerts for ${item.item.name}",
-                                                    modifier = Modifier.size(22.dp),
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.clickable {
-                                        navController.navigate(Screen.ItemDetail.createRoute(item.item.id))
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            }
-
-            // Items by category summary
-            if (uiState.itemsByCategory.isNotEmpty()) {
-                AnimateOnce(index = 5, hasAnimated = hasAnimated) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
-                        Text("Items by Category", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        val maxCategoryCount = uiState.itemsByCategory.maxOfOrNull { it.count } ?: 1
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                uiState.itemsByCategory.forEach { data ->
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                navController.navigate(Screen.ItemList.createRoute(categoryId = data.id))
-                                            }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(data.label, style = MaterialTheme.typography.bodyMedium)
-                                            Text("${data.count}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                        }
-                                        val fraction = if (maxCategoryCount > 0) data.count.toFloat() / maxCategoryCount else 0f
-                                        ThemedProgressBar(
-                                            progress = { fraction },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 4.dp)
-                                                .height(6.dp)
-                                                .clip(RoundedCornerShape(3.dp)),
-                                            color = MaterialTheme.colorScheme.primary,
-                                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)) {
+                    Text("Quick Actions", style = MaterialTheme.typography.sectionHeader)
+                    AdaptiveGrid(
+                        columns = gridColumns,
+                        spacing = 12.dp,
+                        items = listOf<@Composable (Modifier) -> Unit>(
+                            { mod ->
+                                val totalShopping = uiState.shoppingActive + uiState.shoppingPurchased
+                                QuickActionCard(mod, "Shopping", Icons.Filled.ShoppingCart, MaterialTheme.appColors.accentPurple,
+                                    subtitle = if (totalShopping > 0) "${uiState.shoppingPurchased}/$totalShopping done" else null,
+                                    inkIconRes = R.drawable.ic_ink_shopping,
+                                    iconContent = { EmpathyCartIcon(itemCount = uiState.shoppingActive, modifier = Modifier.size(Dimens.iconSizeLg), tint = MaterialTheme.appColors.accentPurple) }
+                                ) { navController.navigate(Screen.ShoppingList.route) }
+                            },
+                            { mod -> QuickActionCard(mod, "Reports", Icons.Filled.Assessment, MaterialTheme.appColors.accentBlue, inkIconRes = R.drawable.ic_ink_reports) { navController.navigate(Screen.Reports.route) } },
+                            { mod -> QuickActionCard(mod, "Kitchen", Icons.Filled.Kitchen, MaterialTheme.appColors.accentGold,
+                                subtitle = if (uiState.lastScanItemCount > 0) "${uiState.lastScanItemCount} mapped" else null,
+                                inkIconRes = R.drawable.ic_ink_kitchen,
+                                breathePersonality = InkPersonality.SETTLE
+                            ) { navController.navigate(Screen.KitchenMap.route) } }
+                        )
+                    )
                 }
             }
 
-            // Items by location summary
-            if (uiState.itemsByLocation.isNotEmpty()) {
-                AnimateOnce(index = 6, hasAnimated = hasAnimated) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
-                        Text("Items by Location", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        val maxLocationCount = uiState.itemsByLocation.maxOfOrNull { it.count } ?: 1
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                uiState.itemsByLocation.forEach { data ->
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                navController.navigate(Screen.LocationDetail.createRoute(data.id))
-                                            }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(data.label, style = MaterialTheme.typography.bodyMedium)
-                                            Text("${data.count}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                        }
-                                        val fraction = if (maxLocationCount > 0) data.count.toFloat() / maxLocationCount else 0f
-                                        ThemedProgressBar(
-                                            progress = { fraction },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 4.dp)
-                                                .height(6.dp)
-                                                .clip(RoundedCornerShape(3.dp)),
-                                            color = MaterialTheme.colorScheme.tertiary,
-                                            trackColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -739,198 +484,6 @@ private fun AdaptiveGrid(
     }
 }
 
-// ─── Insight Type (for stat card highlight) ─────────────────────────────
-
-private enum class InsightType { EXPIRING, SHOPPING, RECIPES, INVENTORY }
-
-// ─── Stat Card ──────────────────────────────────────────────────────────
-
-@Composable
-private fun StatCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    value: String,
-    icon: ImageVector,
-    iconTint: Color = MaterialTheme.colorScheme.primary,
-    inkIconRes: Int = 0,
-    iconContent: (@Composable () -> Unit)? = null,
-    isHighlighted: Boolean = false,
-    onClick: () -> Unit = {}
-) {
-    val reduceMotion = com.inventory.app.ui.theme.LocalReduceMotion.current
-
-    // Pulse glow behind card when highlighted
-    val glowAlpha = if (isHighlighted && !reduceMotion) {
-        val infiniteTransition = rememberInfiniteTransition(label = "statPulse")
-        val alpha by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 0.3f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "glowAlpha"
-        )
-        alpha
-    } else if (isHighlighted) {
-        0.15f // static subtle glow for reduce-motion
-    } else {
-        0f
-    }
-
-    val highlightMod = if (glowAlpha > 0f) {
-        modifier.drawBehind {
-            drawRoundRect(
-                color = iconTint.copy(alpha = glowAlpha),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx())
-            )
-        }
-    } else modifier
-
-    AppCard(onClick = onClick, modifier = highlightMod, shape = AppShapes.large) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
-            if (iconContent != null) {
-                iconContent()
-            } else {
-                ThemedIcon(materialIcon = icon, inkIconRes = inkIconRes, contentDescription = title, modifier = Modifier.size(Dimens.iconSizeMd).inkBreathe(), tint = iconTint)
-            }
-            Spacer(modifier = Modifier.height(Dimens.spacingXs))
-            Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-// ─── Pantry Health Score Card ───────────────────────────────────────────
-
-@Composable
-private fun HealthScoreCard(
-    modifier: Modifier = Modifier,
-    score: Int,
-    label: String,
-    onClick: () -> Unit = {}
-) {
-    val scoreColor = MaterialTheme.appColors.scoreToColor(score)
-    AppCard(onClick = onClick, modifier = modifier, shape = AppShapes.large) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
-            EmpathyHeartIcon(healthScore = score, modifier = Modifier.size(Dimens.iconSizeMd), tint = scoreColor)
-            Spacer(modifier = Modifier.height(Dimens.spacingXs))
-            Text("$score", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = scoreColor)
-            ThemedProgressBar(
-                progress = { score / 100f },
-                modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-                color = scoreColor,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
-            Text("Home $label", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Tap for details", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
-        }
-    }
-}
-
-// ─── Kitchen Scan Hero Card (empty inventory) ──────────────────────────
-
-@Composable
-private fun KitchenScanHeroCard(
-    subtitle: String = "Scan your kitchen to see what you have",
-    onClick: () -> Unit
-) {
-    AppCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = AppShapes.large
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ThemedIcon(
-                    materialIcon = Icons.Filled.PhotoCamera,
-                    inkIconRes = R.drawable.ic_ink_camera,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.appColors.accentOrange
-                )
-                Spacer(modifier = Modifier.size(12.dp))
-                Text(
-                    "Map Your Kitchen",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.height(Dimens.spacingSm))
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-            )
-            Spacer(modifier = Modifier.height(Dimens.spacingXs))
-            Text(
-                "Take photos of your fridge, pantry, and shelves. AI identifies every item and builds your inventory in minutes.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(Dimens.spacingMd))
-            ThemedButton(onClick = onClick) {
-                Text("Start Kitchen Tour")
-                Spacer(modifier = Modifier.size(4.dp))
-                ThemedIcon(
-                    materialIcon = Icons.Filled.ArrowForward,
-                    inkIconRes = R.drawable.ic_ink_chevron_right,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
-}
-
-// ─── Compact Insight Chip (replaces full-height InsightCard) ─────────────
-
-@Composable
-private fun CompactInsightChip(
-    icon: ImageVector,
-    iconTint: Color,
-    text: String,
-    inkIconRes: Int = 0,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        color = iconTint.copy(alpha = 0.08f)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-        ) {
-            ThemedIcon(
-                materialIcon = icon,
-                inkIconRes = inkIconRes,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = iconTint
-            )
-            Text(
-                text,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            ThemedIcon(
-                materialIcon = Icons.Filled.ArrowForward,
-                inkIconRes = R.drawable.ic_ink_chevron_right,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = iconTint
-            )
-        }
-    }
-}
 
 // ─── Quick Action Card (with scale-on-tap) ──────────────────────────────
 

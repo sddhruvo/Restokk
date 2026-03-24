@@ -6,7 +6,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -17,10 +18,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,15 +51,10 @@ fun SubcategoryListScreen(
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<SubcategoryEntity?>(null) }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text(uiState.categoryName?.let { "$it - Subcategories" } ?: "Subcategories") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        },
+    val screenTitle = uiState.categoryName?.let { "$it - Subcategories" } ?: "Subcategories"
+
+    PageScaffold(
+        onBack = { navController.popBackStack() },
         floatingActionButton = {
             ThemedFab(
                 onClick = { navController.navigate(Screen.SubcategoryForm.createRoute(categoryId = categoryId)) }
@@ -69,7 +63,7 @@ fun SubcategoryListScreen(
             }
         },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         when {
             uiState.isLoading -> LoadingState()
             uiState.subcategories.isEmpty() -> EmptyState(
@@ -78,10 +72,10 @@ fun SubcategoryListScreen(
                 message = "Add subcategories to further organize items"
             )
             else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = contentPadding
             ) {
+                item { PageHeader(screenTitle) }
                 items(uiState.subcategories, key = { it.id }) { sub ->
                     ListItem(
                         headlineContent = { Text(sub.name) },

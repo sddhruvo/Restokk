@@ -27,6 +27,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.inventory.app.ui.theme.sectionHeader
+import com.inventory.app.ui.theme.statValue
 import androidx.compose.ui.unit.dp
 import com.inventory.app.R
 import com.inventory.app.ui.components.ThemedButton
@@ -195,8 +197,7 @@ internal fun KitchenMemoryPath(
                     AnimatedCounter(targetValue = selectedCount) { count ->
                         Text(
                             text = count,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.sectionHeader,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -478,8 +479,7 @@ internal fun MemoryAggregateReveal(
                     // Headline
                     Text(
                         text = "From memory alone, we built this:",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.sectionHeader,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.graphicsLayer {
                             translationX = headX; alpha = headAlpha
@@ -541,8 +541,7 @@ internal fun MemoryAggregateReveal(
                             AnimatedCounter(targetValue = items.size) { count ->
                                 Text(
                                     text = count,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.sectionHeader,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -554,8 +553,7 @@ internal fun MemoryAggregateReveal(
                             AnimatedCounter(targetValue = items.size * 4) { count ->
                                 Text(
                                     text = count,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.sectionHeader,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -695,8 +693,7 @@ internal fun MemoryCelebrationScreen(
         ) {
             Text(
                 text = "Your kitchen is\nready to go.",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.statValue,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )

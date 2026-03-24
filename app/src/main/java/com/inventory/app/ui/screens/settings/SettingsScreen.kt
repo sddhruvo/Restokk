@@ -1,8 +1,16 @@
 package com.inventory.app.ui.screens.settings
 
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Divider
 import com.inventory.app.ui.components.ThemedRadioButton
 import com.inventory.app.ui.components.ThemedSnackbarHost
 import com.inventory.app.ui.components.ThemedTextField
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.activity.compose.BackHandler
 import android.Manifest
 import android.app.Activity
@@ -51,11 +59,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import com.inventory.app.ui.components.ThemedSwitch
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,14 +89,17 @@ import coil.compose.AsyncImage
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
-import com.inventory.app.ui.components.AnimatedSaveButton
+import com.inventory.app.ui.components.SaveAction
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.BuildConfig
 import com.inventory.app.R
+import com.inventory.app.domain.model.MeasurementSystem
+import com.inventory.app.domain.model.RegionRegistry
+import com.inventory.app.ui.components.RegionPickerContent
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.screens.onboarding.popularRegions
 import com.inventory.app.ui.screens.onboarding.UserPreference
 import com.inventory.app.ui.theme.AppTheme
 import com.inventory.app.ui.theme.Dimens
@@ -96,6 +107,7 @@ import com.inventory.app.ui.theme.InkTokens
 import com.inventory.app.ui.theme.VisualStyle
 import com.inventory.app.ui.theme.isInk
 import com.inventory.app.ui.theme.previewColor
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.ui.theme.visuals
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -178,20 +190,20 @@ fun SettingsScreen(
         }
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
-                    InkBackButton(onClick = {
-                        if (isDirty) showDiscardDialog = true
-                        else navController.popBackStack()
-                    })
-                }
-            )
+    PageScaffold(
+        onBack = {
+            if (isDirty) showDiscardDialog = true
+            else navController.popBackStack()
         },
-        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
+        actions = {
+            SaveAction(
+                visible = isDirty || uiState.isSaved,
+                onClick = { viewModel.save() },
+                isSaved = uiState.isSaved
+            )
+        }
+    ) { contentPadding ->
         // Delete account confirmation dialog
         if (showDeleteConfirm) {
             ThemedAlertDialog(
@@ -237,13 +249,15 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(Dimens.spacingLg),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
+            PageHeader("Settings")
+
             // Account
-            Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Account", style = MaterialTheme.typography.sectionHeader)
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     if (uiState.isSignedIn && !uiState.isAnonymous) {
@@ -273,8 +287,7 @@ fun SettingsScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = uiState.userName ?: "Signed in",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.titleMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -328,8 +341,7 @@ fun SettingsScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Not signed in",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
+                                    style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
                                     text = "Sign in to sync across devices",
@@ -370,7 +382,7 @@ fun SettingsScreen(
             }
 
             // Notifications
-            Text("Notifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Notifications", style = MaterialTheme.typography.sectionHeader)
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                     Row(
@@ -431,44 +443,90 @@ fun SettingsScreen(
                 }
             }
 
-            // Expiry Settings
-            Text("Expiry Tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            // Display
+            Text("Display", style = MaterialTheme.typography.sectionHeader)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
-                    ThemedTextField(
-                        value = uiState.expiryWarningDays,
-                        onValueChange = { viewModel.updateExpiryWarningDays(it) },
-                        label = { Text("Warning Days Before Expiry") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = uiState.expiryWarningDaysError != null,
-                        supportingText = { Text(uiState.expiryWarningDaysError ?: "Days before expiry to show warnings") }
+                Column(modifier = Modifier.padding(Dimens.spacingMd)) {
+                    NotificationToggleRow(
+                        label = "Dashboard Highlight",
+                        description = "Pulse-glow the most urgent stat card",
+                        checked = uiState.dashboardHighlightEnabled,
+                        onCheckedChange = { viewModel.toggleDashboardHighlight(it) }
                     )
                 }
             }
 
-            // Display Settings
-            Text("Display", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            // Preferences — compact inline rows
+            Text("Preferences", style = MaterialTheme.typography.sectionHeader)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
-                    ThemedTextField(
-                        value = uiState.currencySymbol,
-                        onValueChange = { viewModel.updateCurrencySymbol(it) },
-                        label = { Text("Currency Symbol") },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = uiState.currencyError != null,
-                        supportingText = uiState.currencyError?.let { { Text(it) } }
+                Column(modifier = Modifier.padding(Dimens.spacingMd)) {
+                    // Region row
+                    RegionSettingRow(
+                        regionFlag = uiState.regionFlag,
+                        regionName = uiState.regionName,
+                        showPicker = uiState.showRegionPicker,
+                        onTogglePicker = { viewModel.toggleRegionPicker() },
+                        selectedRegionCode = uiState.regionCode,
+                        onRegionSelect = { viewModel.updateRegion(it) }
                     )
-                    ThemedTextField(
+                    // Measurement system row
+                    MeasurementSettingRow(
+                        currentValue = uiState.measurementSystem,
+                        regionCode = uiState.regionCode,
+                        onValueChange = { viewModel.updateMeasurementSystem(it) }
+                    )
+                    // Date format row
+                    DateFormatSettingRow(
+                        currentValue = uiState.dateFormat,
+                        regionCode = uiState.regionCode,
+                        onValueChange = { viewModel.updateDateFormat(it) }
+                    )
+                    CompactSettingRow(
+                        label = "Default Quantity",
                         value = uiState.defaultQuantity,
                         onValueChange = { viewModel.updateDefaultQuantity(it) },
-                        label = { Text("Default Quantity") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        keyboardType = KeyboardType.Decimal,
                         isError = uiState.defaultQuantityError != null,
-                        supportingText = uiState.defaultQuantityError?.let { { Text(it) } }
+                        errorText = uiState.defaultQuantityError
                     )
-                    Text("Color Palette", style = MaterialTheme.typography.bodyLarge)
+                    StepperSettingRow(
+                        label = "Expiry Warning",
+                        value = uiState.expiryWarningDays.toIntOrNull() ?: 3,
+                        suffix = "days",
+                        step = 1,
+                        range = 1..30,
+                        onValueChange = { viewModel.updateExpiryWarningDays(it.toString()) }
+                    )
+                    CompactSettingRow(
+                        label = "Shopping Budget",
+                        value = uiState.shoppingBudget,
+                        onValueChange = { viewModel.updateShoppingBudget(it) },
+                        keyboardType = KeyboardType.Decimal,
+                        placeholder = "No limit"
+                    )
+                    CompactSettingRow(
+                        label = "Auto-Clear Days",
+                        value = uiState.autoClearDays,
+                        onValueChange = { viewModel.updateAutoClearDays(it) },
+                        keyboardType = KeyboardType.Number,
+                        placeholder = "Never"
+                    )
+                    StepperSettingRow(
+                        label = "Low Stock Alert",
+                        value = uiState.lowStockThreshold.toIntOrNull() ?: 25,
+                        suffix = "%",
+                        step = 5,
+                        range = 5..100,
+                        onValueChange = { viewModel.updateLowStockThreshold(it.toString()) },
+                        showDivider = false
+                    )
+                }
+            }
+
+            // Theme
+            Text("Theme", style = MaterialTheme.typography.sectionHeader)
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(Dimens.spacingMd), verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -482,8 +540,6 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(Dimens.spacingSm))
-                    Text("Visual Style", style = MaterialTheme.typography.bodyLarge)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -501,19 +557,17 @@ fun SettingsScreen(
             }
 
             // What Matters Most
-            Text("What Matters Most", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("What Matters Most", style = MaterialTheme.typography.sectionHeader)
             AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
+                Column(modifier = Modifier.padding(Dimens.spacingMd), verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                     Text(
                         "This shapes your dashboard and suggestions",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(Dimens.spacingSm))
                     val isInk = MaterialTheme.visuals.isInk
                     UserPreference.entries.forEach { pref ->
                         val isSelected = uiState.userPreference == pref.name
-                        // In P&I mode: selected row gets ink wash highlight
                         val rowBackground = if (isInk && isSelected)
                             MaterialTheme.colorScheme.primary.copy(alpha = InkTokens.fillLight)
                         else Color.Transparent
@@ -549,59 +603,41 @@ fun SettingsScreen(
                 }
             }
 
-            // Shopping List
-            Text("Shopping List", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
-                    ThemedTextField(
-                        value = uiState.shoppingBudget,
-                        onValueChange = { viewModel.updateShoppingBudget(it) },
-                        label = { Text("Shopping Budget") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        supportingText = { Text("Leave empty for no budget limit") }
-                    )
-                    ThemedTextField(
-                        value = uiState.autoClearDays,
-                        onValueChange = { viewModel.updateAutoClearDays(it) },
-                        label = { Text("Auto-Clear Purchased After (Days)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        supportingText = { Text("Leave empty to keep purchased items forever") }
-                    )
-                }
-            }
-
             // General
-            Text("General", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            AppCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(Dimens.spacingLg), verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
-                    Text(
-                        text = "Re-watch the intro walkthrough to explore features you may have missed.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    ThemedButton(
-                        onClick = {
-                            viewModel.resetOnboarding {
-                                navController.navigate(Screen.Onboarding.route) {
-                                    popUpTo(Screen.Dashboard.route) { inclusive = false }
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Replay Onboarding")
+            AppCard(
+                onClick = {
+                    viewModel.resetOnboarding {
+                        navController.navigate(Screen.Onboarding.route) {
+                            popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        }
                     }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(Dimens.spacingMd),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Replay Onboarding", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Re-watch the intro walkthrough",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    ThemedIcon(
+                        materialIcon = Icons.Filled.ArrowForward,
+                        inkIconRes = R.drawable.ic_ink_forward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
-
-            // Save button
-            AnimatedSaveButton(
-                text = "Save Settings",
-                onClick = { viewModel.save() },
-                isSaved = uiState.isSaved
-            )
 
             // About
             Spacer(modifier = Modifier.height(Dimens.spacingLg))
@@ -753,5 +789,355 @@ private fun VisualStyleChip(
                         else MaterialTheme.colorScheme.onSurface
             )
         }
+    }
+}
+
+@Composable
+private fun CompactSettingRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false,
+    errorText: String? = null,
+    placeholder: String = "",
+    showDivider: Boolean = true
+) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimens.spacingSm, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isError) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.End
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                singleLine = true,
+                modifier = Modifier.width(100.dp),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        if (value.isEmpty() && placeholder.isNotEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+        }
+        if (isError && errorText != null) {
+            Text(
+                text = errorText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+            )
+        }
+        if (showDivider) {
+            Divider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StepperSettingRow(
+    label: String,
+    value: Int,
+    suffix: String,
+    step: Int,
+    range: IntRange,
+    onValueChange: (Int) -> Unit,
+    showDivider: Boolean = true
+) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimens.spacingSm, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (value > range.first) MaterialTheme.colorScheme.surfaceVariant
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        )
+                        .clickable(enabled = value > range.first) {
+                            onValueChange((value - step).coerceAtLeast(range.first))
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "\u2212",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (value > range.first) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
+                }
+                Text(
+                    text = "$value$suffix",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.width(52.dp),
+                    textAlign = TextAlign.Center
+                )
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (value < range.last) MaterialTheme.colorScheme.surfaceVariant
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        )
+                        .clickable(enabled = value < range.last) {
+                            onValueChange((value + step).coerceAtMost(range.last))
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "+",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (value < range.last) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
+                }
+            }
+        }
+        if (showDivider) {
+            Divider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+            )
+        }
+    }
+}
+
+@Composable
+private fun RegionSettingRow(
+    regionFlag: String,
+    regionName: String,
+    showPicker: Boolean,
+    onTogglePicker: () -> Unit,
+    selectedRegionCode: String,
+    onRegionSelect: (com.inventory.app.ui.screens.onboarding.RegionInfo) -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(Dimens.spacingSm))
+                .clickable { onTogglePicker() }
+                .padding(horizontal = Dimens.spacingSm, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Region",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "$regionFlag $regionName",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                ThemedIcon(
+                    materialIcon = Icons.Filled.ArrowForward,
+                    inkIconRes = R.drawable.ic_ink_forward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        AnimatedVisibility(
+            visible = showPicker,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            RegionPickerContent(
+                regions = popularRegions,
+                selectedRegionCode = selectedRegionCode,
+                onSelect = onRegionSelect,
+                modifier = Modifier.padding(horizontal = Dimens.spacingSm, vertical = Dimens.spacingSm)
+            )
+        }
+        Divider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+            modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+        )
+    }
+}
+
+@Composable
+private fun MeasurementSettingRow(
+    currentValue: String,
+    regionCode: String,
+    onValueChange: (String) -> Unit
+) {
+    val resolvedAuto = RegionRegistry.findByCode(regionCode)?.measurementSystem
+        ?: MeasurementSystem.METRIC
+    val autoLabel = "Auto (${resolvedAuto.name.lowercase().replaceFirstChar { it.uppercase() }})"
+
+    val options = listOf("" to autoLabel, "METRIC" to "Metric", "IMPERIAL" to "Imperial")
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimens.spacingSm, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Units",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                options.forEachIndexed { index, (value, label) ->
+                    val isSelected = currentValue == value
+                    val shape = when (index) {
+                        0 -> RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+                        options.lastIndex -> RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+                        else -> RoundedCornerShape(0.dp)
+                    }
+                    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+
+                    Box(
+                        modifier = Modifier
+                            .clip(shape)
+                            .background(bgColor)
+                            .clickable { onValueChange(value) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor
+                        )
+                    }
+                }
+            }
+        }
+        Divider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+            modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+        )
+    }
+}
+
+@Composable
+private fun DateFormatSettingRow(
+    currentValue: String,
+    regionCode: String,
+    onValueChange: (String) -> Unit
+) {
+    val regionConfig = RegionRegistry.findByCode(regionCode)
+    val autoFormat = if (regionConfig?.isMonthFirst == true) "Mar 12" else "12 Mar"
+    val autoLabel = "Auto ($autoFormat)"
+
+    val options = listOf("" to autoLabel, "MONTH_FIRST" to "Mar 12", "DAY_FIRST" to "12 Mar")
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimens.spacingSm, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Dates",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                options.forEachIndexed { index, (value, label) ->
+                    val isSelected = currentValue == value
+                    val shape = when (index) {
+                        0 -> RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+                        options.lastIndex -> RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+                        else -> RoundedCornerShape(0.dp)
+                    }
+                    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+
+                    Box(
+                        modifier = Modifier
+                            .clip(shape)
+                            .background(bgColor)
+                            .clickable { onValueChange(value) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor
+                        )
+                    }
+                }
+            }
+        }
+        Divider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+            modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+        )
     }
 }

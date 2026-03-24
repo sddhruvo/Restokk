@@ -214,11 +214,27 @@ interface PurchaseHistoryDao {
     """)
     suspend fun getLatestPurchaseDate(itemId: Long): Long?
 
+    @Query("""
+        SELECT quantity FROM purchase_history
+        WHERE item_id = :itemId
+        ORDER BY purchase_date DESC, created_at DESC LIMIT 10
+    """)
+    suspend fun getRecentPurchaseQuantities(itemId: Long): List<Double>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(purchase: PurchaseHistoryEntity): Long
 
     @Query("DELETE FROM purchase_history WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("""
+        UPDATE purchase_history
+        SET quantity = quantity + :delta,
+            total_price = CASE WHEN unit_price IS NOT NULL
+                THEN unit_price * (quantity + :delta) ELSE total_price END
+        WHERE id = :id
+    """)
+    suspend fun adjustPurchaseQuantity(id: Long, delta: Double)
 }
 
 data class SpendingByCategoryRow(

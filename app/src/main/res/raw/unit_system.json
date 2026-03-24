@@ -1,0 +1,143 @@
+{
+  "universal": {
+    "aliases": {
+      "gram":        { "canonical": "g",    "category": "WEIGHT", "g": 1 },
+      "grams":       { "canonical": "g",    "category": "WEIGHT", "g": 1 },
+      "gm":          { "canonical": "g",    "category": "WEIGHT", "g": 1 },
+      "gms":         { "canonical": "g",    "category": "WEIGHT", "g": 1 },
+      "g":           { "canonical": "g",    "category": "WEIGHT", "g": 1 },
+      "kilogram":    { "canonical": "kg",   "category": "WEIGHT", "g": 1000 },
+      "kilograms":   { "canonical": "kg",   "category": "WEIGHT", "g": 1000 },
+      "kg":          { "canonical": "kg",   "category": "WEIGHT", "g": 1000 },
+      "kgs":         { "canonical": "kg",   "category": "WEIGHT", "g": 1000 },
+      "milligram":   { "canonical": "mg",   "category": "WEIGHT", "g": 0.001 },
+      "milligrams":  { "canonical": "mg",   "category": "WEIGHT", "g": 0.001 },
+      "mg":          { "canonical": "mg",   "category": "WEIGHT", "g": 0.001 },
+      "milliliter":  { "canonical": "ml",   "category": "VOLUME", "ml": 1 },
+      "milliliters": { "canonical": "ml",   "category": "VOLUME", "ml": 1 },
+      "millilitre":  { "canonical": "ml",   "category": "VOLUME", "ml": 1 },
+      "ml":          { "canonical": "ml",   "category": "VOLUME", "ml": 1 },
+      "mL":          { "canonical": "ml",   "category": "VOLUME", "ml": 1 },
+      "liter":       { "canonical": "L",    "category": "VOLUME", "ml": 1000 },
+      "litre":       { "canonical": "L",    "category": "VOLUME", "ml": 1000 },
+      "liters":      { "canonical": "L",    "category": "VOLUME", "ml": 1000 },
+      "litres":      { "canonical": "L",    "category": "VOLUME", "ml": 1000 },
+      "L":           { "canonical": "L",    "category": "VOLUME", "ml": 1000 },
+      "l":           { "canonical": "L",    "category": "VOLUME", "ml": 1000 },
+      "cup":         { "canonical": "cup",  "category": "VOLUME", "ml": 240 },
+      "cups":        { "canonical": "cup",  "category": "VOLUME", "ml": 240 },
+      "Cup":         { "canonical": "cup",  "category": "VOLUME", "ml": 240 },
+      "tablespoon":  { "canonical": "tbsp", "category": "VOLUME", "ml": 15 },
+      "tablespoons": { "canonical": "tbsp", "category": "VOLUME", "ml": 15 },
+      "tbsp":        { "canonical": "tbsp", "category": "VOLUME", "ml": 15 },
+      "Tbsp":        { "canonical": "tbsp", "category": "VOLUME", "ml": 15 },
+      "tbs":         { "canonical": "tbsp", "category": "VOLUME", "ml": 15 },
+      "teaspoon":    { "canonical": "tsp",  "category": "VOLUME", "ml": 5 },
+      "teaspoons":   { "canonical": "tsp",  "category": "VOLUME", "ml": 5 },
+      "tsp":         { "canonical": "tsp",  "category": "VOLUME", "ml": 5 },
+      "piece":       { "canonical": "pc",   "category": "COUNT" },
+      "pieces":      { "canonical": "pc",   "category": "COUNT" },
+      "pc":          { "canonical": "pc",   "category": "COUNT" },
+      "pcs":         { "canonical": "pc",   "category": "COUNT" },
+      "nos":         { "canonical": "pc",   "category": "COUNT" },
+      "no":          { "canonical": "pc",   "category": "COUNT" },
+      "pack":        { "canonical": "pack", "category": "COUNT" },
+      "packs":       { "canonical": "pack", "category": "COUNT" },
+      "packet":      { "canonical": "pack", "category": "COUNT" },
+      "packets":     { "canonical": "pack", "category": "COUNT" },
+      "pkt":         { "canonical": "pack", "category": "COUNT" },
+      "pinch":       { "canonical": "pinch","category": "ARBITRARY" },
+      "dash":        { "canonical": "dash", "category": "ARBITRARY" },
+      "handful":     { "canonical": "handful","category": "ARBITRARY" },
+      "to taste":    { "canonical": "to taste","category": "ARBITRARY" }
+    },
+    "produce": {
+      "clove":   "COUNT",
+      "cloves":  "COUNT",
+      "sprig":   "COUNT",
+      "sprigs":  "COUNT",
+      "stalk":   "COUNT",
+      "stalks":  "COUNT",
+      "head":    "COUNT",
+      "heads":   "COUNT",
+      "bunch":   "COUNT",
+      "bunches": "COUNT",
+      "knob":    "COUNT",
+      "leaf":    "COUNT",
+      "leaves":  "COUNT",
+      "rasher":  "COUNT",
+      "rashers": "COUNT",
+      "ear":     "COUNT",
+      "ears":    "COUNT",
+      "slice":   "COUNT",
+      "slices":  "COUNT",
+      "strip":   "COUNT",
+      "strips":  "COUNT"
+    }
+  },
+  "regions": {
+    "IN": {
+      "katori":        { "canonical": "ml",   "category": "VOLUME", "ml": 150 },
+      "glass":         { "canonical": "ml",   "category": "VOLUME", "ml": 225 },
+      "chammach":      { "canonical": "tsp",  "category": "VOLUME", "ml": 5 },
+      "bada chammach": { "canonical": "tbsp", "category": "VOLUME", "ml": 15 },
+      "mutthi":        { "canonical": "g",    "category": "WEIGHT", "g": 60 },
+      "chutki":        { "canonical": "pinch","category": "ARBITRARY" }
+    },
+    "US": {
+      "stick":  { "canonical": "g",  "category": "WEIGHT", "g": 113 },
+      "fl oz":  { "canonical": "ml", "category": "VOLUME", "ml": 29.6 },
+      "floz":   { "canonical": "ml", "category": "VOLUME", "ml": 29.6 },
+      "oz":     { "canonical": "g",  "category": "WEIGHT", "g": 28.35 },
+      "lb":     { "canonical": "g",  "category": "WEIGHT", "g": 453.6 },
+      "lbs":    { "canonical": "g",  "category": "WEIGHT", "g": 453.6 },
+      "pound":  { "canonical": "g",  "category": "WEIGHT", "g": 453.6 },
+      "pounds": { "canonical": "g",  "category": "WEIGHT", "g": 453.6 },
+      "pint":   { "canonical": "ml", "category": "VOLUME", "ml": 473 },
+      "pints":  { "canonical": "ml", "category": "VOLUME", "ml": 473 },
+      "quart":  { "canonical": "ml", "category": "VOLUME", "ml": 946 },
+      "quarts": { "canonical": "ml", "category": "VOLUME", "ml": 946 },
+      "gallon": { "canonical": "ml", "category": "VOLUME", "ml": 3785 },
+      "gallons":{ "canonical": "ml", "category": "VOLUME", "ml": 3785 }
+    },
+    "AU": {
+      "tbsp":        { "canonical": "tbsp", "category": "VOLUME", "ml": 20, "override": true },
+      "tablespoon":  { "canonical": "tbsp", "category": "VOLUME", "ml": 20, "override": true },
+      "tablespoons": { "canonical": "tbsp", "category": "VOLUME", "ml": 20, "override": true }
+    },
+    "UK": {
+      "pint":   { "canonical": "ml", "category": "VOLUME", "ml": 568, "override": true },
+      "pints":  { "canonical": "ml", "category": "VOLUME", "ml": 568, "override": true },
+      "gill":   { "canonical": "ml", "category": "VOLUME", "ml": 142 },
+      "oz":     { "canonical": "g",  "category": "WEIGHT", "g": 28.35 },
+      "lb":     { "canonical": "g",  "category": "WEIGHT", "g": 453.6 },
+      "lbs":    { "canonical": "g",  "category": "WEIGHT", "g": 453.6 },
+      "stone":  { "canonical": "g",  "category": "WEIGHT", "g": 6350 }
+    },
+    "JP": {
+      "合":  { "canonical": "ml", "category": "VOLUME", "ml": 180 },
+      "gō":  { "canonical": "ml", "category": "VOLUME", "ml": 180 },
+      "升":  { "canonical": "ml", "category": "VOLUME", "ml": 1800 },
+      "cup": { "canonical": "cup","category": "VOLUME", "ml": 200, "override": true }
+    },
+    "CN": {
+      "斤":    { "canonical": "g", "category": "WEIGHT", "g": 500 },
+      "两":    { "canonical": "g", "category": "WEIGHT", "g": 50 },
+      "jin":   { "canonical": "g", "category": "WEIGHT", "g": 500 },
+      "liang": { "canonical": "g", "category": "WEIGHT", "g": 50 }
+    },
+    "KR": {
+      "cup":  { "canonical": "cup", "category": "VOLUME", "ml": 200, "override": true },
+      "cups": { "canonical": "cup", "category": "VOLUME", "ml": 200, "override": true }
+    },
+    "BR": {
+      "xícara":         { "canonical": "cup",  "category": "VOLUME", "ml": 240 },
+      "colher de sopa": { "canonical": "tbsp", "category": "VOLUME", "ml": 15 },
+      "colher de chá":  { "canonical": "tsp",  "category": "VOLUME", "ml": 5 }
+    },
+    "ME": {
+      "finjan": { "canonical": "ml", "category": "VOLUME", "ml": 70 },
+      "kas":    { "canonical": "ml", "category": "VOLUME", "ml": 240 }
+    }
+  }
+}

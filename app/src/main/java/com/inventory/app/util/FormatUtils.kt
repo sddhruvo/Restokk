@@ -1,5 +1,6 @@
 package com.inventory.app.util
 
+import com.inventory.app.domain.model.RegionRegistry
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -11,6 +12,9 @@ import java.util.Locale
  * Used across the app to ensure consistent, region-appropriate display.
  */
 object FormatUtils {
+
+    /** Override for date format: "" = auto from region, "MONTH_FIRST", "DAY_FIRST" */
+    var dateFormatOverride: String = ""
 
     // ── Currency ────────────────────────────────────────────────────────
 
@@ -44,11 +48,9 @@ object FormatUtils {
     private val shortDateFormatter: DateTimeFormatter =
         DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
 
-    /** Short month+day for chart axes: "Feb 15" / "15 Feb" depending on locale */
-    private val monthDayFormatter: DateTimeFormatter by lazy {
-        // Use medium style but we want just month+day — derive from locale
-        DateTimeFormatter.ofPattern(getMonthDayPattern())
-    }
+    /** Short month+day for chart axes: "Feb 15" / "15 Feb" depending on locale/override */
+    private val monthDayFormatter: DateTimeFormatter
+        get() = DateTimeFormatter.ofPattern(getMonthDayPattern())
 
     fun formatDate(date: LocalDate): String = date.format(mediumDateFormatter)
 
@@ -57,12 +59,18 @@ object FormatUtils {
     fun formatMonthDay(date: LocalDate): String = date.format(monthDayFormatter)
 
     /**
-     * Returns a month-day pattern appropriate for the device locale.
-     * US/Canada → "MMM d", most others → "d MMM"
+     * Returns a month-day pattern appropriate for the user's preference or locale.
+     * Respects [dateFormatOverride] if set, otherwise falls back to region-based detection.
      */
     private fun getMonthDayPattern(): String {
-        val country = Locale.getDefault().country
-        return if (country in setOf("US", "CA")) "MMM d" else "d MMM"
+        return when (dateFormatOverride) {
+            "MONTH_FIRST" -> "MMM d"
+            "DAY_FIRST" -> "d MMM"
+            else -> {
+                val country = Locale.getDefault().country
+                if (country in RegionRegistry.monthFirstCodes) "MMM d" else "d MMM"
+            }
+        }
     }
 
     // ── Shelf Life ────────────────────────────────────────────────────────

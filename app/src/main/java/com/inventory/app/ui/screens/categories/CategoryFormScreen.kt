@@ -44,7 +44,7 @@ import com.inventory.app.ui.components.ThemedAlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.inventory.app.ui.components.AnimatedSaveButton
+import com.inventory.app.ui.components.SaveAction
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,11 +52,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import com.inventory.app.ui.components.ThemedSwitch
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -70,14 +70,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import com.inventory.app.ui.theme.formSectionLabel
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.inventory.app.util.CategoryVisuals
 import androidx.navigation.NavController
 import com.inventory.app.R
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ThemedIcon
 
 private val presetColors = listOf(
@@ -192,28 +191,31 @@ fun CategoryFormScreen(
         }
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text(if (categoryId != null) "Edit Category" else "Add Category") },
-                navigationIcon = {
-                    InkBackButton(onClick = {
-                        if (isDirty) showDiscardDialog = true
-                        else navController.popBackStack()
-                    })
-                }
-            )
+    val formTitle = if (categoryId != null) "Edit Category" else "Add Category"
+
+    PageScaffold(
+        onBack = {
+            if (isDirty) showDiscardDialog = true
+            else navController.popBackStack()
         },
-        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
+        actions = {
+            SaveAction(
+                visible = isDirty || uiState.isSaved,
+                onClick = { viewModel.save() },
+                isSaved = uiState.isSaved
+            )
+        }
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            PageHeader(formTitle)
             ThemedTextField(
                 value = uiState.name,
                 onValueChange = { viewModel.updateName(it) },
@@ -232,7 +234,7 @@ fun CategoryFormScreen(
             )
 
             // Icon picker
-            Text("Icon", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("Icon", style = MaterialTheme.typography.formSectionLabel)
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 FlowRow(
                     modifier = Modifier.padding(12.dp),
@@ -257,8 +259,8 @@ fun CategoryFormScreen(
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    icon,
+                                ThemedIcon(
+                                    materialIcon = icon,
                                     contentDescription = label,
                                     modifier = Modifier.size(28.dp),
                                     tint = if (isSelected) MaterialTheme.colorScheme.primary
@@ -277,7 +279,7 @@ fun CategoryFormScreen(
             }
 
             // Color picker
-            Text("Color", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("Color", style = MaterialTheme.typography.formSectionLabel)
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 FlowRow(
                     modifier = Modifier.padding(12.dp),
@@ -313,14 +315,6 @@ fun CategoryFormScreen(
                 }
             }
             ThemedTextField(
-                value = uiState.color,
-                onValueChange = { viewModel.updateColor(it) },
-                label = { Text("Custom color (hex)") },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("#6c757d") }
-            )
-
-            ThemedTextField(
                 value = uiState.sortOrder.toString(),
                 onValueChange = { viewModel.updateSortOrder(it.toIntOrNull() ?: 0) },
                 label = { Text("Sort Order") },
@@ -346,11 +340,6 @@ fun CategoryFormScreen(
                 )
             }
 
-            AnimatedSaveButton(
-                text = if (categoryId != null) "Update Category" else "Create Category",
-                onClick = { viewModel.save() },
-                isSaved = uiState.isSaved
-            )
         }
     }
 }

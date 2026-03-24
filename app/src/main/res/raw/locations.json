@@ -69,6 +69,20 @@
       "icon": "bi-box2",
       "color": "#03A9F4",
       "temperature_zone": "refrigerated"
+    },
+    {
+      "name": "Bathroom",
+      "description": "Bathroom storage for toiletries and medicine",
+      "icon": "bi-droplet-half",
+      "color": "#CE93D8",
+      "temperature_zone": "room_temp"
+    },
+    {
+      "name": "Laundry Room",
+      "description": "Laundry room for detergent and supplies",
+      "icon": "bi-arrow-repeat",
+      "color": "#4DB6AC",
+      "temperature_zone": "room_temp"
     }
   ]
 }

@@ -84,7 +84,12 @@ fun BarcodeCameraPreview(
     DisposableEffect(Unit) {
         var boundCameraProvider: ProcessCameraProvider? = null
         var boundBarcodeScanner: com.google.mlkit.vision.barcode.BarcodeScanner? = null
-        var lastDetectedBarcode: String? = null
+        var boundFocusTimer: java.util.Timer? = null
+        // Confidence-based: require 2 consecutive identical reads before accepting
+        var candidateBarcode: String? = null
+        var candidateCount = 0
+        var lastEmittedBarcode: String? = null
+        val requiredConfidence = 2
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
@@ -93,7 +98,7 @@ fun BarcodeCameraPreview(
             boundCameraProvider = cameraProvider
 
             val preview = Preview.Builder()
-                .setTargetResolution(Size(1280, 720))
+                .setTargetResolution(Size(1920, 1080))
                 .build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
@@ -115,14 +120,21 @@ fun BarcodeCameraPreview(
             val mainExecutor = ContextCompat.getMainExecutor(context)
 
             val imageAnalysis = ImageAnalysis.Builder()
-                .setTargetResolution(Size(1280, 720))
+                .setTargetResolution(Size(1920, 1080))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also { analysis ->
                     analysis.setAnalyzer(cameraExecutor) { imageProxy ->
                         processImageProxy(imageProxy, barcodeScanner) { barcode ->
-                            if (barcode != lastDetectedBarcode) {
-                                lastDetectedBarcode = barcode
+                            // Confidence check: only emit after consecutive identical reads
+                            if (barcode == candidateBarcode) {
+                                candidateCount++
+                            } else {
+                                candidateBarcode = barcode
+                                candidateCount = 1
+                            }
+                            if (candidateCount >= requiredConfidence && barcode != lastEmittedBarcode) {
+                                lastEmittedBarcode = barcode
                                 mainExecutor.execute { onBarcodeDetected(barcode) }
                             }
                         }
@@ -139,13 +151,24 @@ fun BarcodeCameraPreview(
                 )
                 cameraInstance = camera
 
-                // Start continuous center-weighted autofocus
+                // Continuous center-weighted autofocus (repeating every 3s)
                 val factory = SurfaceOrientedMeteringPointFactory(1f, 1f)
                 val centerPoint = factory.createPoint(0.5f, 0.5f)
-                val focusAction = FocusMeteringAction.Builder(centerPoint)
+                val focusAction = FocusMeteringAction.Builder(centerPoint,
+                    FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
                     .setAutoCancelDuration(3, TimeUnit.SECONDS)
                     .build()
                 camera.cameraControl.startFocusAndMetering(focusAction)
+
+                // Re-trigger focus periodically for moving targets
+                boundFocusTimer = java.util.Timer()
+                boundFocusTimer!!.scheduleAtFixedRate(object : java.util.TimerTask() {
+                    override fun run() {
+                        try {
+                            camera.cameraControl.startFocusAndMetering(focusAction)
+                        } catch (_: Exception) { }
+                    }
+                }, 3000L, 3000L)
             } catch (e: Exception) {
                 Log.e("BarcodeCameraPreview", "Camera bind failed", e)
             }
@@ -153,6 +176,7 @@ fun BarcodeCameraPreview(
 
         onDispose {
             cameraInstance = null
+            boundFocusTimer?.cancel()
             boundCameraProvider?.unbindAll()
             boundBarcodeScanner?.close()
             cameraExecutor.shutdown()

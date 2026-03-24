@@ -25,10 +25,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,13 +36,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ThemedIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,27 +77,21 @@ fun ExportImportScreen(
         }
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Export / Import") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        },
+    PageScaffold(
+        onBack = { navController.popBackStack() },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            PageHeader("Export / Import")
             // Export section
-            Text("Export Data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Export Data", style = MaterialTheme.typography.sectionHeader)
 
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -143,7 +136,7 @@ fun ExportImportScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Import section
-            Text("Import Data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Import Data", style = MaterialTheme.typography.sectionHeader)
 
             AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(

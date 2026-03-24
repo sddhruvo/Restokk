@@ -2,6 +2,8 @@ package com.inventory.app.ui.screens.items
 
 import com.inventory.app.ui.components.ThemedTextField
 import com.inventory.app.ui.components.ThemedSnackbarHost
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -19,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
@@ -30,7 +33,8 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.inventory.app.ui.components.ThemedAlertDialog
-import androidx.compose.material3.AssistChip
+import com.inventory.app.ui.components.ThemedAssistChip
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.inventory.app.ui.components.AppCard
@@ -38,13 +42,23 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import com.inventory.app.ui.components.ThemedDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.material.icons.automirrored.filled.Undo
+import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.ThemedTextButton
+import com.inventory.app.ui.components.ThemedProgressBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.CollapsingPageScaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.inventory.app.ui.components.ThemedTopAppBar
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Payments
@@ -61,17 +75,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import com.inventory.app.ui.theme.emphasisBody
+import com.inventory.app.ui.theme.formSectionLabel
+import com.inventory.app.ui.theme.sectionHeader
+import com.inventory.app.ui.theme.statValue
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
-import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.DailyChartEntry
 import com.inventory.app.ui.components.SpendingLineChart
 import com.inventory.app.ui.components.formatQty
+import com.inventory.app.ui.components.computeStockBar
 import com.inventory.app.ui.components.ConfirmDialog
 import com.inventory.app.ui.components.DropdownField
 import com.inventory.app.ui.components.ExpandableSection
@@ -107,42 +124,38 @@ fun ItemDetailScreen(
         }
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text(uiState.item?.item?.name ?: "Item") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                },
-                actions = {
-                    uiState.item?.let { details ->
-                        IconButton(onClick = { viewModel.toggleFavorite() }) {
-                            ThemedIcon(
-                                materialIcon = if (details.item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                inkIconRes = if (details.item.isFavorite) R.drawable.ic_ink_heart else R.drawable.ic_ink_heart_outline,
-                                contentDescription = "Favorite",
-                                tint = if (details.item.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        IconButton(onClick = {
-                            navController.navigate(Screen.ItemForm.createRoute(itemId = details.item.id))
-                        }) {
-                            ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit")
-                        }
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            ThemedIcon(materialIcon = Icons.Filled.Delete, inkIconRes = R.drawable.ic_ink_delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                        }
-                    }
+    LaunchedEffect(uiState.snackbarMessage) {
+        uiState.snackbarMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearSnackbarMessage()
+        }
+    }
+
+    CollapsingPageScaffold(
+        title = uiState.item?.item?.name ?: "",
+        onBack = { navController.popBackStack() },
+        actions = {
+            uiState.item?.let { details ->
+                IconButton(onClick = { viewModel.toggleFavorite() }) {
+                    ThemedIcon(
+                        materialIcon = if (details.item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        inkIconRes = if (details.item.isFavorite) R.drawable.ic_ink_heart else R.drawable.ic_ink_heart_outline,
+                        contentDescription = "Favorite",
+                        tint = if (details.item.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    )
                 }
-            )
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    ThemedIcon(materialIcon = Icons.Filled.Delete, inkIconRes = R.drawable.ic_ink_delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                }
+            }
         },
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         when {
             uiState.isLoading -> LoadingState()
             uiState.error != null -> {
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    modifier = Modifier.fillMaxSize().padding(contentPadding),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -159,17 +172,18 @@ fun ItemDetailScreen(
             }
             uiState.item == null -> LoadingState()
             else -> {
-                val details = uiState.item ?: return@ThemedScaffold
+                val details = uiState.item ?: return@CollapsingPageScaffold
                 val item = details.item
 
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                         .verticalScroll(rememberScrollState())
                         .padding(Dimens.spacingLg),
                     verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
                 ) {
+                    val stockState = computeStockBar(item.quantity, item.minQuantity, item.smartMinQuantity, item.maxQuantity, uiState.lowStockThreshold)
                     val effectiveMin = if (item.minQuantity > 0) item.minQuantity else item.smartMinQuantity
 
                     // Status badges
@@ -186,45 +200,194 @@ fun ItemDetailScreen(
                         else if (effectiveMin > 0 && item.quantity < effectiveMin) StatusChip("Low Stock", MaterialTheme.appColors.statusLowStock)
                     }
 
-                    // Quantity section with +/- controls
+                    // Quantity section with smart Use / Restock controls
+                    val unitAbbrev = details.unit?.abbreviation ?: ""
+                    val effectiveUseQty = minOf(uiState.typicalServing, item.quantity)
+                    val useAllRemaining = effectiveUseQty > 0 && effectiveUseQty >= item.quantity
+
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(Dimens.spacingLg),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(Dimens.spacingLg)
                         ) {
-                            Column {
+                            // Row 1: Label + contextual info
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text("Quantity", style = MaterialTheme.typography.labelMedium)
-                                Text(
-                                    "${item.quantity.formatQty()} ${details.unit?.abbreviation ?: ""}",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                if (effectiveMin > 0) {
+                                val daysLeft = uiState.daysRemaining
+                                if (daysLeft != null) {
+                                    val daysText = when {
+                                        daysLeft == 0 -> "Out today"
+                                        daysLeft == 1 -> "~1 day left"
+                                        daysLeft < 7 -> "~$daysLeft days left"
+                                        daysLeft < 30 -> "~${daysLeft / 7} weeks left"
+                                        else -> "~${daysLeft / 30} months left"
+                                    }
                                     Text(
-                                        "Target: ${effectiveMin.formatQty()}",
-                                        style = MaterialTheme.typography.bodySmall
+                                        daysText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                } else if (item.maxQuantity?.let { it > 0 } == true) {
+                                    Text(
+                                        "Capacity: ${item.maxQuantity.formatQty()}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else if (effectiveMin > 0) {
+                                    Text(
+                                        "Target: ${stockState.ceiling.formatQty()}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                            Row {
-                                IconButton(onClick = {
-                                    viewModel.adjustQuantity(-1.0)
-                                    scope.launch { snackbarHostState.showSnackbar("Quantity decreased") }
-                                }) {
-                                    ThemedIcon(materialIcon = Icons.Filled.Remove, inkIconRes = R.drawable.ic_ink_minus, contentDescription = "Decrease")
+
+                            // Row 2: Big quantity number
+                            Text(
+                                "${item.quantity.formatQty()} $unitAbbrev".trim(),
+                                style = MaterialTheme.typography.statValue
+                            )
+
+                            // Row 3: Stock level bar
+                            val hasCeiling = item.minQuantity > 0 || item.smartMinQuantity > 0 || item.maxQuantity?.let { it > 0 } == true
+                            if (hasCeiling) {
+                                Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                                val animatedProgress by animateFloatAsState(
+                                    targetValue = stockState.ratio,
+                                    animationSpec = tween(durationMillis = 400),
+                                    label = "stockBar"
+                                )
+                                val barColor = MaterialTheme.appColors.stockColor(stockState.ratio, stockState.threshold)
+                                ThemedProgressBar(
+                                    progress = { animatedProgress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp)),
+                                    color = barColor,
+                                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(Dimens.spacingSm))
+
+                            // Row 4: Use / Undo / Restock buttons
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Used button (secondary ink)
+                                ThemedButton(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.quickUse()
+                                    },
+                                    enabled = item.quantity > 0,
+                                    modifier = Modifier.weight(1f),
+                                    inkColor = MaterialTheme.colorScheme.secondary,
+                                    colors = ButtonDefaults.outlinedButtonColors()
+                                ) {
+                                    ThemedIcon(
+                                        materialIcon = Icons.Filled.ArrowDownward,
+                                        inkIconRes = R.drawable.ic_ink_arrow_down,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(Dimens.iconSizeSm)
+                                    )
+                                    Spacer(modifier = Modifier.width(Dimens.spacingXs))
+                                    Text(
+                                        if (useAllRemaining && item.quantity > 0) "Use all"
+                                        else "Used ${effectiveUseQty.formatQty()}${if (unitAbbrev.isNotEmpty()) " $unitAbbrev" else ""}"
+                                    )
                                 }
-                                IconButton(onClick = {
-                                    viewModel.adjustQuantity(1.0)
-                                    scope.launch { snackbarHostState.showSnackbar("Quantity increased") }
-                                }) {
-                                    ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Increase")
+                                // Undo button (centered, animated)
+                                AnimatedVisibility(
+                                    visible = uiState.canUndo,
+                                    enter = fadeIn() + scaleIn(),
+                                    exit = fadeOut() + scaleOut()
+                                ) {
+                                    ThemedTextButton(
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            viewModel.undo()
+                                        }
+                                    ) {
+                                        ThemedIcon(
+                                            materialIcon = Icons.AutoMirrored.Filled.Undo,
+                                            inkIconRes = R.drawable.ic_ink_back,
+                                            contentDescription = "Undo",
+                                            modifier = Modifier.size(Dimens.iconSizeSm)
+                                        )
+                                    }
                                 }
+                                // Restock button (primary ink)
+                                ThemedButton(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.quickRestock()
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    ThemedIcon(
+                                        materialIcon = Icons.Filled.Add,
+                                        inkIconRes = R.drawable.ic_ink_add,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(Dimens.iconSizeSm)
+                                    )
+                                    Spacer(modifier = Modifier.width(Dimens.spacingXs))
+                                    Text("+${uiState.typicalPurchaseQty.formatQty()}${if (unitAbbrev.isNotEmpty()) " $unitAbbrev" else ""}")
+                                }
+                            }
+
+                            // Divider + secondary actions
+                            ThemedDivider(modifier = Modifier.padding(vertical = Dimens.spacingSm))
+
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                                verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
+                            ) {
+                                ThemedAssistChip(
+                                    onClick = { navController.navigate(Screen.ItemForm.createRoute(itemId = item.id)) },
+                                    label = { Text("Edit") },
+                                    leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = null, modifier = Modifier.size(Dimens.iconSizeSm)) }
+                                )
+                                ThemedAssistChip(
+                                    onClick = { showUsageDialog = true },
+                                    label = { Text("Log") },
+                                    leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Remove, inkIconRes = R.drawable.ic_ink_minus, contentDescription = null, modifier = Modifier.size(Dimens.iconSizeSm)) }
+                                )
+                                ThemedAssistChip(
+                                    onClick = { showShoppingSheet(item.id, null) },
+                                    label = { Text("Shopping") },
+                                    leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.ShoppingCart, inkIconRes = R.drawable.ic_ink_shopping, contentDescription = null, modifier = Modifier.size(Dimens.iconSizeSm)) }
+                                )
+                                ThemedAssistChip(
+                                    onClick = {
+                                        viewModel.togglePause()
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                if (item.isPaused) "Alerts resumed" else "Alerts paused"
+                                            )
+                                        }
+                                    },
+                                    label = { Text(if (item.isPaused) "Resume" else "Pause") },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (item.isPaused) Icons.Filled.PlayCircle else Icons.Filled.PauseCircle,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(Dimens.iconSizeSm)
+                                        )
+                                    }
+                                )
                             }
                         }
                     }
@@ -310,7 +473,7 @@ fun ItemDetailScreen(
                     item.notes?.let { notes ->
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(Dimens.spacingLg)) {
-                                Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text("Notes", style = MaterialTheme.typography.formSectionLabel)
                                 Text(notes, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                             }
                         }
@@ -338,60 +501,13 @@ fun ItemDetailScreen(
                         }
                     }
 
-                    // Quick actions
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
-                        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-                    ) {
-                        AssistChip(
-                            onClick = { showUsageDialog = true },
-                            label = { Text("Record Usage") },
-                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Remove, inkIconRes = R.drawable.ic_ink_minus, contentDescription = "Decrease", modifier = Modifier.size(Dimens.iconSizeSm)) }
-                        )
-                        AssistChip(
-                            onClick = { showPurchaseDialog = true },
-                            label = { Text("Add Purchase") },
-                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Increase", modifier = Modifier.size(Dimens.iconSizeSm)) }
-                        )
-                        AssistChip(
-                            onClick = { showShoppingSheet(item.id, null) },
-                            label = { Text("Shopping") },
-                            leadingIcon = { ThemedIcon(materialIcon = Icons.Filled.ShoppingCart, inkIconRes = R.drawable.ic_ink_shopping, contentDescription = "Add to shopping", modifier = Modifier.size(Dimens.iconSizeSm)) }
-                        )
-                    }
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
-                        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-                    ) {
-                        AssistChip(
-                            onClick = {
-                                viewModel.togglePause()
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        if (item.isPaused) "Alerts resumed" else "Alerts paused — no expiry or low stock warnings"
-                                    )
-                                }
-                            },
-                            label = { Text(if (item.isPaused) "Resume Alerts" else "Pause Alerts") },
-                            leadingIcon = {
-                                Icon(
-                                    if (item.isPaused) Icons.Filled.PlayCircle else Icons.Filled.PauseCircle,
-                                    contentDescription = if (item.isPaused) "Resume" else "Pause",
-                                    modifier = Modifier.size(Dimens.iconSizeSm)
-                                )
-                            }
-                        )
-                    }
-
                     // History sections — conditional
                     val hasAnyHistory = uiState.usageLogs.isNotEmpty() || uiState.purchaseHistory.isNotEmpty()
 
                     if (hasAnyHistory) {
                         // Usage history
                         if (uiState.usageLogs.isNotEmpty()) {
-                            Text("Usage History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Usage History", style = MaterialTheme.typography.sectionHeader)
                             AppCard(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                                     uiState.usageLogs.take(10).forEach { log ->
@@ -422,8 +538,7 @@ fun ItemDetailScreen(
                         if (uiState.priceTrendData.size >= 2) {
                             Text(
                                 "Unit Price Trend",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.sectionHeader
                             )
                             AppCard(modifier = Modifier.fillMaxWidth()) {
                                 SpendingLineChart(
@@ -446,7 +561,7 @@ fun ItemDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Purchase History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Purchase History", style = MaterialTheme.typography.sectionHeader)
                                 TextButton(onClick = {
                                     navController.navigate(Screen.PurchaseHistory.createRoute(details.item.id))
                                 }) {
@@ -466,14 +581,12 @@ fun ItemDetailScreen(
                                                 Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                                                     Text(
                                                         "Qty: ${purchase.quantity.formatQty()}",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.Medium
+                                                        style = MaterialTheme.typography.labelLarge
                                                     )
                                                     purchase.totalPrice?.let {
                                                         Text(
                                                             "${uiState.currencySymbol}${String.format("%.2f", it)}",
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            fontWeight = FontWeight.Bold,
+                                                            style = MaterialTheme.typography.emphasisBody,
                                                             color = MaterialTheme.colorScheme.primary
                                                         )
                                                     }
@@ -718,8 +831,7 @@ private fun InfoMiniCard(
             Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Text(
                 value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.labelLarge,
                 color = valueColor
             )
         }
@@ -750,7 +862,7 @@ private fun DetailRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Text(value, style = MaterialTheme.typography.labelLarge)
     }
 }
 

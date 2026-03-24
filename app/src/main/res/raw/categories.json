@@ -127,8 +127,36 @@
       "subcategories": ["Dog Food", "Cat Food", "Pet Treats", "Other Pet Food"]
     },
     {
+      "name": "Household & Cleaning",
+      "description": "Cleaning supplies and household essentials",
+      "icon": "bi-house",
+      "color": "#4DB6AC",
+      "subcategories": ["Dish Soap", "Sponges", "Trash Bags", "Laundry", "All-Purpose Cleaner", "Bleach", "Other Cleaning"]
+    },
+    {
+      "name": "Personal Care",
+      "description": "Toiletries and personal hygiene products",
+      "icon": "bi-person",
+      "color": "#CE93D8",
+      "subcategories": ["Shampoo & Conditioner", "Soap & Body Wash", "Oral Care", "Deodorant", "Skincare", "Other Personal Care"]
+    },
+    {
+      "name": "Health & Medicine",
+      "description": "Vitamins, medicines, and first aid supplies",
+      "icon": "bi-plus-circle",
+      "color": "#E57373",
+      "subcategories": ["Vitamins", "Pain Relief", "Cold & Flu", "First Aid", "Allergy", "Other Medicine"]
+    },
+    {
+      "name": "Paper & Wrap",
+      "description": "Paper products, foil, and wrapping supplies",
+      "icon": "bi-receipt",
+      "color": "#BCAAA4",
+      "subcategories": ["Paper Towels", "Toilet Paper", "Aluminum Foil", "Plastic Wrap", "Zip Bags", "Other Paper"]
+    },
+    {
       "name": "Other",
-      "description": "Miscellaneous food items",
+      "description": "Miscellaneous items",
       "icon": "bi-three-dots",
       "color": "#9E9E9E",
       "subcategories": ["Miscellaneous"]

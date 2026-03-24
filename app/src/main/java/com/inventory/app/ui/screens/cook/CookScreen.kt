@@ -22,8 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import com.inventory.app.ui.components.ThemedBottomSheet
-import com.inventory.app.ui.components.ThemedTopAppBar
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
@@ -49,7 +49,6 @@ import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.ThemedDivider
 import com.inventory.app.ui.components.ThemedProgressBar
 import com.inventory.app.ui.components.EmptyStateIllustration
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.ThemedSwitch
 import com.inventory.app.ui.components.rememberAiSignInGate
@@ -57,6 +56,9 @@ import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.AppShapes
 import com.inventory.app.ui.theme.Dimens
+import com.inventory.app.ui.theme.emphasisBody
+import com.inventory.app.ui.theme.formSectionLabel
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.ui.theme.appColors
 
@@ -97,39 +99,15 @@ fun CookScreen(
         viewModel.clearLastSaved()
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("What Can I Cook?") },
-                navigationIcon = {
-                    InkBackButton(onClick = {
-                        if (uiState.showResults) viewModel.backToConfigurator()
-                        else navController.popBackStack()
-                    })
-                },
-                actions = {
-                    // My Recipes button with count badge
-                    if (uiState.savedRecipeCount > 0) {
-                        BadgedBox(
-                            badge = {
-                                Badge { Text("${uiState.savedRecipeCount}") }
-                            }
-                        ) {
-                            IconButton(onClick = { navController.navigate(Screen.SavedRecipes.route) }) {
-                                ThemedIcon(materialIcon = Icons.Filled.MenuBook, inkIconRes = R.drawable.ic_ink_book, contentDescription = "My Recipes")
-                            }
-                        }
-                    } else {
-                        IconButton(onClick = { navController.navigate(Screen.SavedRecipes.route) }) {
-                            ThemedIcon(materialIcon = Icons.Filled.MenuBook, inkIconRes = R.drawable.ic_ink_book, contentDescription = "My Recipes")
-                        }
-                    }
-                }
-            )
+    PageScaffold(
+        onBack = {
+            if (uiState.showResults) viewModel.backToConfigurator()
+            else navController.popBackStack()
         },
+        actions = {},
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+    ) { contentPadding ->
+        Box(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
             AnimatedContent(
                 targetState = uiState.showResults,
                 transitionSpec = {
@@ -238,7 +216,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            contentPadding = PaddingValues(start = 24.dp, end = 16.dp, top = 8.dp),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
             // Smart tip
@@ -251,6 +229,33 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                             { navController.navigate(route) }
                         }
                     )
+                }
+            }
+
+            // SI-4: Quick Repeat chips (recent cook preference combos)
+            if (uiState.recentPreferences.isNotEmpty()) {
+                item(key = "quick_repeat") {
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+                        Text(
+                            "Quick repeat",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+                            items(uiState.recentPreferences, key = { it.label }) { pref ->
+                                ThemedFilterChip(
+                                    selected = false,
+                                    onClick = { viewModel.loadFromSettings(com.google.gson.Gson().toJson(pref.snapshot)) },
+                                    label = {
+                                        Text(
+                                            if (pref.frequency > 1) "${pref.label} (${pref.frequency}x)" else pref.label,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -438,7 +443,7 @@ private fun ConfiguratorScreen(uiState: CookUiState, viewModel: CookViewModel, n
                         ) {
                             ThemedIcon(materialIcon = Icons.Filled.Restaurant, inkIconRes = R.drawable.ic_ink_cook, contentDescription = null)
                             Spacer(Modifier.width(Dimens.spacingSm))
-                            Text("Cook!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Cook!", style = MaterialTheme.typography.sectionHeader)
                         }
                     }
                     Spacer(Modifier.height(Dimens.spacingLg))
@@ -643,8 +648,7 @@ private fun MealAndServingsRow(uiState: CookUiState, viewModel: CookViewModel) {
                 }
                 Text(
                     "${uiState.servings}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.sectionHeader
                 )
                 IconButton(
                     onClick = { viewModel.setServings(uiState.servings + 1) },
@@ -706,6 +710,15 @@ private fun ResultsScreen(uiState: CookUiState, viewModel: CookViewModel, navCon
         return
     }
 
+    // Navigate to cooking playback when recipe is saved
+    val navigateId = uiState.navigateToCookPlayback
+    LaunchedEffect(navigateId) {
+        if (navigateId != null) {
+            viewModel.consumeCookPlaybackNavigation()
+            navController.navigate(Screen.CookingPlayback.createRoute(navigateId))
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -734,7 +747,14 @@ private fun ResultsScreen(uiState: CookUiState, viewModel: CookViewModel, navCon
 
         itemsIndexed(uiState.recipes, key = { index, r -> "${index}_${r.name}" }) { index, recipe ->
             WriteInAnimatedItem(index = index) {
-                RecipeCard(recipe, uiState.addedToShoppingList, uiState.savedRecipeNames, viewModel)
+                RecipeCard(
+                    recipe = recipe,
+                    addedToShoppingList = uiState.addedToShoppingList,
+                    savedRecipeNames = uiState.savedRecipeNames,
+                    cookingRecipeName = uiState.cookingRecipeName,
+                    viewModel = viewModel,
+                    onCook = { viewModel.saveAndCook(it) }
+                )
             }
         }
 
@@ -786,7 +806,9 @@ private fun RecipeCard(
     recipe: SuggestedRecipe,
     addedToShoppingList: Set<String>,
     savedRecipeNames: Set<String>,
-    viewModel: CookViewModel
+    cookingRecipeName: String?,
+    viewModel: CookViewModel,
+    onCook: (SuggestedRecipe) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -804,8 +826,7 @@ private fun RecipeCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         recipe.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.sectionHeader
                     )
                     Text(
                         recipe.cuisine_origin,
@@ -933,7 +954,7 @@ private fun RecipeCard(
                     ThemedDivider(modifier = Modifier.padding(vertical = Dimens.spacingMd))
 
                     // Full ingredient list
-                    Text("Ingredients", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("Ingredients", style = MaterialTheme.typography.formSectionLabel)
                     Spacer(Modifier.height(6.dp))
                     recipe.ingredients.forEach { ing ->
                         Row(
@@ -975,14 +996,13 @@ private fun RecipeCard(
 
                     // Steps
                     Spacer(Modifier.height(Dimens.spacingMd))
-                    Text("Steps", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("Steps", style = MaterialTheme.typography.formSectionLabel)
                     Spacer(Modifier.height(6.dp))
                     recipe.steps.forEachIndexed { idx, step ->
                         Row(modifier = Modifier.padding(vertical = 4.dp)) {
                             Text(
                                 "${idx + 1}.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.emphasisBody,
                                 color = MaterialTheme.appColors.cookAccent,
                                 modifier = Modifier.width(24.dp)
                             )
@@ -1009,6 +1029,34 @@ private fun RecipeCard(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                             }
+                        }
+                    }
+
+                    // Cook This button
+                    Spacer(Modifier.height(Dimens.spacingMd))
+                    val isCooking = cookingRecipeName == recipe.name
+                    ThemedButton(
+                        onClick = { onCook(recipe) },
+                        enabled = !isCooking,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isCooking) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(Dimens.spacingSm))
+                            Text("Saving...")
+                        } else {
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.PlayArrow,
+                                inkIconRes = R.drawable.ic_ink_cook,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(Dimens.spacingSm))
+                            Text("Cook This")
                         }
                     }
                 }
@@ -1175,7 +1223,7 @@ private fun CuisineListItem(cuisine: RegionalCuisine, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(cuisine.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            Text(cuisine.name, style = MaterialTheme.typography.labelLarge)
             Text(
                 cuisine.country,
                 style = MaterialTheme.typography.bodySmall,
@@ -1253,9 +1301,8 @@ private fun HeroPickerSheet(uiState: CookUiState, viewModel: CookViewModel) {
                     item(key = "expiring_header") {
                         Text(
                             "Expiring Soon",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.formSectionLabel,
                             color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
@@ -1268,8 +1315,7 @@ private fun HeroPickerSheet(uiState: CookUiState, viewModel: CookViewModel) {
                         Spacer(Modifier.height(Dimens.spacingSm))
                         Text(
                             "All Items",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.formSectionLabel,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
@@ -1628,8 +1674,7 @@ private fun CookTipCard(
 private fun SectionLabel(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.formSectionLabel,
         color = MaterialTheme.colorScheme.onSurface
     )
 }

@@ -27,7 +27,8 @@ data class InventoryReportUiState(
     val topValueItems: List<TopValueItemRow> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
-    val currencySymbol: String = ""
+    val currencySymbol: String = "",
+    val lowStockThreshold: Float = 0.25f
 )
 
 @HiltViewModel
@@ -49,15 +50,18 @@ class InventoryReportViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            val threshold = (settingsRepository.getString(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25").toDoubleOrNull() ?: 25.0) / 100.0
+            _uiState.update { it.copy(lowStockThreshold = threshold.toFloat()) }
+        }
+        viewModelScope.launch {
             try {
                 itemRepository.getAllActiveWithDetails().collect { items ->
                     _uiState.update {
                         val count = items.size
-                        val avg = if (count > 0 && it.totalValue > 0) it.totalValue / count else 0.0
                         it.copy(
                             allItems = items,
                             totalItems = count,
-                            averageItemValue = avg,
+                            averageItemValue = if (count > 0 && it.totalValue > 0) it.totalValue / count else it.averageItemValue,
                             isLoading = false
                         )
                     }

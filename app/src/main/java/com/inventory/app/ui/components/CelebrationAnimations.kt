@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.alertTitle
 import com.inventory.app.ui.theme.appColors
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -632,8 +633,7 @@ fun AllDoneCelebration(
         ) {
             Text(
                 text = tagline,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.alertTitle,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -699,7 +699,6 @@ fun AllDoneCelebration(
                         Text(
                             text = "$currencySymbol${"%.2f".format(animatedTotal.value.toDouble())}",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }

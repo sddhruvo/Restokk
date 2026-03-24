@@ -5,21 +5,16 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.inventory.app.ui.components.RegionPickerContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -27,10 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -38,12 +31,15 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.inventory.app.ui.theme.alertTitle
+import com.inventory.app.ui.theme.formSectionLabel
+import com.inventory.app.ui.theme.sectionHeader
+import com.inventory.app.ui.theme.statValue
 import androidx.compose.ui.unit.dp
 import com.inventory.app.R
 import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.RuledLinesBackground
 import com.inventory.app.ui.components.ThemedIcon
-import com.inventory.app.ui.components.ThemedTextField
 import com.inventory.app.ui.theme.LocalReduceMotion
 import com.inventory.app.ui.theme.PaperInkMotion
 import kotlinx.coroutines.delay
@@ -211,8 +207,7 @@ private fun StoryOpensPage(onGetStarted: () -> Unit) {
                 // Line 2 — Write In, slightly smaller (spec), bold
                 Text(
                     text = "Let's write yours.",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.alertTitle,
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.graphicsLayer {
@@ -370,8 +365,7 @@ private fun YourKitchenPage(
             // Headline — Write-In
             Text(
                 text = "Your Kitchen",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.statValue,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.graphicsLayer {
@@ -413,8 +407,7 @@ private fun YourKitchenPage(
             // "What matters most?" — Fade Up (keeping #26 as approved)
             Text(
                 text = "What matters most?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.sectionHeader,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.graphicsLayer {
@@ -569,150 +562,11 @@ private fun RegionSection(
     ) {
         Column {
             Spacer(modifier = Modifier.height(8.dp))
-            var searchQuery by remember { mutableStateOf("") }
-            var showCustomForm by remember { mutableStateOf(false) }
-
-            val filteredRegions = remember(searchQuery) {
-                if (searchQuery.isBlank()) popularRegions
-                else popularRegions.filter { region ->
-                    region.countryName.contains(searchQuery, ignoreCase = true) ||
-                    region.countryCode.contains(searchQuery, ignoreCase = true) ||
-                    region.currencySymbol.contains(searchQuery, ignoreCase = true)
-                }
-            }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 360.dp),
-                shape = MaterialTheme.shapes.large
-            ) {
-                Column(modifier = Modifier.padding(8.dp)) {
-                    // Search field
-                    ThemedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            showCustomForm = false
-                        },
-                        placeholder = { Text("Search countries...") },
-                        leadingIcon = {
-                            ThemedIcon(
-                                materialIcon = Icons.Filled.Search,
-                                inkIconRes = R.drawable.ic_ink_search,
-                                contentDescription = "Search",
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                        textStyle = MaterialTheme.typography.bodyMedium
-                    )
-
-                    AnimatedContent(
-                        targetState = showCustomForm,
-                        transitionSpec = {
-                            fadeIn(tween(200)) togetherWith fadeOut(tween(PaperInkMotion.DurationShort))
-                        },
-                        label = "pickerContent"
-                    ) { customFormVisible ->
-                        if (customFormVisible) {
-                            CustomCountryForm(
-                                initialCountryName = searchQuery,
-                                onConfirm = { name, symbol ->
-                                    val datePreview = try {
-                                        java.time.LocalDate.of(2026, 2, 19)
-                                            .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
-                                    } catch (_: Exception) { "19 Feb 2026" }
-                                    val customRegion = RegionInfo(
-                                        countryCode = "CUSTOM",
-                                        countryName = name.trim(),
-                                        currencySymbol = symbol.trim(),
-                                        dateFormatPreview = datePreview,
-                                        flag = "\uD83C\uDF10"
-                                    )
-                                    onSelect(customRegion)
-                                }
-                            )
-                        } else {
-                            Column {
-                                LazyColumn(
-                                    modifier = Modifier.weight(1f, fill = false)
-                                ) {
-                                    items(filteredRegions, key = { it.countryCode }) { region ->
-                                        val isSelected = region.countryCode == selectedRegion.countryCode
-                                        ListItem(
-                                            headlineContent = {
-                                                Text("${region.flag}  ${region.countryName}")
-                                            },
-                                            supportingContent = {
-                                                Text("${region.currencySymbol} \u2022 ${region.dateFormatPreview}")
-                                            },
-                                            trailingContent = {
-                                                if (isSelected) {
-                                                    ThemedIcon(
-                                                        materialIcon = Icons.Filled.Check,
-                                                        inkIconRes = R.drawable.ic_ink_check,
-                                                        contentDescription = "Selected",
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                }
-                                            },
-                                            modifier = Modifier
-                                                .clip(MaterialTheme.shapes.small)
-                                                .clickable { onSelect(region) }
-                                        )
-                                    }
-
-                                    // "Can't find your country?" option
-                                    if (searchQuery.isNotBlank() && filteredRegions.size <= 3) {
-                                        item(key = "custom_country_option") {
-                                            ListItem(
-                                                headlineContent = {
-                                                    Text(
-                                                        "Can't find your country?",
-                                                        color = MaterialTheme.colorScheme.primary,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                },
-                                                supportingContent = {
-                                                    Text("Set up a custom region")
-                                                },
-                                                leadingContent = {
-                                                    ThemedIcon(
-                                                        materialIcon = Icons.Filled.Language,
-                                                        inkIconRes = R.drawable.ic_ink_language,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                },
-                                                modifier = Modifier
-                                                    .clip(MaterialTheme.shapes.small)
-                                                    .clickable { showCustomForm = true }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Also show "Can't find?" as a text button when no search query
-                                if (searchQuery.isBlank()) {
-                                    TextButton(
-                                        onClick = { showCustomForm = true },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 4.dp)
-                                    ) {
-                                        Text("Can't find your country?")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            RegionPickerContent(
+                regions = popularRegions,
+                selectedRegionCode = selectedRegion.countryCode,
+                onSelect = onSelect
+            )
         }
     }
 }
@@ -774,7 +628,6 @@ private fun PreferenceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
             .graphicsLayer {
                 scaleX = entranceScale * selectionScale
                 scaleY = entranceScale * selectionScale
@@ -804,8 +657,7 @@ private fun PreferenceCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = preference.label,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.formSectionLabel,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
@@ -864,104 +716,5 @@ private fun DetailChip(label: String, value: String) {
     }
 }
 
-@Composable
-private fun CustomCountryForm(
-    initialCountryName: String,
-    onConfirm: (countryName: String, currencySymbol: String) -> Unit
-) {
-    var countryName by remember { mutableStateOf(initialCountryName) }
-    var currencySymbol by remember { mutableStateOf("") }
-
-    val datePreview = remember {
-        try {
-            java.time.LocalDate.of(2026, 2, 19)
-                .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
-        } catch (_: Exception) { "19 Feb 2026" }
-    }
-
-    // Fade-up entrance
-    var formVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(50)
-        formVisible = true
-    }
-    val formY by animateFloatAsState(
-        targetValue = if (formVisible) 0f else 16f,
-        animationSpec = GentleSpring, label = "customFormY"
-    )
-    val formAlpha by animateFloatAsState(
-        targetValue = if (formVisible) 1f else 0f,
-        animationSpec = tween(250), label = "customFormAlpha"
-    )
-
-    val isValid = countryName.isNotBlank() && currencySymbol.isNotBlank()
-
-    Column(
-        modifier = Modifier
-            .graphicsLayer { translationY = formY; alpha = formAlpha }
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = "Your country isn't in our list yet — no worries! Just tell us a few basics.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
-
-        ThemedTextField(
-            value = countryName,
-            onValueChange = { countryName = it },
-            label = { Text("Country name") },
-            singleLine = true,
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.bodyMedium
-        )
-
-        ThemedTextField(
-            value = currencySymbol,
-            onValueChange = { currencySymbol = it },
-            label = { Text("Currency symbol") },
-            placeholder = { Text("e.g. kr, \u20AC, \u00A5") },
-            singleLine = true,
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.bodyMedium
-        )
-
-        // Read-only date preview
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Date format",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "$datePreview (from device)",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        ThemedButton(
-            onClick = { onConfirm(countryName, currencySymbol) },
-            enabled = isValid,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Text("Use This", style = MaterialTheme.typography.titleSmall)
-        }
-    }
-}
 
 

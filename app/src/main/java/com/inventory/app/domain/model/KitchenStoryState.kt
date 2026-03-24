@@ -76,7 +76,7 @@ object KitchenStoryMissions {
     )
     private val tryCook = MissionDefinition(
         "See what you can cook", KEY_MISSION_COOK,
-        TriggerType.RECIPE_VIEWED, Screen.Cook.route
+        TriggerType.RECIPE_VIEWED, Screen.CookHub.route
     )
     private val viewReports = MissionDefinition(
         "View your kitchen report", KEY_MISSION_REPORTS,

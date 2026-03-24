@@ -8,6 +8,7 @@ import androidx.room.Transaction
 import com.inventory.app.data.local.entity.ShoppingListItemEntity
 import com.inventory.app.data.local.entity.relations.ShoppingListItemWithDetails
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 @Dao
 interface ShoppingListDao {
@@ -62,6 +63,9 @@ interface ShoppingListDao {
 
     @Query("DELETE FROM shopping_list WHERE is_purchased = 1 AND purchased_at < :before")
     suspend fun clearPurchasedBefore(before: Long)
+
+    @Query("UPDATE shopping_list SET previous_purchase_date = :date WHERE id = :id")
+    suspend fun savePreviousPurchaseDate(id: Long, date: LocalDate?)
 }
 
 data class ShoppingListNameProjection(

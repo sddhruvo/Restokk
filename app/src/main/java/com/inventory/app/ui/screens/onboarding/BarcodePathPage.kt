@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.inventory.app.ui.theme.alertTitle
 import androidx.compose.ui.unit.dp
 import com.inventory.app.ui.components.BarcodeCameraPreview
 import com.inventory.app.ui.components.ThemedCircularProgress
@@ -57,8 +58,7 @@ internal fun BarcodePathPage(
         // ── Header ──
         Text(
             text = "Point at any barcode",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.alertTitle,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -161,8 +161,7 @@ private fun NotFoundContent(
         ) {
             Text(
                 text = "That's a new one!",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.alertTitle,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )

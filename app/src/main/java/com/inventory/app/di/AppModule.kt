@@ -33,7 +33,7 @@ object AppModule {
             InventoryDatabase::class.java,
             "inventory.db"
         )
-            .addMigrations(com.inventory.app.data.local.db.MIGRATION_1_2, com.inventory.app.data.local.db.MIGRATION_2_3, com.inventory.app.data.local.db.MIGRATION_3_4, com.inventory.app.data.local.db.MIGRATION_4_5, com.inventory.app.data.local.db.MIGRATION_5_6, com.inventory.app.data.local.db.MIGRATION_6_7)
+            .addMigrations(com.inventory.app.data.local.db.MIGRATION_1_2, com.inventory.app.data.local.db.MIGRATION_2_3, com.inventory.app.data.local.db.MIGRATION_3_4, com.inventory.app.data.local.db.MIGRATION_4_5, com.inventory.app.data.local.db.MIGRATION_5_6, com.inventory.app.data.local.db.MIGRATION_6_7, com.inventory.app.data.local.db.MIGRATION_7_8, com.inventory.app.data.local.db.MIGRATION_8_9, com.inventory.app.data.local.db.MIGRATION_9_10)
             .addCallback(DatabaseCallback(context, scope))
             .build()
     }
@@ -52,4 +52,6 @@ object AppModule {
     @Provides fun provideSettingsDao(db: InventoryDatabase): SettingsDao = db.settingsDao()
     @Provides fun providePantryHealthLogDao(db: InventoryDatabase): PantryHealthLogDao = db.pantryHealthLogDao()
     @Provides fun provideSavedRecipeDao(db: InventoryDatabase): SavedRecipeDao = db.savedRecipeDao()
+    @Provides fun provideSmartDefaultCacheDao(db: InventoryDatabase): SmartDefaultCacheDao = db.smartDefaultCacheDao()
+    @Provides fun provideCookingLogDao(db: InventoryDatabase): com.inventory.app.data.local.dao.CookingLogDao = db.cookingLogDao()
 }

@@ -27,11 +27,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.ItemStockBar
 import com.inventory.app.ui.components.ChartEntry
 import com.inventory.app.ui.components.HorizontalBarChart
 import com.inventory.app.ui.components.LoadingState
@@ -56,6 +56,7 @@ import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.formatQty
 import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.R
+import com.inventory.app.ui.theme.sectionHeader
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,20 +76,13 @@ fun InventoryReportScreen(
         }
     }
 
-    ThemedScaffold(
-        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Full Inventory Report") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        }
-    ) { padding ->
+    PageScaffold(
+        onBack = { navController.popBackStack() },
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
+    ) { contentPadding ->
         if (uiState.isLoading) {
-            LoadingState(modifier = Modifier.padding(padding))
-            return@ThemedScaffold
+            LoadingState(modifier = Modifier.padding(contentPadding))
+            return@PageScaffold
         }
 
         val filteredItems = remember(searchQuery, uiState.allItems) {
@@ -103,10 +97,11 @@ fun InventoryReportScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(horizontal = 16.dp),
+            contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { PageHeader("Full Inventory Report") }
             // ── Section 1: Summary Cards (3 cards) ──
             item(key = "summary") {
                 Row(
@@ -117,19 +112,19 @@ fun InventoryReportScreen(
                         label = "Total Items",
                         value = "${uiState.totalItems}",
                         modifier = Modifier.weight(1f),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     )
                     StatMiniCard(
                         label = "Total Value",
                         value = "${uiState.currencySymbol}${String.format(Locale.US, "%.2f", uiState.totalValue)}",
                         modifier = Modifier.weight(1f),
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
                     )
                     StatMiniCard(
                         label = "Avg Value",
                         value = "${uiState.currencySymbol}${String.format(Locale.US, "%.2f", uiState.averageItemValue)}",
                         modifier = Modifier.weight(1f),
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f)
                     )
                 }
             }
@@ -221,8 +216,7 @@ fun InventoryReportScreen(
                                     Spacer(Modifier.width(12.dp))
                                     Text(
                                         item.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.labelLarge,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f)
@@ -274,27 +268,37 @@ fun InventoryReportScreen(
                         }
                     )
                 }
-                items(filteredItems, key = { it.item.id }) { item ->
+                items(filteredItems, key = { it.item.id }) { itemWithDetails ->
+                    val item = itemWithDetails.item
                     ListItem(
-                        headlineContent = { Text(item.item.name) },
+                        headlineContent = { Text(item.name) },
                         supportingContent = {
-                            Text(
-                                buildString {
-                                    item.category?.let { append(it.name) }
-                                    append(" | Qty: ${item.item.quantity.formatQty()}")
-                                    item.item.purchasePrice?.let {
-                                        append(" | ${uiState.currencySymbol}${String.format(Locale.US, "%.2f", it)}")
+                            Column {
+                                Text(
+                                    buildString {
+                                        itemWithDetails.category?.let { append(it.name) }
+                                        append(" | Qty: ${item.quantity.formatQty()}")
+                                        item.purchasePrice?.let {
+                                            append(" | ${uiState.currencySymbol}${String.format(Locale.US, "%.2f", it)}")
+                                        }
                                     }
-                                }
-                            )
+                                )
+                                ItemStockBar(
+                                    quantity = item.quantity,
+                                    minQuantity = item.minQuantity,
+                                    smartMinQuantity = item.smartMinQuantity,
+                                    lowStockThreshold = uiState.lowStockThreshold,
+                                    maxQuantity = item.maxQuantity
+                                )
+                            }
                         },
                         trailingContent = {
-                            item.storageLocation?.let {
+                            itemWithDetails.storageLocation?.let {
                                 Text(it.name, style = MaterialTheme.typography.labelSmall)
                             }
                         },
                         modifier = Modifier.clickable {
-                            navController.navigate(Screen.ItemDetail.createRoute(item.item.id))
+                            navController.navigate(Screen.ItemDetail.createRoute(item.id))
                         }
                     )
                 }
@@ -310,8 +314,7 @@ fun InventoryReportScreen(
 private fun SectionHeader(title: String) {
     Text(
         title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold
+        style = MaterialTheme.typography.sectionHeader
     )
 }
 
@@ -329,8 +332,7 @@ private fun StatMiniCard(
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.sectionHeader,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

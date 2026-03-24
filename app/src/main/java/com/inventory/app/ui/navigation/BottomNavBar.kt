@@ -52,7 +52,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.compositionLocalOf
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -63,10 +65,17 @@ import com.inventory.app.ui.theme.AppShapeTokens
 import com.inventory.app.ui.theme.PaperInkMotion
 import com.inventory.app.ui.theme.visuals
 
+/** Height of the floating bottom nav bar — screens read this to reserve bottom space. */
+val LocalBottomNavHeight = compositionLocalOf { 0.dp }
+
+/** How far the nav bar has slid off-screen (0f = fully visible, 1f = fully hidden). */
+val LocalBottomNavSlide = compositionLocalOf { 0f }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomNavBar(
     navController: NavController,
+    modifier: Modifier = Modifier,
     shoppingBadgeCount: Int = 0,
     expiringBadgeCount: Int = 0,
     isQuickAddOpen: Boolean = false,
@@ -135,7 +144,7 @@ fun BottomNavBar(
     val pillWidthFraction = if (screenWidth > 600.dp) 0.50f else 0.65f
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(bottom = 8.dp),
@@ -149,7 +158,7 @@ fun BottomNavBar(
             // Paper & Ink mode: InkBorderCard wrapper
             InkBorderCard(
                 modifier = Modifier.fillMaxWidth(pillWidthFraction),
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                containerColor = MaterialTheme.colorScheme.surface,
                 cornerRadius = AppShapeTokens.CornerPill
             ) {
                 PillContent(
@@ -242,6 +251,7 @@ private fun PillContent(
         // Center FAB — Ink Well (Paper & Ink) or standard (Modern)
         Box(
             modifier = Modifier
+                .testTag(com.inventory.app.ui.TestTags.BottomNav.FAB_QUICK_ADD)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -315,8 +325,17 @@ private fun PillNavItem(
     val tint = if (isSelected) MaterialTheme.colorScheme.primary
     else MaterialTheme.colorScheme.onSurfaceVariant
 
+    val testTag = when (item.screen) {
+        is Screen.Dashboard -> com.inventory.app.ui.TestTags.BottomNav.TAB_HOME
+        is Screen.CookHub -> com.inventory.app.ui.TestTags.BottomNav.TAB_COOK
+        is Screen.ShoppingList -> com.inventory.app.ui.TestTags.BottomNav.TAB_SHOPPING
+        is Screen.More -> com.inventory.app.ui.TestTags.BottomNav.TAB_MORE
+        else -> "bottomNav.tab.unknown"
+    }
+
     Column(
         modifier = Modifier
+            .testTag(testTag)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null

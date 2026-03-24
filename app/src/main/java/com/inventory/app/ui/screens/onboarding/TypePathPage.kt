@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.inventory.app.ui.theme.alertTitle
 import androidx.compose.ui.unit.dp
 import com.inventory.app.domain.model.ItemDefaults
 import com.inventory.app.ui.components.ThemedButton
@@ -79,8 +80,7 @@ internal fun TypePathPage(
             // Prompt
             Text(
                 text = "What's one thing in your\nkitchen right now?",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.alertTitle,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.graphicsLayer {

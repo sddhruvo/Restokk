@@ -14,10 +14,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,8 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
-import com.inventory.app.ui.components.InkBackButton
-import com.inventory.app.ui.components.ThemedButton
+import com.inventory.app.ui.components.SaveAction
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 
@@ -83,26 +82,28 @@ fun SubcategoryFormScreen(
         if (uiState.isSaved) navController.popBackStack()
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text(if (subcategoryId != null) "Edit Subcategory" else "Add Subcategory") },
-                navigationIcon = {
-                    InkBackButton(onClick = {
-                        if (isDirty) showDiscardDialog = true
-                        else navController.popBackStack()
-                    })
-                }
+    val formTitle = if (subcategoryId != null) "Edit Subcategory" else "Add Subcategory"
+
+    PageScaffold(
+        onBack = {
+            if (isDirty) showDiscardDialog = true
+            else navController.popBackStack()
+        },
+        actions = {
+            SaveAction(
+                visible = true,
+                onClick = { viewModel.save() }
             )
         }
-    ) { padding ->
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            PageHeader(formTitle)
             ThemedTextField(
                 value = uiState.name,
                 onValueChange = { viewModel.updateName(it) },
@@ -120,12 +121,6 @@ fun SubcategoryFormScreen(
                 minLines = 2
             )
 
-            ThemedButton(
-                onClick = { viewModel.save() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (subcategoryId != null) "Update" else "Create")
-            }
         }
     }
 }

@@ -39,10 +39,10 @@ android {
         applicationId = "com.restokk.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 15
-        versionName = "1.4.0"
+        versionCode = 23
+        versionName = "1.6.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.inventory.app.HiltTestRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -104,6 +104,7 @@ android {
 dependencies {
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 
     // Compose BOM
@@ -205,4 +206,24 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Hilt testing
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.50")
+    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.50")
+
+    // AndroidX Test
+    androidTestImplementation("androidx.test:core:1.5.0")
+    androidTestImplementation("androidx.test:core-ktx:1.5.0")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:rules:1.5.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+
+    // UI Automator
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+
+    // Room testing (in-memory DB)
+    androidTestImplementation("androidx.room:room-testing:$roomVersion")
+
+    // Coroutines test
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 }

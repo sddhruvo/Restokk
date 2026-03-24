@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ChipColors
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.InputChip
@@ -196,4 +199,93 @@ fun ThemedInputChip(
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
     )
+}
+
+/**
+ * Drop-in replacement for [AssistChip] with a wobbly ink pill border
+ * in Paper & Ink mode.
+ *
+ * Modern mode delegates to the standard [AssistChip].
+ */
+@Composable
+fun ThemedAssistChip(
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    colors: ChipColors = AssistChipDefaults.assistChipColors(),
+) {
+    val isInk = MaterialTheme.visuals.isInk
+    if (!isInk) {
+        AssistChip(
+            onClick = onClick,
+            label = label,
+            modifier = modifier,
+            enabled = enabled,
+            leadingIcon = leadingIcon,
+            colors = colors,
+        )
+        return
+    }
+
+    val colorScheme = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
+    val strokePx = with(density) { InkTokens.strokeMedium.toPx() }
+    val wobblePx = with(density) { InkTokens.wobbleSmall.toPx() }
+
+    val borderColor = if (enabled) colorScheme.onSurface
+        else colorScheme.onSurface.copy(alpha = InkTokens.disabledBorder)
+    val contentColor = if (enabled) colorScheme.onSurface
+        else colorScheme.onSurface.copy(alpha = InkTokens.disabledContent)
+
+    Box(
+        modifier = modifier
+            .height(32.dp)
+            .drawBehind {
+                val cr = size.height / 2f
+
+                val path = buildWobbleBorderPath(
+                    width = size.width,
+                    height = size.height,
+                    cornerRadius = cr,
+                    wobbleAmplitude = wobblePx,
+                    wobbleSeed = wobbleSeed,
+                    segments = 3
+                )
+
+                // Border
+                drawPath(
+                    path = path,
+                    color = borderColor.copy(alpha = InkTokens.borderMedium),
+                    style = Stroke(
+                        width = strokePx,
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round
+                    )
+                )
+            }
+            .clip(RoundedCornerShape(50))
+            .clickable(
+                enabled = enabled,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onClick
+            )
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CompositionLocalProvider(LocalContentColor provides contentColor) {
+            ProvideTextStyle(MaterialTheme.typography.labelLarge) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    leadingIcon?.invoke()
+                    label()
+                }
+            }
+        }
+    }
 }

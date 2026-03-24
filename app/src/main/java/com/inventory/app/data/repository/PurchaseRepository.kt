@@ -74,6 +74,14 @@ class PurchaseRepository @Inject constructor(
 
     suspend fun getStoreById(id: Long): StoreEntity? = storeDao.getById(id)
 
+    suspend fun getTypicalPurchaseQuantity(itemId: Long): Double? {
+        val quantities = purchaseHistoryDao.getRecentPurchaseQuantities(itemId)
+        if (quantities.isEmpty()) return null
+        val sorted = quantities.sorted()
+        return if (sorted.size % 2 == 1) sorted[sorted.size / 2]
+        else (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2.0
+    }
+
     suspend fun addPurchase(
         itemId: Long,
         quantity: Double,
@@ -82,8 +90,9 @@ class PurchaseRepository @Inject constructor(
         expiryDate: LocalDate?,
         storeName: String?,
         notes: String?
-    ) {
-        if (quantity <= 0) return  // Guard against zero/negative quantity
+    ): Long {
+        if (quantity <= 0) return 0L  // Guard against zero/negative quantity
+        var purchaseId = 0L
         database.withTransaction {
         // Find or create store
         val storeId = storeName?.let { name ->
@@ -103,7 +112,7 @@ class PurchaseRepository @Inject constructor(
             }
         }
 
-        purchaseHistoryDao.insert(
+        purchaseId = purchaseHistoryDao.insert(
             PurchaseHistoryEntity(
                 itemId = itemId,
                 storeId = storeId,
@@ -131,6 +140,19 @@ class PurchaseRepository @Inject constructor(
                 )
             )
         }
+        }
+        return purchaseId
+    }
+
+    suspend fun undoPurchase(purchaseId: Long, itemId: Long, quantity: Double) {
+        database.withTransaction {
+            purchaseHistoryDao.delete(purchaseId)
+            itemRepository.adjustQuantity(itemId, -quantity)
+            // Clamp to zero if it went negative
+            val item = itemRepository.getById(itemId)
+            if (item != null && item.quantity < 0) {
+                itemRepository.adjustQuantity(itemId, -item.quantity)
+            }
         }
     }
 }

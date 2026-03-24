@@ -134,6 +134,9 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import com.inventory.app.ui.components.AnimatedCounter
 import com.inventory.app.ui.components.InkFireworks
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.alertTitle
+import com.inventory.app.ui.theme.formSectionLabel
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.util.CategoryVisual
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -502,8 +505,7 @@ fun FridgeScanScreen(
                                 ThemedIcon(materialIcon = Icons.Filled.Error, inkIconRes = R.drawable.ic_ink_error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                                 Text(
                                     "Scan Failed",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.formSectionLabel,
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
@@ -577,8 +579,7 @@ private fun AreaSelectionContent(
                     )
                     Text(
                         "Kitchen Tour",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.formSectionLabel,
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -616,8 +617,7 @@ private fun AreaSelectionContent(
         // Area title
         Text(
             "Choose an area to scan",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.formSectionLabel,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         )
 
@@ -711,8 +711,7 @@ private fun AreaCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     area.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.formSectionLabel,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -775,8 +774,7 @@ private fun IdleContent(
                     )
                     Text(
                         if (areaName != null) "Scan: $areaName" else "Kitchen Scanner",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.formSectionLabel,
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -901,8 +899,7 @@ private fun ProcessingContent(
 
             Text(
                 "Identifying items...",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.sectionHeader
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1026,14 +1023,12 @@ private fun ReviewContent(
                         )
                         Text(
                             "No Items Found",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.formSectionLabel
                         )
                     }
                     Text(
                         "Tips for better results:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.labelLarge
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         listOf(
@@ -1113,8 +1108,7 @@ private fun ReviewContent(
             AnimatedCounter(targetValue = tallyTarget) { count ->
                 Text(
                     "$count items found",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.sectionHeader
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1288,8 +1282,7 @@ private fun ReviewCategoryHeader(
             // Category name
             Text(
                 group.categoryName,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.formSectionLabel,
                 modifier = Modifier.weight(1f)
             )
             // Item count
@@ -1624,8 +1617,7 @@ private fun AreaSuccessContent(
         Text(
             if (areaName != null) "$count items added from $areaName!"
             else "$count items added!",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.alertTitle
         )
 
         if (isInTourMode && completedAreas.isNotEmpty()) {
@@ -1781,8 +1773,7 @@ private fun TourSummaryContent(
         // 2. Headline — Write-In entrance
         Text(
             "Kitchen Tour Complete!",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.alertTitle,
             modifier = Modifier.graphicsLayer {
                 translationX = headlineTranslateX.value * density
                 alpha = headlineAlpha.value
@@ -1864,8 +1855,7 @@ private fun TourSummaryContent(
             ) {
                 Text(
                     "Area Breakdown",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.formSectionLabel
                 )
                 areaResults.forEach { (areaName, count) ->
                     Row(
@@ -1891,8 +1881,7 @@ private fun TourSummaryContent(
                         }
                         Text(
                             "$count item${if (count != 1) "s" else ""}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }

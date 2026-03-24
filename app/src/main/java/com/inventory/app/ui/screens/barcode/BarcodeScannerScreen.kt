@@ -1,5 +1,13 @@
 package com.inventory.app.ui.screens.barcode
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.activity.compose.BackHandler
+import com.inventory.app.domain.model.QuantitySource
+import com.inventory.app.ui.components.QuantityBarMode
+import com.inventory.app.ui.components.SmartQuantityBar
 import com.inventory.app.ui.components.ThemedSnackbarHost
 import com.inventory.app.ui.components.ThemedTextField
 import androidx.compose.foundation.layout.Arrangement
@@ -31,10 +39,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,6 +57,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.inventory.app.ui.theme.sectionHeader
+import com.inventory.app.ui.theme.formSectionLabel
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -58,6 +68,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.ItemStockBar
 import com.inventory.app.ui.components.BarcodeCameraPreview
 import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.ThemedIcon
@@ -77,6 +88,23 @@ fun BarcodeScannerScreen(
     val haptic = LocalHapticFeedback.current
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Dismiss pending add on back press
+    BackHandler(enabled = uiState.pendingAdd != null) {
+        viewModel.dismissPendingAdd()
+    }
+
+    // Auto-reset when returning from ItemForm if barcode was added
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.checkCurrentBarcodeAdded()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Quick add confirmation: haptic + snackbar
     LaunchedEffect(uiState.quickAddDone) {
         if (uiState.quickAddDone) {
@@ -85,20 +113,19 @@ fun BarcodeScannerScreen(
         }
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(title = { Text("Barcode Scanner") })
-        },
+    PageScaffold(
+        onBack = null,
         snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(Dimens.spacingLg),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
+            PageHeader("Barcode Scanner")
             // Camera section
             if (cameraPermissionState.status.isGranted) {
                 BarcodeCameraPreview(
@@ -160,8 +187,7 @@ fun BarcodeScannerScreen(
             // Manual barcode entry
             Text(
                 "Manual Entry",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.sectionHeader
             )
 
             Row(
@@ -196,7 +222,7 @@ fun BarcodeScannerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         ThemedCircularProgress(modifier = Modifier.size(Dimens.iconSizeMd))
-                        Text("Looking up barcode...", modifier = Modifier.padding(start = Dimens.spacingMd))
+                        Text("Looking up barcode...", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = Dimens.spacingMd))
                     }
                 }
             }
@@ -213,8 +239,7 @@ fun BarcodeScannerScreen(
                                 ThemedIcon(materialIcon = Icons.Filled.CheckCircle, inkIconRes = R.drawable.ic_ink_check_circle, contentDescription = "Item found", tint = MaterialTheme.appColors.statusInStock)
                                 Text(
                                     "Item Found in Inventory",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.formSectionLabel,
                                     modifier = Modifier.padding(start = Dimens.spacingSm)
                                 )
                             }
@@ -222,24 +247,55 @@ fun BarcodeScannerScreen(
                             Text(result.item.name, style = MaterialTheme.typography.bodyLarge)
                             result.item.brand?.let { Text("Brand: $it", style = MaterialTheme.typography.bodyMedium) }
                             Text("Quantity: ${result.item.quantity}", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.height(Dimens.spacingXs))
+                            ItemStockBar(
+                                quantity = result.item.quantity,
+                                minQuantity = result.item.minQuantity,
+                                smartMinQuantity = result.item.smartMinQuantity,
+                                lowStockThreshold = uiState.lowStockThreshold,
+                                maxQuantity = result.item.maxQuantity
+                            )
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = Dimens.spacingMd),
-                                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-                            ) {
-                                ThemedButton(onClick = {
-                                    navController.navigate(Screen.ItemDetail.createRoute(result.item.id))
-                                }) {
-                                    ThemedIcon(materialIcon = Icons.Filled.Visibility, inkIconRes = R.drawable.ic_ink_eye, contentDescription = "View item", modifier = Modifier.size(Dimens.iconSizeSm))
-                                    Text("View Item", modifier = Modifier.padding(start = Dimens.spacingXs))
-                                }
-                                OutlinedButton(onClick = {
-                                    viewModel.quickAdd(result.item.barcode ?: "", result.item.name, result.item.brand)
-                                }) {
-                                    ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add item", modifier = Modifier.size(Dimens.iconSizeSm))
-                                    Text("+1", modifier = Modifier.padding(start = Dimens.spacingXs))
+                            val existingPending = uiState.pendingAdd?.let {
+                                it.itemId == result.item.id
+                            } ?: false
+
+                            if (existingPending) {
+                                val pending = uiState.pendingAdd!!
+                                SmartQuantityBar(
+                                    quantity = pending.quantity,
+                                    itemName = pending.name,
+                                    unitAbbreviation = pending.unitAbbreviation,
+                                    sourceHint = when (pending.source) {
+                                        QuantitySource.SHOPPING_LIST -> "On your shopping list"
+                                        QuantitySource.PURCHASE_HISTORY -> "Usually buy ${pending.quantity.toLong()}"
+                                        QuantitySource.DEFAULT -> ""
+                                    },
+                                    mode = QuantityBarMode.STEPPER,
+                                    onQuantityChange = { viewModel.updatePendingQuantity(it) },
+                                    onConfirm = { viewModel.confirmQuickAdd(it) },
+                                    onDismiss = { viewModel.dismissPendingAdd() },
+                                    modifier = Modifier.padding(top = Dimens.spacingMd)
+                                )
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = Dimens.spacingMd),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+                                ) {
+                                    ThemedButton(onClick = {
+                                        navController.navigate(Screen.ItemDetail.createRoute(result.item.id))
+                                    }) {
+                                        ThemedIcon(materialIcon = Icons.Filled.Visibility, inkIconRes = R.drawable.ic_ink_eye, contentDescription = "View item", modifier = Modifier.size(Dimens.iconSizeSm))
+                                        Text("View Item", modifier = Modifier.padding(start = Dimens.spacingXs))
+                                    }
+                                    ThemedButton(onClick = {
+                                        viewModel.prepareQuickAdd(result.item.barcode ?: "", result.item.name, result.item.brand)
+                                    }) {
+                                        ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add item", modifier = Modifier.size(Dimens.iconSizeSm))
+                                        Text("Add to Stock", modifier = Modifier.padding(start = Dimens.spacingXs))
+                                    }
                                 }
                             }
                         }
@@ -251,8 +307,7 @@ fun BarcodeScannerScreen(
                         Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text(
                                 "Product Found",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.formSectionLabel,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(Dimens.spacingSm))
@@ -282,32 +337,52 @@ fun BarcodeScannerScreen(
                                 Text("Nutrition Grade: ${it.uppercase()}", style = MaterialTheme.typography.bodyMedium)
                             }
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = Dimens.spacingMd),
-                                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-                            ) {
-                                ThemedButton(onClick = {
-                                    viewModel.quickAdd(
-                                        result.barcode,
-                                        result.barcodeResult.productName ?: "Unknown",
-                                        result.barcodeResult.brand
-                                    )
-                                }) {
-                                    Text("Quick Add")
-                                }
-                                OutlinedButton(onClick = {
-                                    navController.navigate(
-                                        Screen.ItemForm.createRoute(
-                                            barcode = result.barcode,
-                                            name = result.barcodeResult.productName,
-                                            brand = result.barcodeResult.brand
+                            val newPending = uiState.pendingAdd?.let {
+                                it.barcode == result.barcode && it.isNewProduct
+                            } ?: false
+
+                            if (newPending) {
+                                val pending = uiState.pendingAdd!!
+                                SmartQuantityBar(
+                                    quantity = pending.quantity,
+                                    itemName = pending.name,
+                                    unitAbbreviation = pending.unitAbbreviation,
+                                    sourceHint = "",
+                                    mode = QuantityBarMode.STEPPER,
+                                    onQuantityChange = { viewModel.updatePendingQuantity(it) },
+                                    onConfirm = { viewModel.confirmQuickAdd(it) },
+                                    onDismiss = { viewModel.dismissPendingAdd() },
+                                    modifier = Modifier.padding(top = Dimens.spacingMd)
+                                )
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = Dimens.spacingMd),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+                                ) {
+                                    ThemedButton(onClick = {
+                                        viewModel.prepareQuickAdd(
+                                            result.barcode,
+                                            result.barcodeResult.productName ?: "Unknown",
+                                            result.barcodeResult.brand
                                         )
-                                    )
-                                }) {
-                                    ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit details", modifier = Modifier.size(Dimens.iconSizeSm))
-                                    Text("Add with Details", modifier = Modifier.padding(start = Dimens.spacingXs))
+                                    }) {
+                                        Text("Quick Add")
+                                    }
+                                    OutlinedButton(onClick = {
+                                        navController.navigate(
+                                            Screen.ItemForm.createRoute(
+                                                barcode = result.barcode,
+                                                name = result.barcodeResult.productName,
+                                                brand = result.barcodeResult.brand,
+                                                size = result.barcodeResult.quantityInfo
+                                            )
+                                        )
+                                    }) {
+                                        ThemedIcon(materialIcon = Icons.Filled.Edit, inkIconRes = R.drawable.ic_ink_edit, contentDescription = "Edit details", modifier = Modifier.size(Dimens.iconSizeSm))
+                                        Text("Add with Details", modifier = Modifier.padding(start = Dimens.spacingXs))
+                                    }
                                 }
                             }
                         }
@@ -322,8 +397,7 @@ fun BarcodeScannerScreen(
                         Column(modifier = Modifier.padding(Dimens.spacingLg)) {
                             Text(
                                 "Product Not Found",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.formSectionLabel
                             )
                             Text(
                                 "Barcode ${result.barcode} was not found in the database.",
@@ -349,7 +423,7 @@ fun BarcodeScannerScreen(
                     ) {
                         Row(modifier = Modifier.padding(16.dp)) {
                             ThemedIcon(materialIcon = Icons.Filled.Error, inkIconRes = R.drawable.ic_ink_error, contentDescription = "Error", tint = MaterialTheme.colorScheme.error)
-                            Text(result.message, modifier = Modifier.padding(start = Dimens.spacingSm))
+                            Text(result.message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = Dimens.spacingSm))
                         }
                     }
                 }
@@ -368,7 +442,7 @@ fun BarcodeScannerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         ThemedIcon(materialIcon = Icons.Filled.CheckCircle, inkIconRes = R.drawable.ic_ink_check_circle, contentDescription = "Success", tint = MaterialTheme.appColors.statusInStock)
-                        Text("Item added successfully!", modifier = Modifier.padding(start = Dimens.spacingSm))
+                        Text("Item added successfully!", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = Dimens.spacingSm))
                     }
                 }
             }
@@ -390,10 +464,11 @@ fun BarcodeScannerScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Column(modifier = Modifier.padding(Dimens.spacingLg)) {
-                    Text("Tips", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("- Point camera at barcode to scan automatically", style = MaterialTheme.typography.bodySmall)
+                    Text("Tips", style = MaterialTheme.typography.formSectionLabel)
+                    Text("- Hold steady and point at the barcode", style = MaterialTheme.typography.bodySmall)
+                    Text("- Keep good lighting — use the flash if needed", style = MaterialTheme.typography.bodySmall)
                     Text("- Or type the barcode number manually above", style = MaterialTheme.typography.bodySmall)
-                    Text("- Product data comes from Open Food Facts (works for UK products)", style = MaterialTheme.typography.bodySmall)
+                    Text("- Product data comes from Open Food Facts database", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

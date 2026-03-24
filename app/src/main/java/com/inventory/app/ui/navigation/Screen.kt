@@ -9,7 +9,7 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.AddShoppingCart
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.inventory.app.R
@@ -30,13 +30,14 @@ sealed class Screen(val route: String) {
     data object ItemDetail : Screen("items/{itemId}") {
         fun createRoute(id: Long) = "items/$id"
     }
-    data object ItemForm : Screen("items/form?itemId={itemId}&barcode={barcode}&name={name}&brand={brand}&quantity={quantity}") {
+    data object ItemForm : Screen("items/form?itemId={itemId}&barcode={barcode}&name={name}&brand={brand}&quantity={quantity}&size={size}") {
         fun createRoute(
             itemId: Long? = null,
             barcode: String? = null,
             name: String? = null,
             brand: String? = null,
-            quantity: String? = null
+            quantity: String? = null,
+            size: String? = null
         ): String {
             val params = mutableListOf<String>()
             itemId?.let { params.add("itemId=$it") }
@@ -44,6 +45,7 @@ sealed class Screen(val route: String) {
             name?.let { params.add("name=${Uri.encode(it)}") }
             brand?.let { params.add("brand=${Uri.encode(it)}") }
             quantity?.let { params.add("quantity=${Uri.encode(it)}") }
+            size?.let { params.add("size=${Uri.encode(it)}") }
             return if (params.isEmpty()) "items/form" else "items/form?${params.joinToString("&")}"
         }
     }
@@ -108,14 +110,41 @@ sealed class Screen(val route: String) {
     // Pantry Health
     data object PantryHealth : Screen("pantry-health")
 
-    // What Can I Cook? (AI Meal Suggestions)
-    data object Cook : Screen("cook")
+    // Cook Hub — root of the Cook bottom-nav tab
+    data object CookHub : Screen("cook")
+
+    // AI Meal Suggestions (pushed from CookHub)
+    data object AiCook : Screen("ai-cook?expiringIds={expiringIds}") {
+        fun createRoute(expiringItemIds: List<Long>? = null): String {
+            if (expiringItemIds.isNullOrEmpty()) return "ai-cook"
+            return "ai-cook?expiringIds=${expiringItemIds.joinToString(",")}"
+        }
+    }
+
+    // Manual recipe builder (pushed from CookHub)
+    // captureMode=true → opens in "Recording While Cooking" mode
+    data object RecipeBuilder : Screen("recipe-builder?recipeId={recipeId}&captureMode={captureMode}") {
+        fun createRoute(recipeId: Long? = null, captureMode: Boolean = false): String {
+            val params = mutableListOf<String>()
+            recipeId?.let { params.add("recipeId=$it") }
+            if (captureMode) params.add("captureMode=true")
+            return if (params.isEmpty()) "recipe-builder" else "recipe-builder?${params.joinToString("&")}"
+        }
+    }
+
+    // Cooking playback engine (pushed from SavedRecipes or CookHub)
+    data object CookingPlayback : Screen("cooking-playback/{recipeId}") {
+        fun createRoute(recipeId: Long) = "cooking-playback/$recipeId"
+    }
 
     // My Saved Recipes
     data object SavedRecipes : Screen("saved-recipes")
 
     // Expiry Date Scanner
     data object ExpiryDateScan : Screen("expiry-date-scan")
+
+    // AI Recipe Description — text-to-recipe generator (pushed from CookHub)
+    data object AiRecipeDescription : Screen("ai-recipe-description")
 
     // Onboarding
     data object Onboarding : Screen("onboarding")
@@ -135,7 +164,7 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem(Screen.Dashboard, "Home", Icons.Filled.Home, R.drawable.ic_ink_home, com.inventory.app.ui.components.InkPersonality.SETTLE),
-    BottomNavItem(Screen.Cook, "Cook", Icons.Filled.Restaurant, R.drawable.ic_ink_cook, com.inventory.app.ui.components.InkPersonality.SIMMER),
+    BottomNavItem(Screen.CookHub, "Cook", Icons.Filled.Restaurant, R.drawable.ic_ink_cook, com.inventory.app.ui.components.InkPersonality.SIMMER),
     // Center slot is reserved for the Quick Add FAB (no nav item here)
     BottomNavItem(Screen.ShoppingList, "Shopping", Icons.Filled.ShoppingCart, R.drawable.ic_ink_shopping, com.inventory.app.ui.components.InkPersonality.SWAY),
     BottomNavItem(Screen.More, "More", Icons.Filled.MoreHoriz, R.drawable.ic_ink_more, com.inventory.app.ui.components.InkPersonality.BREATHE)
@@ -149,7 +178,7 @@ data class QuickAddMenuItem(
 )
 
 val quickAddMenuItems = listOf(
-    QuickAddMenuItem("Add Item", Icons.Filled.AddShoppingCart, R.drawable.ic_ink_add_to_cart, Screen.AddShoppingItem.createRoute()),
+    QuickAddMenuItem("Add Item", Icons.Filled.Add, R.drawable.ic_ink_add, Screen.ItemForm.createRoute()),
     QuickAddMenuItem("Scan Barcode", Icons.Filled.QrCodeScanner, R.drawable.ic_ink_barcode, Screen.BarcodeScan.route),
     QuickAddMenuItem("Kitchen Scan", Icons.Filled.PhotoCamera, R.drawable.ic_ink_camera, Screen.FridgeScan.route),
     QuickAddMenuItem("Scan Receipt", Icons.Filled.Receipt, R.drawable.ic_ink_receipt, Screen.ReceiptScan.route)

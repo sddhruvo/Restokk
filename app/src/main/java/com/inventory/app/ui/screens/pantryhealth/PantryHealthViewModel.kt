@@ -4,17 +4,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.PantryHealthRepository
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
+import com.inventory.app.data.repository.UsageRepository
 import com.inventory.app.domain.model.HomeScoreCalculator
 import com.inventory.app.domain.model.ScoreFactor
+import com.inventory.app.domain.model.WasteCostCalculator
+import com.inventory.app.domain.model.WasteSummary
 import com.inventory.app.domain.tips.Tip
 import com.inventory.app.domain.tips.TipCategory
 import com.inventory.app.domain.tips.TipsEngine
 import com.inventory.app.ui.components.DailyChartEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -33,7 +40,9 @@ data class PantryHealthUiState(
     val chartEntries: List<DailyChartEntry> = emptyList(),
     val selectedPeriod: Int = 7,
     val tips: List<Tip> = emptyList(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val wasteThisMonth: WasteSummary? = null,
+    val currencySymbol: String = ""
 )
 
 @HiltViewModel
@@ -41,21 +50,29 @@ class PantryHealthViewModel @Inject constructor(
     private val pantryHealthRepository: PantryHealthRepository,
     private val itemRepository: ItemRepository,
     private val shoppingListRepository: ShoppingListRepository,
+    private val settingsRepository: SettingsRepository,
+    private val usageRepository: UsageRepository,
     private val tipsEngine: TipsEngine
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PantryHealthUiState())
     val uiState = _uiState.asStateFlow()
+    private var chartJob: Job? = null
 
     init {
         loadScoreFactors()
         loadChart(7)
         loadTips()
+        loadWasteSummary()
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun loadScoreFactors() {
         viewModelScope.launch {
             try {
+                settingsRepository.getStringFlow(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25")
+                    .map { (it.toDoubleOrNull() ?: 25.0) / 100.0 }
+                    .flatMapLatest { ratio ->
                 combine(
                     itemRepository.getTotalItemCount(),
                     itemRepository.getItemsWithCategoryCount(),
@@ -63,7 +80,7 @@ class PantryHealthViewModel @Inject constructor(
                     itemRepository.getItemsWithExpiryCount(),
                     itemRepository.getExpiredCount(),
                     itemRepository.getExpiringSoonCount(7),
-                    itemRepository.getLowStockCount(),
+                    itemRepository.getLowStockCount(ratio),
                     itemRepository.getOutOfStockCount(),
                     shoppingListRepository.getActiveCount(),
                     shoppingListRepository.getPurchasedCount()
@@ -92,7 +109,8 @@ class PantryHealthViewModel @Inject constructor(
                         shoppingActive = shoppingActive,
                         shoppingPurchased = shoppingPurchased
                     )
-                }.collect { breakdown ->
+                }
+                    }.collect { breakdown ->
                     breakdown ?: return@collect
                     val nextThreshold = when {
                         breakdown.finalScore >= 85 -> null
@@ -154,7 +172,8 @@ class PantryHealthViewModel @Inject constructor(
     }
 
     private fun loadChart(days: Int) {
-        viewModelScope.launch {
+        chartJob?.cancel()
+        chartJob = viewModelScope.launch {
             try {
                 val sinceDate = LocalDate.now().minusDays(days.toLong())
                 pantryHealthRepository.getLogsSince(sinceDate).collect { logs ->
@@ -176,6 +195,22 @@ class PantryHealthViewModel @Inject constructor(
             try {
                 val tips = tipsEngine.getTips(category = TipCategory.PANTRY_HEALTH, limit = 5)
                 _uiState.update { it.copy(tips = tips) }
+            } catch (_: Exception) { }
+        }
+    }
+
+    private fun loadWasteSummary() {
+        viewModelScope.launch {
+            try {
+                val currency = settingsRepository.getCurrencySymbol()
+                val thisMonthStart = LocalDate.now().withDayOfMonth(1)
+                usageRepository.getWasteLogsSince(thisMonthStart).collect { logs ->
+                    val summary = WasteCostCalculator.calculate(logs)
+                    _uiState.update { it.copy(
+                        wasteThisMonth = summary,
+                        currencySymbol = currency
+                    ) }
+                }
             } catch (_: Exception) { }
         }
     }

@@ -35,7 +35,15 @@ data class ReceiptItem(
     val category: String? = null,
     val matchedShoppingId: Long? = null,
     val matchedInventoryId: Long? = null,
-    val estimatedExpiryDays: Int? = null
+    val estimatedExpiryDays: Int? = null,
+    val isNonFood: Boolean = false
+)
+
+data class ReceiptParseResult(
+    val storeName: String? = null,
+    val purchaseDate: String? = null, // YYYY-MM-DD from receipt
+    val receiptTotal: Double? = null, // Subtotal from receipt (before tax)
+    val items: List<ReceiptItem> = emptyList()
 )
 
 /**
@@ -231,6 +239,58 @@ class GrokRepository @Inject constructor(
         }
     }
 
+    // ── Expiry date extraction (text model — free tier, fast) ────────
+
+    /**
+     * Extract expiry date from OCR text using Groq text model (Llama 3.3 70B).
+     * Much faster and cheaper than vision — ML Kit already extracted the text,
+     * we just need AI to understand the date format.
+     * Returns YYYY-MM-DD or null.
+     */
+    suspend fun extractExpiryDateFromText(ocrText: String): Result<String?> {
+        val systemPrompt = "You extract expiry dates from food packaging text. " +
+            "The text comes from OCR and may have errors or unusual formatting. " +
+            "Return ONLY the expiry/best-before/use-by date in YYYY-MM-DD format. " +
+            "If there are multiple dates, return the EXPIRY date (not manufacture/pack/lot date). " +
+            "If no expiry date is found, return exactly: NONE"
+        val userPrompt = "Extract the expiry date from this OCR text:\n\n$ocrText"
+
+        return chatCompletion(systemPrompt, userPrompt, temperature = 0.1, maxTokens = 30)
+            .map { response ->
+                val trimmed = response.trim().uppercase()
+                if (trimmed == "NONE" || trimmed.contains("NONE")) {
+                    null
+                } else {
+                    Regex("""\d{4}-\d{2}-\d{2}""").find(response.trim())?.value
+                }
+            }
+    }
+
+    // ── Expiry date extraction (vision model — last resort) ───────────
+
+    /**
+     * Extract expiry date from a cropped photo using AI vision.
+     * Called when ML Kit OCR fails on both live frames and a still capture.
+     * Returns YYYY-MM-DD or null.
+     */
+    suspend fun extractExpiryDateFromImage(imageBase64: String): Result<String?> {
+        val systemPrompt = "You extract expiry dates from food packaging images. " +
+            "Return ONLY the expiry/best-before/use-by date in YYYY-MM-DD format. " +
+            "If there are multiple dates, return the EXPIRY date (not manufacture/pack/lot date). " +
+            "If no expiry date is found, return exactly: NONE"
+        val userPrompt = "Extract the expiry date from this food packaging image."
+
+        return visionAnalysis(systemPrompt, userPrompt, imageBase64, temperature = 0.1, maxTokens = 30)
+            .map { response ->
+                val trimmed = response.trim().uppercase()
+                if (trimmed == "NONE" || trimmed.contains("NONE")) {
+                    null
+                } else {
+                    Regex("""\d{4}-\d{2}-\d{2}""").find(response.trim())?.value
+                }
+            }
+    }
+
     // ── Receipt scanning ──────────────────────────────────────────────
 
     data class ShoppingListContext(val id: Long, val name: String)
@@ -241,7 +301,7 @@ class GrokRepository @Inject constructor(
         shoppingList: List<ShoppingListContext> = emptyList(),
         inventoryItems: List<InventoryContext> = emptyList(),
         categoryNames: List<String> = emptyList()
-    ): Result<List<ReceiptItem>> {
+    ): Result<ReceiptParseResult> {
         return withContext(Dispatchers.IO) {
             try {
                 val categorySection = if (categoryNames.isNotEmpty()) {
@@ -256,9 +316,9 @@ class GrokRepository @Inject constructor(
                         """{"id":${it.id},"name":${gson.toJson(it.name)}}"""
                     }
                     "\n\nSHOPPING LIST: [$listJson]\n" +
-                    "Match receipt items to shopping list by CATEGORY. Add \"matchedShoppingId\":<id> to matched items.\n" +
+                    "Match receipt items to shopping list items. Each shopping list item can match AT MOST ONE receipt item (the best/closest match). Add \"matchedShoppingId\":<id> to matched items.\n" +
                     "Shopping lists use generic names — match broadly: Tea→Tetley/PG Tips, Snacks→Doritos/KitKat/Crisps, Bread→Hovis/Warburtons, Milk→Semi-Skimmed/Oat Milk.\n" +
-                    "One list item can match multiple receipt items. Only skip if totally different category."
+                    "Once a shopping list item is matched to a receipt item, do NOT assign it to another receipt item."
                 } else ""
 
                 val inventorySection = if (inventoryItems.isNotEmpty()) {
@@ -273,14 +333,58 @@ class GrokRepository @Inject constructor(
                 val provider = resolveVisionProvider()
                 if (BuildConfig.DEBUG) Log.d(TAG, "Receipt scan using ${provider.name} (${provider.model})")
 
-                retryVision(provider, "You are an expert receipt parser. You only respond with valid JSON arrays. No markdown, no explanation.", prompt, imageBase64, temperature = 0.1) { text ->
-                    parseResponse(text)
-                } ?: Result.failure(Exception("Failed to parse receipt after $MAX_RETRIES attempts. Please try again."))
+                retryVisionReceipt(provider, "You are an expert receipt parser. You only respond with valid JSON objects. No markdown, no explanation.", prompt, imageBase64, temperature = 0.1)
+                    ?: Result.failure(Exception("Failed to parse receipt after $MAX_RETRIES attempts. Please try again."))
 
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+    }
+
+    /**
+     * Receipt-specific retry logic that parses the full ReceiptParseResult (store + date + items).
+     * Falls back to treating the response as a bare array for backward compatibility with models
+     * that ignore the object wrapper instruction.
+     */
+    private suspend fun retryVisionReceipt(
+        provider: VisionProvider,
+        systemPrompt: String,
+        userPrompt: String,
+        imageBase64: String,
+        temperature: Double = 0.1
+    ): Result<ReceiptParseResult>? {
+        var lastText = ""
+        for (attempt in 1..MAX_RETRIES) {
+            if (attempt > 1) {
+                kotlinx.coroutines.delay(1000L * (1 shl (attempt - 2)))
+            }
+            try {
+                val body = buildVisionRequestJson(
+                    provider.model, systemPrompt, userPrompt,
+                    imageBase64, "image/jpeg", temperature, 4096, provider.detail
+                )
+                val providerName = if (provider.url == OPENAI_URL) "openai" else "groq"
+                lastText = executeViaProxy(providerName, body, visionClient, provider.url, provider.apiKey)
+                if (BuildConfig.DEBUG) Log.d(TAG, "Receipt attempt $attempt (${lastText.length} chars): ${lastText.take(300)}")
+
+                val hasJson = lastText.contains("[") && lastText.contains("]")
+                if (!hasJson) {
+                    if (BuildConfig.DEBUG) Log.w(TAG, "Attempt $attempt: no JSON array found, retrying...")
+                    continue
+                }
+
+                val result = parseReceiptResponse(lastText)
+                if (result.items.isNotEmpty()) return Result.success(result)
+
+                if (BuildConfig.DEBUG) Log.w(TAG, "Attempt $attempt: parsed 0 items, retrying...")
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) Log.w(TAG, "Attempt $attempt failed: ${e.message}")
+                if (attempt >= MAX_RETRIES) throw e
+            }
+        }
+        if (BuildConfig.DEBUG) Log.w(TAG, "All $MAX_RETRIES attempts failed. Last: $lastText")
+        return null
     }
 
     // ── Kitchen / fridge scanning ─────────────────────────────────────
@@ -408,11 +512,40 @@ class GrokRepository @Inject constructor(
         }
     }
 
-    private fun parseResponse(responseText: String): List<ReceiptItem> {
+    /**
+     * Parses the full receipt response — tries JSON object wrapper first,
+     * falls back to bare array for backward compatibility.
+     */
+    private fun parseReceiptResponse(responseText: String): ReceiptParseResult {
         val jsonStr = responseText.replace("```json", "").replace("```", "").trim()
         if (BuildConfig.DEBUG) Log.d(TAG, "Parsing receipt response (${jsonStr.length} chars): ${jsonStr.take(300)}")
+
+        // Try 1: Parse as JSON object with storeName/purchaseDate/items
+        // Extract the outermost JSON object if embedded in surrounding text
+        val objStr = extractJsonObject(jsonStr) ?: jsonStr
+        try {
+            val obj = gson.fromJson(objStr, JsonObject::class.java)
+            if (obj != null && obj.has("items")) {
+                val storeName = obj.get("storeName")?.takeIf { !it.isJsonNull }?.asString
+                val purchaseDate = obj.get("purchaseDate")?.takeIf { !it.isJsonNull }?.asString
+                val receiptTotal = obj.get("receiptTotal")?.takeIf { !it.isJsonNull }?.asDouble
+                val itemsArray = obj.getAsJsonArray("items")
+                val type = object : TypeToken<List<ReceiptItem>>() {}.type
+                val items: List<ReceiptItem> = gson.fromJson(itemsArray, type)
+                return ReceiptParseResult(
+                    storeName = storeName?.takeIf { it.isNotBlank() },
+                    purchaseDate = purchaseDate?.takeIf { it.isNotBlank() },
+                    receiptTotal = receiptTotal?.takeIf { it > 0 },
+                    items = items.filter { it.name.isNotBlank() }
+                )
+            }
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) Log.d(TAG, "Not a JSON object, trying array fallback: ${e.message}")
+        }
+
+        // Try 2: Parse as bare JSON array (backward compatibility)
         val arrayStr = extractJsonArray(jsonStr) ?: jsonStr
-        return try {
+        val items = try {
             val type = object : TypeToken<List<ReceiptItem>>() {}.type
             gson.fromJson<List<ReceiptItem>>(arrayStr, type).filter { it.name.isNotBlank() }
         } catch (e: Exception) {
@@ -422,6 +555,7 @@ class GrokRepository @Inject constructor(
                 if (item.name.isNotBlank()) listOf(item) else emptyList()
             } catch (_: Exception) { emptyList() }
         }
+        return ReceiptParseResult(items = items)
     }
 
     // ── HTTP + JSON helpers ───────────────────────────────────────────
@@ -516,6 +650,15 @@ class GrokRepository @Inject constructor(
         val start = text.indexOf('[')
         if (start == -1) return null
         val end = text.lastIndexOf(']')
+        if (end == -1 || end <= start) return null
+        return text.substring(start, end + 1)
+    }
+
+    /** Extracts the outermost JSON object `{...}` from text that may contain surrounding prose. */
+    private fun extractJsonObject(text: String): String? {
+        val start = text.indexOf('{')
+        if (start == -1) return null
+        val end = text.lastIndexOf('}')
         if (end == -1 || end <= start) return null
         return text.substring(start, end + 1)
     }
@@ -627,7 +770,7 @@ Before finalizing, review EVERY item:
 • unit: "pcs"|"kg"|"g"|"lb"|"oz"|"L"|"ml"|"bottle"|"can"|"box"|"bag"|"jar"|"pack"|"bunch"|"doz"|"carton"|"tub"
 • category: from CATEGORIES list if provided, EXACT string, null if no match
 • confidence: "high"|"medium"|"low" (as defined in system prompt)
-• estimatedExpiryDays: fresh produce ~7, meat ~3, dairy ~7, bread ~5, eggs ~28, cheese ~60, canned ~730, frozen ~180, condiments ~180, opened/cut ~2-3. null if unsure.
+• estimatedExpiryDays: FOOD: fresh produce ~7, meat ~3, dairy ~7, bread ~5, eggs ~28, cheese ~60, canned ~730, frozen ~180, condiments ~180, opened/cut ~2-3. NON-FOOD: cleaning products ~730, paper goods ~1825, personal care ~365, medicine ~365. null if unsure.
 
 Respond with a JSON array.
 Example: [{"name":"Whole Milk 1L","quantity":1.0,"unit":"carton","category":"Dairy & Eggs","confidence":"high","estimatedExpiryDays":7},{"name":"Avocado (half)","quantity":0.5,"unit":"pcs","category":"Fruits","confidence":"high","estimatedExpiryDays":2},{"name":"Red Bell Pepper","quantity":3.0,"unit":"pcs","category":"Vegetables","confidence":"medium","estimatedExpiryDays":7}]
@@ -686,7 +829,7 @@ Before finalizing, review EVERY item:
 • unit: "pcs"|"kg"|"g"|"lb"|"oz"|"L"|"ml"|"bottle"|"can"|"box"|"bag"|"jar"|"pack"|"bunch"|"doz"|"carton"|"tub"
 • category: from CATEGORIES list if provided, EXACT string, null if no match
 • confidence: "high"|"medium"|"low" (as defined in system prompt)
-• estimatedExpiryDays: fresh produce ~7, meat ~3, dairy ~7, bread ~5, eggs ~28, cheese ~60, canned ~730, frozen ~180, condiments ~180, opened/cut ~2-3. null if unsure.
+• estimatedExpiryDays: FOOD: fresh produce ~7, meat ~3, dairy ~7, bread ~5, eggs ~28, cheese ~60, canned ~730, frozen ~180, condiments ~180, opened/cut ~2-3. NON-FOOD: cleaning products ~730, paper goods ~1825, personal care ~365, medicine ~365. null if unsure.
 
 Respond with a JSON array.
 Example: [{"name":"Whole Milk 1L","quantity":1.0,"unit":"carton","category":"Dairy & Eggs","confidence":"high","estimatedExpiryDays":7},{"name":"Banana","quantity":5.0,"unit":"pcs","category":"Fruits","confidence":"high","estimatedExpiryDays":5},{"name":"Red Bell Pepper","quantity":2.0,"unit":"pcs","category":"Vegetables","confidence":"medium","estimatedExpiryDays":7}]
@@ -737,14 +880,20 @@ FOR EACH PRODUCT, RETURN THESE JSON FIELDS:
 - quantity: Number (default 1.0). Use actual weight for weighed items. Use count for "2x" multiples.
 - price: The TOTAL price paid for this line item after any discounts. Use dot decimal (1.45 not 1,45). null ONLY if the price is genuinely not visible on the receipt.
 - unit: One of: "pcs", "kg", "g", "lb", "oz", "L", "ml", "bag", "bottle", "can", "box", "loaf", "bunch", "pack", "doz", "gal". Infer from product type if not shown.
-- category: If a CATEGORIES list is provided below, pick the best matching category name from that list. Use the EXACT string from the list. Omit or null if no good match.
-- estimatedExpiryDays: Estimated days until expiry. Fresh milk ~7, bread ~5, fresh meat ~3, eggs ~28, yogurt ~14, cheese ~60, fresh fruit ~7, vegetables ~7, canned ~730, pasta/rice ~365, frozen ~180, butter ~60, cereal ~180, biscuits ~90, chocolate ~180, sauces ~180. null for non-food.
-- matchedShoppingId: If a SHOPPING LIST is provided below, check each receipt item against it. Use the shopping list item's "id" value. Match by category (Tea→any tea, Snacks→any snack). Omit if no list or no match.
+- category: If a CATEGORIES list is provided below, pick the best matching category name from that list. Use the EXACT string. For non-food items, prefer non-food categories (Household & Cleaning, Personal Care, Health & Medicine, Paper & Wrap) over "Other". Omit or null if no good match.
+- estimatedExpiryDays: Estimated days until expiry. FOOD: fresh milk ~7, bread ~5, fresh meat ~3, eggs ~28, yogurt ~14, cheese ~60, fresh produce ~7, canned ~730, pasta/rice ~365, frozen ~180, butter ~60, cereal ~180, biscuits ~90, chocolate ~180, sauces ~180. NON-FOOD: cleaning products ~730, laundry products ~730, paper goods ~1825, batteries ~1825, personal care (shampoo, soap, deodorant) ~365, medicine ~365, light bulbs ~1825. null ONLY if truly unsure.
+- isNonFood: true if the item is NOT food/drink (e.g., cleaning products, toiletries, paper goods, batteries, medicine, plastic bags, light bulbs). false for all food and drink items.
+- matchedShoppingId: If a SHOPPING LIST is provided below, check each receipt item against it. Use the shopping list item's "id" value. Match by category (Tea→any tea, Snacks→any snack). Each shopping list item can match AT MOST ONE receipt item. Omit if no list or no match.
 - matchedInventoryId: If an INVENTORY is provided below, match same products. Use the inventory item's "id" value. Omit if no inventory or no match.
 
-Respond ONLY with a JSON array. No explanation, no markdown, no code blocks.
-Example: [{"name":"Tetley Teabags 80","quantity":1.0,"price":2.75,"unit":"box","category":"Beverages","estimatedExpiryDays":365,"matchedShoppingId":5},{"name":"Doritos 150g","quantity":1.0,"price":1.50,"unit":"bag","category":"Snacks","estimatedExpiryDays":90,"matchedShoppingId":8},{"name":"Semi-Skimmed Milk 2L","quantity":1.0,"price":1.65,"unit":"bottle","category":"Dairy & Eggs","estimatedExpiryDays":7,"matchedInventoryId":12}]
-If no products found: []
+STORE, DATE & TOTAL EXTRACTION:
+- "storeName": The store/shop name from the receipt header (e.g., "Tesco", "Walmart", "Lidl"). null if not visible.
+- "purchaseDate": The transaction date from the receipt in YYYY-MM-DD format. null if not visible.
+- "receiptTotal": The SUBTOTAL amount printed on the receipt (before tax). If only a grand total is visible, use that. null if not visible.
+
+Respond ONLY with a JSON object. No explanation, no markdown, no code blocks.
+Example: {"storeName":"Tesco","purchaseDate":"2026-03-15","receiptTotal":11.40,"items":[{"name":"Tetley Teabags 80","quantity":1.0,"price":2.75,"unit":"box","category":"Beverages","estimatedExpiryDays":365,"isNonFood":false,"matchedShoppingId":5},{"name":"Semi-Skimmed Milk 2L","quantity":1.0,"price":1.65,"unit":"bottle","category":"Dairy & Eggs","estimatedExpiryDays":7,"isNonFood":false,"matchedInventoryId":12},{"name":"Fairy Washing Up Liquid 900ml","quantity":1.0,"price":2.50,"unit":"bottle","category":"Household & Cleaning","estimatedExpiryDays":730,"isNonFood":true},{"name":"Andrex Toilet Rolls 9 Pack","quantity":1.0,"price":4.50,"unit":"pack","category":"Paper & Wrap","estimatedExpiryDays":1825,"isNonFood":true}]}
+If no products found: {"storeName":null,"purchaseDate":null,"receiptTotal":null,"items":[]}
 """.trimIndent()
     }
 }

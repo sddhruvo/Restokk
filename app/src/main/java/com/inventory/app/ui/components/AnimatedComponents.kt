@@ -2,11 +2,13 @@ package com.inventory.app.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import com.inventory.app.ui.navigation.LocalBottomNavHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -28,13 +30,17 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import com.inventory.app.R
+import com.inventory.app.ui.theme.appColors
 import com.inventory.app.ui.theme.CardStyle
 import com.inventory.app.ui.theme.InkTokens
 import com.inventory.app.ui.theme.PaperInkMotion
@@ -43,9 +49,19 @@ import com.inventory.app.ui.theme.isInk
 import com.inventory.app.ui.theme.visuals
 import java.time.LocalTime
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 // ─── Shimmer Effect ─────────────────────────────────────────────────────
 
@@ -354,7 +370,7 @@ fun ThemedFab(
     if (isInk) {
         InkBorderCard(
             modifier = modifier.size(InkTokens.fabSize),
-            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = InkTokens.fillMedium),
+            containerColor = MaterialTheme.colorScheme.primary,
             inkBorder = CardStyle.InkBorder(
                 wobbleAmplitude = InkTokens.wobbleMedium,
                 strokeWidth = InkTokens.strokeBold,
@@ -386,12 +402,17 @@ fun AnimatedFab(
     icon: @Composable () -> Unit,
     visible: Boolean = true
 ) {
+    val bottomNavHeight = LocalBottomNavHeight.current
+    val fabOffset = if (bottomNavHeight > 0.dp) -(bottomNavHeight + 24.dp) else 0.dp
     AnimatedVisibility(
         visible = visible,
         enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
         exit = scaleOut() + fadeOut()
     ) {
-        ThemedFab(onClick = onClick) {
+        ThemedFab(
+            onClick = onClick,
+            modifier = Modifier.offset(y = fabOffset)
+        ) {
             icon()
         }
     }
@@ -621,6 +642,524 @@ fun AnimatedSaveButton(
             }
         }
     }
+}
+
+// ─── Top-Bar Save Action (Reusable for all form screens) ────────────────
+
+/**
+ * Ink-blot save action for the [PageScaffold] `actions` slot.
+ *
+ * **Paper & Ink entrance**: tiny ink dot → organic ink splat with irregular edges →
+ * settles into a clean filled circle with a cream checkmark. On save success the
+ * checkmark bounces with sparkle dots, the circle shifts to olive green, then
+ * shrinks back to a dot and disappears.
+ *
+ * **Clean theme**: standard filled circle with checkmark, simple scale entrance.
+ * **Reduce motion**: instant show/hide, no bloom.
+ *
+ * @param visible Whether the action should be shown (typically `isDirty || isSaving || isSaved`).
+ * @param onClick Callback when the user taps save.
+ * @param isLoading Show spinner instead of checkmark.
+ * @param isSaved Show success-tinted checkmark.
+ */
+@Composable
+fun SaveAction(
+    visible: Boolean,
+    onClick: () -> Unit,
+    isLoading: Boolean = false,
+    isSaved: Boolean = false
+) {
+    val reduceMotion = com.inventory.app.ui.theme.LocalReduceMotion.current
+    val isInk = MaterialTheme.visuals.isInk
+    val colorScheme = MaterialTheme.colorScheme
+    val colors = MaterialTheme.appColors
+
+    if (isInk) {
+        InkBlotSaveAction(
+            visible = visible,
+            onClick = onClick,
+            isLoading = isLoading,
+            isSaved = isSaved,
+            reduceMotion = reduceMotion,
+            inkColor = colors.saveActionIdle,
+            savedColor = colors.saveActionSaved,
+            checkColor = colors.saveActionCheck,
+            spinnerColor = colors.saveActionCheck
+        )
+    } else {
+        CleanSaveAction(
+            visible = visible,
+            onClick = onClick,
+            isLoading = isLoading,
+            isSaved = isSaved,
+            reduceMotion = reduceMotion,
+            primaryColor = colors.saveActionIdle,
+            onPrimaryColor = colors.saveActionCheck,
+            successColor = colors.saveActionSaved,
+            spinnerColor = colorScheme.onSurface
+        )
+    }
+}
+
+// ─── Clean Theme Save Action ─────────────────────────────────────────────
+
+@Composable
+private fun CleanSaveAction(
+    visible: Boolean,
+    onClick: () -> Unit,
+    isLoading: Boolean,
+    isSaved: Boolean,
+    reduceMotion: Boolean,
+    primaryColor: Color,
+    onPrimaryColor: Color,
+    successColor: Color,
+    spinnerColor: Color
+) {
+    val targetAlpha = if (visible) 1f else 0f
+    val targetScale = if (visible) 1f else 0.6f
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = if (reduceMotion) snap() else tween(PaperInkMotion.DurationEntry),
+        label = "cleanSaveAlpha"
+    )
+    val scale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = if (reduceMotion) snap() else PaperInkMotion.BouncySpring,
+        label = "cleanSaveScale"
+    )
+
+    if (alpha > 0.01f) {
+        Box(
+            modifier = Modifier
+                .graphicsLayer {
+                    this.alpha = alpha
+                    scaleX = scale
+                    scaleY = scale
+                }
+        ) {
+            val bgColor by animateColorAsState(
+                targetValue = if (isSaved) successColor else primaryColor,
+                animationSpec = tween(PaperInkMotion.DurationMedium),
+                label = "cleanSaveBg"
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(bgColor)
+                    .then(
+                        if (!isLoading && !isSaved) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(bounded = true, radius = 20.dp),
+                                onClick = onClick
+                            )
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    ThemedCircularProgress(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = onPrimaryColor
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = if (isSaved) "Saved" else "Save",
+                        tint = onPrimaryColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── Ink Blot Save Action (Paper & Ink theme) ────────────────────────────
+
+/**
+ * Generates a noisy radius for the ink splat shape.
+ * Uses layered sine waves to create organic, irregular edges.
+ *
+ * @param angle Angle around the circle (0..2π)
+ * @param baseRadius The target clean circle radius
+ * @param noiseAmount How much irregularity (0 = perfect circle, 1 = very blobby)
+ * @param seed Random offset so each instance looks different
+ */
+private fun inkSplatRadius(
+    angle: Float,
+    baseRadius: Float,
+    noiseAmount: Float,
+    seed: Float
+): Float {
+    if (noiseAmount < 0.001f) return baseRadius
+
+    // Layer multiple sine waves at different frequencies for organic shape
+    val wave1 = sin(angle * 3f + seed * 1.7f) * 0.35f
+    val wave2 = sin(angle * 5f + seed * 2.3f) * 0.25f
+    val wave3 = sin(angle * 7f + seed * 3.1f) * 0.15f
+    val wave4 = sin(angle * 2f + seed * 0.9f) * 0.25f
+
+    val totalNoise = (wave1 + wave2 + wave3 + wave4) * noiseAmount
+    return baseRadius * (1f + totalNoise)
+}
+
+/**
+ * Draws an ink splat path — a circle with noisy radius perturbations.
+ */
+private fun DrawScope.drawInkSplat(
+    center: Offset,
+    baseRadius: Float,
+    noiseAmount: Float,
+    seed: Float,
+    color: Color
+) {
+    val path = Path()
+    val steps = 72 // Smooth enough for organic edges
+
+    for (i in 0..steps) {
+        val angle = (i.toFloat() / steps) * 2f * PI.toFloat()
+        val r = inkSplatRadius(angle, baseRadius, noiseAmount, seed)
+        val x = center.x + cos(angle) * r
+        val y = center.y + sin(angle) * r
+
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    path.close()
+    drawPath(path, color, style = Fill)
+}
+
+/**
+ * Draws sparkle dots around the checkmark (success celebration).
+ */
+private fun DrawScope.drawSparkleDots(
+    center: Offset,
+    radius: Float,
+    alpha: Float,
+    color: Color
+) {
+    if (alpha < 0.01f) return
+    val dotRadius = radius * 0.055f
+    // 6 dots at asymmetric positions — 3 upper-left, 3 lower-right (matching video)
+    val positions = listOf(
+        // Upper-left cluster
+        Offset(-0.55f, -0.65f),
+        Offset(-0.35f, -0.80f),
+        Offset(-0.65f, -0.40f),
+        // Lower-right cluster
+        Offset(0.60f, 0.50f),
+        Offset(0.45f, 0.70f),
+        Offset(0.75f, 0.35f)
+    )
+    for (pos in positions) {
+        drawCircle(
+            color = color.copy(alpha = alpha),
+            radius = dotRadius,
+            center = Offset(
+                center.x + pos.x * radius,
+                center.y + pos.y * radius
+            )
+        )
+    }
+}
+
+/**
+ * Draws a simple checkmark path.
+ */
+private fun DrawScope.drawCheckmark(
+    center: Offset,
+    radius: Float,
+    color: Color,
+    alpha: Float,
+    rotation: Float = 0f
+) {
+    if (alpha < 0.01f) return
+    val checkSize = radius * 0.45f
+    val strokeW = radius * 0.12f
+
+    rotate(rotation, pivot = center) {
+        val path = Path().apply {
+            // Checkmark: short arm then long arm
+            moveTo(center.x - checkSize * 0.6f, center.y + checkSize * 0.05f)
+            lineTo(center.x - checkSize * 0.1f, center.y + checkSize * 0.55f)
+            lineTo(center.x + checkSize * 0.7f, center.y - checkSize * 0.45f)
+        }
+        drawPath(
+            path,
+            color = color.copy(alpha = alpha),
+            style = Stroke(
+                width = strokeW,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
+        )
+    }
+}
+
+private enum class InkSavePhase {
+    HIDDEN,     // Not visible
+    BLOOMING,   // Ink dot → splat → circle
+    IDLE,       // Settled circle with checkmark (dirty state)
+    LOADING,    // Spinner
+    SUCCESS,    // Checkmark bounce + sparkles + color shift
+    EXITING     // Shrink to dot → gone
+}
+
+@Composable
+private fun InkBlotSaveAction(
+    visible: Boolean,
+    onClick: () -> Unit,
+    isLoading: Boolean,
+    isSaved: Boolean,
+    reduceMotion: Boolean,
+    inkColor: Color,
+    savedColor: Color,
+    checkColor: Color,
+    spinnerColor: Color
+) {
+    val density = LocalDensity.current
+    val canvasSize = 52.dp
+    val canvasSizePx = with(density) { canvasSize.toPx() }
+    val fullRadius = canvasSizePx * 0.44f // ~46dp diameter circle
+
+    // Seed for unique splat shape per composition
+    val splatSeed = remember { (System.nanoTime() % 1000).toFloat() / 100f }
+
+    // ─── Animatables ─────────────────────────────────────────────────────
+    // Radius: 0 → fullRadius (controls dot → circle size)
+    val radiusAnim = remember { Animatable(0f) }
+    // Noise: 1 → 0 (controls blobby → clean circle)
+    val noiseAnim = remember { Animatable(0f) }
+    // Checkmark alpha: 0 → 1
+    val checkAlpha = remember { Animatable(0f) }
+    // Checkmark rotation for success bounce
+    val checkRotation = remember { Animatable(0f) }
+    // Sparkle alpha
+    val sparkleAlpha = remember { Animatable(0f) }
+    // Color shift (0 = ink, 1 = olive green)
+    val colorShift = remember { Animatable(0f) }
+    // Overall alpha for final fade-out
+    val overallAlpha = remember { Animatable(0f) }
+
+    // Track phase
+    var phase by remember { mutableStateOf(InkSavePhase.HIDDEN) }
+    var wasVisible by remember { mutableStateOf(false) }
+    var wasSaved by remember { mutableStateOf(false) }
+
+    // ─── Phase transitions ───────────────────────────────────────────────
+
+    // Entrance: HIDDEN → BLOOMING → IDLE
+    LaunchedEffect(visible) {
+        if (visible && !wasVisible) {
+            phase = InkSavePhase.BLOOMING
+            if (reduceMotion) {
+                // Instant show
+                overallAlpha.snapTo(1f)
+                radiusAnim.snapTo(fullRadius)
+                noiseAnim.snapTo(0f)
+                checkAlpha.snapTo(1f)
+                phase = InkSavePhase.IDLE
+            } else {
+                overallAlpha.snapTo(1f)
+                // Phase 1: Tiny dot appears (0 → 6dp worth)
+                launch { radiusAnim.animateTo(fullRadius * 0.12f, tween(120)) }
+                delay(120)
+
+                // Phase 2: Ink splat bloom — grow with high noise
+                launch { noiseAnim.snapTo(1f) }
+                launch {
+                    radiusAnim.animateTo(
+                        fullRadius * 1.15f, // Overshoot past final size
+                        tween(280, easing = FastOutSlowInEasing)
+                    )
+                }
+                delay(280)
+
+                // Phase 3: Settle — noise reduces, radius springs to final
+                launch {
+                    noiseAnim.animateTo(0f, tween(350, easing = FastOutSlowInEasing))
+                }
+                launch {
+                    radiusAnim.animateTo(
+                        fullRadius,
+                        spring(dampingRatio = 0.5f, stiffness = 200f)
+                    )
+                }
+                // Checkmark fades in once settling begins
+                delay(100)
+                launch {
+                    checkAlpha.animateTo(1f, tween(200))
+                }
+                delay(250) // Wait for settle to finish
+                phase = InkSavePhase.IDLE
+            }
+        } else if (!visible && wasVisible) {
+            // Exit: shrink to dot and disappear
+            if (phase != InkSavePhase.EXITING) {
+                phase = InkSavePhase.EXITING
+                if (reduceMotion) {
+                    overallAlpha.snapTo(0f)
+                    radiusAnim.snapTo(0f)
+                    checkAlpha.snapTo(0f)
+                    colorShift.snapTo(0f)
+                    sparkleAlpha.snapTo(0f)
+                    noiseAnim.snapTo(0f)
+                    phase = InkSavePhase.HIDDEN
+                } else {
+                    launch { checkAlpha.animateTo(0f, tween(150)) }
+                    launch { sparkleAlpha.animateTo(0f, tween(100)) }
+                    delay(100)
+                    launch {
+                        radiusAnim.animateTo(fullRadius * 0.06f, tween(400, easing = FastOutSlowInEasing))
+                    }
+                    delay(350)
+                    launch { overallAlpha.animateTo(0f, tween(100)) }
+                    delay(100)
+                    // Reset for next entrance
+                    radiusAnim.snapTo(0f)
+                    colorShift.snapTo(0f)
+                    noiseAnim.snapTo(0f)
+                    checkRotation.snapTo(0f)
+                    phase = InkSavePhase.HIDDEN
+                }
+            }
+        }
+        wasVisible = visible
+    }
+
+    // Success: checkmark bounce + sparkles + color shift → then auto-exit
+    LaunchedEffect(isSaved) {
+        if (isSaved && !wasSaved && (phase == InkSavePhase.IDLE || phase == InkSavePhase.LOADING)) {
+            phase = InkSavePhase.SUCCESS
+            if (reduceMotion) {
+                colorShift.snapTo(1f)
+            } else {
+                // Checkmark bounce with rotation
+                launch {
+                    checkRotation.animateTo(-12f, tween(100))
+                    checkRotation.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 300f))
+                }
+                // Sparkle dots
+                launch {
+                    sparkleAlpha.animateTo(1f, tween(200))
+                    delay(600)
+                    sparkleAlpha.animateTo(0f, tween(300))
+                }
+                // Color shift brown → olive green
+                delay(200)
+                launch {
+                    colorShift.animateTo(1f, tween(500))
+                }
+            }
+        }
+        wasSaved = isSaved
+    }
+
+    // Loading phase
+    LaunchedEffect(isLoading) {
+        if (isLoading && phase == InkSavePhase.IDLE) {
+            phase = InkSavePhase.LOADING
+        } else if (!isLoading && phase == InkSavePhase.LOADING) {
+            phase = InkSavePhase.IDLE
+        }
+    }
+
+    // Loading spinner rotation
+    val infiniteTransition = rememberInfiniteTransition(label = "inkSaveSpinner")
+    val spinnerAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spinnerAngle"
+    )
+
+    // ─── Render ──────────────────────────────────────────────────────────
+
+    if (overallAlpha.value > 0.01f || visible) {
+        val currentColor = lerp(inkColor, savedColor, colorShift.value)
+
+        Box(
+            modifier = Modifier
+                .size(canvasSize)
+                .semantics { contentDescription = if (isSaved) "Saved" else "Save" }
+                .graphicsLayer { alpha = overallAlpha.value }
+                .pointerInput(phase) {
+                    if (phase == InkSavePhase.IDLE) {
+                        detectTapGestures { onClick() }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val currentRadius = radiusAnim.value
+                val currentNoise = noiseAnim.value
+
+                if (currentRadius > 0.5f) {
+                    // Draw the ink blot / circle
+                    if (currentNoise > 0.01f) {
+                        drawInkSplat(center, currentRadius, currentNoise, splatSeed, currentColor)
+                    } else {
+                        drawCircle(currentColor, currentRadius, center)
+                    }
+
+                    // Draw sparkle dots (success phase)
+                    drawSparkleDots(center, currentRadius, sparkleAlpha.value, checkColor)
+
+                    // Draw checkmark or spinner
+                    if (phase == InkSavePhase.LOADING) {
+                        // Draw arc spinner
+                        val strokeW = currentRadius * 0.10f
+                        drawArc(
+                            color = spinnerColor,
+                            startAngle = spinnerAngle,
+                            sweepAngle = 270f,
+                            useCenter = false,
+                            topLeft = Offset(
+                                center.x - currentRadius * 0.4f,
+                                center.y - currentRadius * 0.4f
+                            ),
+                            size = androidx.compose.ui.geometry.Size(
+                                currentRadius * 0.8f,
+                                currentRadius * 0.8f
+                            ),
+                            style = Stroke(
+                                width = strokeW,
+                                cap = StrokeCap.Round
+                            )
+                        )
+                    } else {
+                        drawCheckmark(
+                            center = center,
+                            radius = currentRadius,
+                            color = checkColor,
+                            alpha = checkAlpha.value,
+                            rotation = checkRotation.value
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Linearly interpolate between two colors.
+ */
+private fun lerp(start: Color, end: Color, fraction: Float): Color {
+    val f = fraction.coerceIn(0f, 1f)
+    return Color(
+        red = start.red + (end.red - start.red) * f,
+        green = start.green + (end.green - start.green) * f,
+        blue = start.blue + (end.blue - start.blue) * f,
+        alpha = start.alpha + (end.alpha - start.alpha) * f
+    )
 }
 
 // ─── Ink-Style Processing Animation ─────────────────────────────────────
@@ -894,7 +1433,7 @@ fun InkHatchedProgressBar(
 ) {
     val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
 
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.height(4.dp)) {
         val fillWidth = size.width * progress().coerceIn(0f, 1f)
         drawInkHatchedBar(
             fillWidth = fillWidth,

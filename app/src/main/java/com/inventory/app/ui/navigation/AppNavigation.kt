@@ -38,6 +38,10 @@ import com.inventory.app.ui.screens.search.GlobalSearchScreen
 import com.inventory.app.ui.screens.settings.ExportImportScreen
 import com.inventory.app.ui.screens.settings.SettingsScreen
 import com.inventory.app.ui.screens.cook.CookScreen
+import com.inventory.app.ui.screens.cook.CookHubScreen
+import com.inventory.app.ui.screens.cook.CookingPlaybackScreen
+import com.inventory.app.ui.screens.cook.RecipeBuilderScreen
+import com.inventory.app.ui.screens.cook.AiRecipeDescriptionScreen
 import com.inventory.app.ui.screens.cook.SavedRecipesScreen
 import com.inventory.app.ui.screens.items.ExpiryDateScannerScreen
 import com.inventory.app.ui.screens.onboarding.OnboardingScreen
@@ -165,13 +169,14 @@ fun AppNavigation(
         }
 
         composable(
-            route = "items/form?itemId={itemId}&barcode={barcode}&name={name}&brand={brand}&quantity={quantity}",
+            route = "items/form?itemId={itemId}&barcode={barcode}&name={name}&brand={brand}&quantity={quantity}&size={size}",
             arguments = listOf(
                 navArgument("itemId") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("barcode") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("name") { type = NavType.StringType; nullable = true; defaultValue = null },
                 navArgument("brand") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("quantity") { type = NavType.StringType; nullable = true; defaultValue = null }
+                navArgument("quantity") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("size") { type = NavType.StringType; nullable = true; defaultValue = null }
             ),
             enterTransition = { detailEnterTransition() },
             exitTransition = { detailExitTransition() },
@@ -183,13 +188,15 @@ fun AppNavigation(
             val name = backStackEntry.arguments?.getString("name")
             val brand = backStackEntry.arguments?.getString("brand")
             val quantity = backStackEntry.arguments?.getString("quantity")
+            val size = backStackEntry.arguments?.getString("size")
             ItemFormScreen(
                 navController = navController,
                 itemId = itemId,
                 barcode = barcode,
                 name = name,
                 brand = brand,
-                quantity = quantity
+                quantity = quantity,
+                size = size
             )
         }
 
@@ -389,15 +396,71 @@ fun AppNavigation(
             KitchenMapScreen(navController = navController)
         }
 
-        // What Can I Cook? (AI Meal Suggestions)
+        // Cook Hub — bottom nav tab root
         composable(
-            Screen.Cook.route,
+            Screen.CookHub.route,
+            enterTransition = { tabEnterTransition() },
+            exitTransition = { tabExitTransition() },
+            popEnterTransition = { tabEnterTransition() },
+            popExitTransition = { tabExitTransition() }
+        ) {
+            CookHubScreen(navController = navController)
+        }
+
+        // AI Cook (formerly the Cook screen — pushed from CookHub)
+        composable(
+            Screen.AiCook.route,
+            arguments = listOf(
+                navArgument("expiringIds") {
+                    type = NavType.StringType
+                    defaultValue = null
+                    nullable = true
+                }
+            ),
             enterTransition = { detailEnterTransition() },
             exitTransition = { detailExitTransition() },
             popEnterTransition = { detailPopEnterTransition() },
             popExitTransition = { detailPopExitTransition() }
         ) {
             CookScreen(navController = navController)
+        }
+
+        // Recipe Builder (Phase 3 + 6A capture mode)
+        composable(
+            Screen.RecipeBuilder.route,
+            arguments = listOf(
+                navArgument("recipeId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                    nullable = false
+                },
+                navArgument("captureMode") {
+                    type = NavType.StringType
+                    defaultValue = "false"
+                    nullable = true
+                }
+            ),
+            enterTransition = { detailEnterTransition() },
+            exitTransition = { detailExitTransition() },
+            popEnterTransition = { detailPopEnterTransition() },
+            popExitTransition = { detailPopExitTransition() }
+        ) { backStackEntry ->
+            val recipeId = backStackEntry.arguments?.getLong("recipeId")?.takeIf { it > 0 }
+            val captureMode = backStackEntry.arguments?.getString("captureMode")?.toBooleanStrictOrNull() ?: false
+            RecipeBuilderScreen(navController = navController, recipeId = recipeId, captureMode = captureMode)
+        }
+
+        // Cooking Playback — Phase 4 Cook Engine
+        composable(
+            Screen.CookingPlayback.route,
+            arguments = listOf(navArgument("recipeId") { type = NavType.LongType }),
+            enterTransition = { detailEnterTransition() },
+            exitTransition = { detailExitTransition() },
+            popEnterTransition = { detailPopEnterTransition() },
+            popExitTransition = { detailPopExitTransition() }
+        ) { backStackEntry ->
+            val recipeId = backStackEntry.arguments?.getLong("recipeId") ?: return@composable
+            CookingPlaybackScreen(navController = navController, recipeId = recipeId)
         }
 
         // My Saved Recipes
@@ -409,6 +472,17 @@ fun AppNavigation(
             popExitTransition = { detailPopExitTransition() }
         ) {
             SavedRecipesScreen(navController = navController)
+        }
+
+        // AI Recipe Description — text-to-recipe generator (pushed from CookHub)
+        composable(
+            Screen.AiRecipeDescription.route,
+            enterTransition = { detailEnterTransition() },
+            exitTransition = { detailExitTransition() },
+            popEnterTransition = { detailPopEnterTransition() },
+            popExitTransition = { detailPopExitTransition() }
+        ) {
+            AiRecipeDescriptionScreen(navController = navController)
         }
 
         // Kitchen Scan (Fridge/Pantry Photo Recognition)

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.inventory.app.data.local.entity.SavedRecipeEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -28,6 +29,19 @@ interface SavedRecipeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(recipe: SavedRecipeEntity): Long
 
+    @Update
+    suspend fun update(recipe: SavedRecipeEntity)
+
+    @Query("SELECT * FROM saved_recipes WHERE is_active = 1 AND is_draft = 1 ORDER BY updated_at DESC")
+    fun getDrafts(): Flow<List<SavedRecipeEntity>>
+
+    @Query("SELECT * FROM saved_recipes WHERE is_active = 1 AND is_draft = 0 ORDER BY created_at DESC")
+    fun getActiveNonDrafts(): Flow<List<SavedRecipeEntity>>
+
+    /** Pagination-ready — allows future switch to paged loading without schema changes */
+    @Query("SELECT * FROM saved_recipes WHERE is_active = 1 AND is_draft = 0 ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    suspend fun getPagedActive(limit: Int, offset: Int): List<SavedRecipeEntity>
+
     @Query("UPDATE saved_recipes SET is_favorite = NOT is_favorite, updated_at = :now WHERE id = :id")
     suspend fun toggleFavorite(id: Long, now: Long = System.currentTimeMillis())
 
@@ -42,6 +56,10 @@ interface SavedRecipeDao {
 
     @Query("SELECT COUNT(*) FROM saved_recipes WHERE is_active = 1")
     fun getCount(): Flow<Int>
+
+    /** Counts user-created recipes (manual + captured), excluding AI-generated ones. */
+    @Query("SELECT COUNT(*) FROM saved_recipes WHERE is_active = 1 AND is_draft = 0 AND source != 'ai'")
+    fun getManualRecipeCount(): Flow<Int>
 
     @Query("UPDATE saved_recipes SET is_active = 1, updated_at = :now WHERE id = :id")
     suspend fun restore(id: Long, now: Long = System.currentTimeMillis())

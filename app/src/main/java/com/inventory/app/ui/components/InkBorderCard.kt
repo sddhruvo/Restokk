@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.inventory.app.ui.theme.CardStyle
+import com.inventory.app.ui.theme.InkTokens
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -49,7 +50,7 @@ fun InkBorderCard(
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.4f
     val fill = containerColor
         ?: if (isDark) Color.White.copy(alpha = 0.10f)
-        else MaterialTheme.colorScheme.surface.copy(alpha = 0.50f)
+        else MaterialTheme.colorScheme.surface.copy(alpha = InkTokens.fillCard)
 
     val borderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
     val wobbleSeed = remember { (Math.random() * 1000).toFloat() }
@@ -231,6 +232,65 @@ internal fun wobbleCtrl(i: Int, seed: Float, center: Float, amplitude: Float): F
  */
 internal fun cornerWobble(seed: Float, cornerIndex: Int, amplitude: Float): Float =
     sin(seed * 1.7 + cornerIndex * 2.3).toFloat() * amplitude * 0.35f
+
+/**
+ * Builds an open wobble-bezier underline path (bottom edge only).
+ * Used by ThemedTextField for a "writing on ruled paper" feel.
+ * Uses the same multi-frequency displacement as [buildWobbleBorderPath] for consistency.
+ *
+ * When [endcapHeight] > 0, small upward ticks are drawn at each end of the line,
+ * creating an open-bottom bracket shape `⌊___⌋` — used for interactive fields
+ * (dropdowns, date pickers) to hint "tap here" without drawing a full border box.
+ */
+internal fun buildWobbleUnderlinePath(
+    width: Float,
+    y: Float,
+    wobbleAmplitude: Float,
+    wobbleSeed: Float,
+    segments: Int = 5,
+    inset: Float = 0f,
+    endcapHeight: Float = 0f,
+): Path {
+    val lineWidth = width - 2 * inset
+    val segLen = lineWidth / segments
+    return Path().apply {
+        // Left endcap tick (drawn downward: top → baseline)
+        if (endcapHeight > 0f) {
+            val topY = y - endcapHeight
+            val wobX = wobbleEnd(0, wobbleSeed + 500f, inset, wobbleAmplitude * 0.4f)
+            moveTo(wobX, topY + wobbleEnd(0, wobbleSeed + 600f, 0f, wobbleAmplitude * 0.3f))
+            quadraticBezierTo(
+                inset + wobbleCtrl(0, wobbleSeed + 500f, 0f, wobbleAmplitude * 0.3f),
+                y - endcapHeight * 0.5f,
+                inset,
+                y + wobbleEnd(0, wobbleSeed, 0f, wobbleAmplitude)
+            )
+        } else {
+            moveTo(inset, y + wobbleEnd(0, wobbleSeed, 0f, wobbleAmplitude))
+        }
+
+        // Main underline (left → right)
+        for (i in 1..segments) {
+            val endX = inset + segLen * i
+            val endY = y + wobbleEnd(i, wobbleSeed, 0f, wobbleAmplitude)
+            val ctrlX = inset + segLen * (i - 0.5f)
+            val ctrlY = y + wobbleCtrl(i, wobbleSeed, 0f, wobbleAmplitude)
+            quadraticBezierTo(ctrlX, ctrlY, endX, endY)
+        }
+
+        // Right endcap tick (drawn upward: baseline → top)
+        if (endcapHeight > 0f) {
+            val topY = y - endcapHeight
+            val rightX = width - inset
+            quadraticBezierTo(
+                rightX + wobbleCtrl(segments + 1, wobbleSeed + 700f, 0f, wobbleAmplitude * 0.3f),
+                y - endcapHeight * 0.5f,
+                rightX + wobbleEnd(segments + 1, wobbleSeed + 800f, 0f, wobbleAmplitude * 0.4f),
+                topY + wobbleEnd(segments + 1, wobbleSeed + 900f, 0f, wobbleAmplitude * 0.3f)
+            )
+        }
+    }
+}
 
 /**
  * Builds a closed wobble-bezier circular path.

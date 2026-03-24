@@ -91,7 +91,7 @@ object PurchaseRhythmCalculator {
         if (daysPastDue > adjustedInterval * 2) return null
 
         // Confidence = dataScore * 0.4 + consistencyScore * 0.6
-        val dataScore = (deduped.size.toFloat() / (deduped.size + 3)).coerceAtMost(0.9f)
+        val dataScore = (deduped.size.toFloat() / (deduped.size + 5)).coerceAtMost(0.9f)
         val consistencyScore = calculateConsistencyScore(intervals)
         val confidence = dataScore * 0.4f + consistencyScore * 0.6f
 

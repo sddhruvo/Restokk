@@ -44,6 +44,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -60,6 +61,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import com.inventory.app.ui.components.ThemedAlertDialog
 import com.inventory.app.ui.components.ThemedDropdownMenu
 import com.inventory.app.ui.components.ThemedTextField
+
 import androidx.compose.material3.Button
 import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.DatePicker
@@ -74,11 +76,11 @@ import androidx.compose.material3.MaterialTheme
 import com.inventory.app.ui.components.ThemedBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -89,8 +91,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
@@ -114,15 +118,18 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.inventory.app.R
 import com.inventory.app.data.local.entity.CategoryEntity
+import com.inventory.app.data.local.entity.StorageLocationEntity
 import com.inventory.app.data.local.entity.UnitEntity
 import com.inventory.app.ui.components.AppCard
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ThemedButton
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.BarcodeCameraPreview
 import com.inventory.app.ui.components.DropdownField
 import com.inventory.app.ui.navigation.RegisterNavigationGuard
 import com.inventory.app.ui.theme.PaperInkMotion
+import com.inventory.app.ui.theme.alertTitle
+import com.inventory.app.ui.theme.formSectionLabel
+import com.inventory.app.ui.theme.sectionHeader
 import com.inventory.app.util.FormatUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -181,11 +188,13 @@ fun ReceiptScanScreen(
     ) { uri ->
         uri?.let {
             try {
-                val inputStream = context.contentResolver.openInputStream(it)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
+                val bitmap = context.contentResolver.openInputStream(it)?.use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream)
+                }
                 if (bitmap != null) {
                     viewModel.onImageCaptured(bitmap)
+                } else {
+                    Log.w("ReceiptScan", "Gallery image decode returned null (corrupt or unsupported format)")
                 }
             } catch (e: Exception) {
                 Log.e("ReceiptScan", "Failed to load image from gallery", e)
@@ -208,7 +217,7 @@ fun ReceiptScanScreen(
 
     // Back confirmation when scan results would be lost
     val hasResults = uiState.state is ReceiptScanState.Review
-    var showDiscardDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
 
     // Guard bottom nav taps when scan results exist
     RegisterNavigationGuard(
@@ -237,28 +246,22 @@ fun ReceiptScanScreen(
         )
     }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Scan Receipt") },
-                navigationIcon = {
-                    InkBackButton(onClick = {
-                        if (hasResults) showDiscardDialog = true
-                        else navController.popBackStack()
-                    })
-                }
-            )
+    PageScaffold(
+        onBack = {
+            if (hasResults) showDiscardDialog = true
+            else navController.popBackStack()
         }
-    ) { padding ->
+    ) { contentPadding ->
         when (val state = uiState.state) {
             is ReceiptScanState.Idle -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    PageHeader("Scan Receipt")
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -277,15 +280,14 @@ fun ReceiptScanScreen(
                                 )
                                 Text(
                                     "Receipt Scanner",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.formSectionLabel,
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
                             Text(
                                 "Scan your shopping receipt using the built-in document scanner. " +
                                 "It will automatically crop, straighten, and enhance the image for best results. " +
-                                "Grok AI will then extract all products with quantities and prices.",
+                                "AI will then extract all products with quantities and prices.",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -318,9 +320,11 @@ fun ReceiptScanScreen(
             is ReceiptScanState.ReadingText, is ReceiptScanState.ParsingWithAI -> {
                 AIProcessingScreen(
                     bitmap = uiState.capturedBitmap,
+                    processingPhase = uiState.processingPhase,
+                    onCancel = viewModel::cancelProcessing,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                 )
             }
 
@@ -329,11 +333,15 @@ fun ReceiptScanScreen(
                     items = state.items,
                     units = uiState.units,
                     categories = uiState.categories,
+                    storeName = uiState.storeName,
+                    purchaseDate = uiState.purchaseDate,
                     onUpdateName = viewModel::updateItemName,
                     onUpdateQuantity = viewModel::updateItemQuantity,
                     onUpdatePrice = viewModel::updateItemPrice,
                     onUpdateUnit = viewModel::updateItemUnit,
                     onUpdateCategory = viewModel::updateItemCategory,
+                    onUpdateLocation = viewModel::updateItemLocation,
+                    locations = uiState.locations,
                     onUpdateExpiryDate = viewModel::updateItemExpiryDate,
                     onUpdateBarcode = viewModel::updateItemBarcode,
                     onRemoveItem = viewModel::removeItem,
@@ -341,12 +349,21 @@ fun ReceiptScanScreen(
                     onMarkReviewed = viewModel::markAsReviewed,
                     onMarkAllReviewed = viewModel::markAllReviewed,
                     onAddAll = viewModel::addAllToInventory,
+                    onUpdateStoreName = viewModel::updateStoreName,
+                    onUpdatePurchaseDate = viewModel::updatePurchaseDate,
                     onRetake = {
                         viewModel.reset()
                         launchScanner()
                     },
+                    onAddBlankItem = viewModel::addBlankItem,
+                    onScanAnotherPage = {
+                        viewModel.scanAnotherPage()
+                        launchScanner()
+                    },
+                    pageCount = uiState.pageCount,
+                    receiptTotal = uiState.receiptTotal,
                     currencySymbol = uiState.currencySymbol,
-                    modifier = Modifier.padding(padding)
+                    modifier = Modifier.padding(contentPadding)
                 )
             }
 
@@ -354,7 +371,7 @@ fun ReceiptScanScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -372,7 +389,7 @@ fun ReceiptScanScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -387,9 +404,17 @@ fun ReceiptScanScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         "${state.count} items added!",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.alertTitle
                     )
+                    if (state.failedItems.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "${state.failedItems.size} failed: ${state.failedItems.joinToString(", ")}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
                     ThemedButton(
                         onClick = { viewModel.reset() },
@@ -407,7 +432,7 @@ fun ReceiptScanScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
+                        .padding(contentPadding)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -420,8 +445,7 @@ fun ReceiptScanScreen(
                                 ThemedIcon(materialIcon = Icons.Filled.Error, inkIconRes = R.drawable.ic_ink_error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                                 Text(
                                     "Scan Failed",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.formSectionLabel,
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
@@ -443,6 +467,16 @@ fun ReceiptScanScreen(
                         Text("Try Again", Modifier.padding(start = 8.dp))
                     }
                     OutlinedButton(
+                        onClick = {
+                            viewModel.reset()
+                            galleryLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ThemedIcon(materialIcon = Icons.Filled.PhotoLibrary, inkIconRes = R.drawable.ic_ink_photo_library, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text("Pick from Gallery", Modifier.padding(start = 8.dp))
+                    }
+                    OutlinedButton(
                         onClick = { viewModel.reset() },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Back") }
@@ -454,37 +488,66 @@ fun ReceiptScanScreen(
 
 // ── AI Processing Screen ────────────────────────────────────────────────
 
-private data class ProcessingStep(
-    val message: String,
-    val delayMs: Long
-)
-
-private val processingSteps = listOf(
-    ProcessingStep("Compressing image...", 1500),
-    ProcessingStep("Sending to AI...", 2000),
-    ProcessingStep("Reading product names...", 2500),
-    ProcessingStep("Matching prices to items...", 2500),
-    ProcessingStep("Checking your shopping list...", 2000),
-    ProcessingStep("Estimating expiry dates...", 2000),
-    ProcessingStep("Almost done...", 8000)
+private val processingStepMessages = listOf(
+    "Compressing image...",       // 0 — real: COMPRESSING
+    "Sending to AI...",           // 1 — real: SENDING_TO_AI
+    "Reading product names...",   // 2 — filler (auto-advance during AI wait)
+    "Matching prices to items...",// 3 — filler
+    "Checking your shopping list...", // 4 — filler
+    "Estimating expiry dates...", // 5 — filler
+    "Almost done..."              // 6 — real: BUILDING_REVIEW
 )
 
 @Composable
 private fun AIProcessingScreen(
     bitmap: android.graphics.Bitmap?,
+    processingPhase: ProcessingPhase,
+    onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Cycle through processing steps — keyed on bitmap so they reset on new scan attempt
+    // Phase-driven step tracking
     var currentStep by remember(bitmap) { mutableStateOf(0) }
     val completedSteps = remember(bitmap) { mutableStateListOf<Int>() }
 
-    LaunchedEffect(bitmap) {
-        for (i in processingSteps.indices) {
-            currentStep = i
-            delay(processingSteps[i].delayMs)
-            if (i < processingSteps.size - 1) {
-                completedSteps.add(i)
+    // Real milestone steps driven by processingPhase
+    LaunchedEffect(processingPhase) {
+        when (processingPhase) {
+            ProcessingPhase.COMPRESSING -> {
+                currentStep = 0
             }
+            ProcessingPhase.SENDING_TO_AI -> {
+                // Mark compression done, advance to step 1
+                if (0 !in completedSteps) completedSteps.add(0)
+                currentStep = 1
+            }
+            ProcessingPhase.WAITING_FOR_RESPONSE, ProcessingPhase.BUILDING_REVIEW, ProcessingPhase.DONE -> {
+                // Mark steps 0-1 done if not already
+                for (i in 0..1) { if (i !in completedSteps) completedSteps.add(i) }
+            }
+            ProcessingPhase.IDLE -> { /* no-op */ }
+        }
+    }
+
+    // Filler steps 2-5: auto-advance during AI wait (after step 1 is complete)
+    LaunchedEffect(processingPhase) {
+        if (processingPhase == ProcessingPhase.SENDING_TO_AI || processingPhase == ProcessingPhase.WAITING_FOR_RESPONSE) {
+            // Wait for step 1 to show briefly
+            delay(1500)
+            for (i in 2..5) {
+                if (processingPhase == ProcessingPhase.BUILDING_REVIEW || processingPhase == ProcessingPhase.DONE) break
+                if (i - 1 !in completedSteps) completedSteps.add(i - 1)
+                currentStep = i
+                delay(2000)
+            }
+        }
+    }
+
+    // Step 6 (Almost done) driven by BUILDING_REVIEW
+    LaunchedEffect(processingPhase) {
+        if (processingPhase == ProcessingPhase.BUILDING_REVIEW) {
+            // Mark all filler steps done
+            for (i in 0..5) { if (i !in completedSteps) completedSteps.add(i) }
+            currentStep = 6
         }
     }
 
@@ -555,17 +618,15 @@ private fun AIProcessingScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                "Grok AI is analyzing",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                "AI is analyzing",
+                style = MaterialTheme.typography.sectionHeader
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 "your receipt",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.sectionHeader
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -575,7 +636,7 @@ private fun AIProcessingScreen(
                 modifier = Modifier.fillMaxWidth(0.85f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                processingSteps.forEachIndexed { index, step ->
+                processingStepMessages.forEachIndexed { index, message ->
                     val isCompleted = index in completedSteps
                     val isActive = index == currentStep
                     val isVisible = index <= currentStep
@@ -588,7 +649,7 @@ private fun AIProcessingScreen(
                         )
                     ) {
                         ProcessingStepRow(
-                            text = step.message,
+                            text = message,
                             isCompleted = isCompleted,
                             isActive = isActive,
                             glowAlpha = glowAlpha
@@ -598,6 +659,12 @@ private fun AIProcessingScreen(
             }
 
             Spacer(modifier = Modifier.weight(0.3f))
+
+            OutlinedButton(onClick = onCancel) {
+                Text("Cancel")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -673,11 +740,15 @@ private fun ReviewFlowScreen(
     items: List<EditableReceiptItem>,
     units: List<UnitEntity>,
     categories: List<CategoryEntity>,
+    storeName: String?,
+    purchaseDate: LocalDate?,
     onUpdateName: (Int, String) -> Unit,
     onUpdateQuantity: (Int, String) -> Unit,
     onUpdatePrice: (Int, String) -> Unit,
     onUpdateUnit: (Int, String) -> Unit,
     onUpdateCategory: (Int, String) -> Unit,
+    onUpdateLocation: (Int, String) -> Unit,
+    locations: List<StorageLocationEntity>,
     onUpdateExpiryDate: (Int, LocalDate?) -> Unit,
     onUpdateBarcode: (Int, String) -> Unit,
     onRemoveItem: (Int) -> Unit,
@@ -685,7 +756,13 @@ private fun ReviewFlowScreen(
     onMarkReviewed: (Int) -> Unit,
     onMarkAllReviewed: () -> Unit,
     onAddAll: () -> Unit,
+    onUpdateStoreName: (String) -> Unit,
+    onUpdatePurchaseDate: (LocalDate) -> Unit,
     onRetake: () -> Unit,
+    onAddBlankItem: () -> Int,
+    onScanAnotherPage: () -> Unit,
+    pageCount: Int,
+    receiptTotal: Double?,
     currencySymbol: String,
     modifier: Modifier = Modifier
 ) {
@@ -696,6 +773,8 @@ private fun ReviewFlowScreen(
         ReviewStage.SUMMARY -> {
             ReviewSummaryScreen(
                 items = items,
+                storeName = storeName,
+                purchaseDate = purchaseDate,
                 currencySymbol = currencySymbol,
                 onConfirmAll = {
                     onMarkAllReviewed()
@@ -705,7 +784,19 @@ private fun ReviewFlowScreen(
                     initialPagerPage = startPage
                     stage = ReviewStage.PAGER
                 },
+                onUpdateStoreName = onUpdateStoreName,
+                onUpdatePurchaseDate = onUpdatePurchaseDate,
                 onRetake = onRetake,
+                onScanAnotherPage = onScanAnotherPage,
+                pageCount = pageCount,
+                onAddItem = {
+                    val newIndex = onAddBlankItem()
+                    if (newIndex >= 0) {
+                        initialPagerPage = newIndex
+                        stage = ReviewStage.PAGER
+                    }
+                },
+                receiptTotal = receiptTotal,
                 modifier = modifier
             )
         }
@@ -714,6 +805,7 @@ private fun ReviewFlowScreen(
                 items = items,
                 units = units,
                 categories = categories,
+                locations = locations,
                 initialPage = initialPagerPage,
                 currencySymbol = currencySymbol,
                 onUpdateName = onUpdateName,
@@ -721,6 +813,7 @@ private fun ReviewFlowScreen(
                 onUpdatePrice = onUpdatePrice,
                 onUpdateUnit = onUpdateUnit,
                 onUpdateCategory = onUpdateCategory,
+                onUpdateLocation = onUpdateLocation,
                 onUpdateExpiryDate = onUpdateExpiryDate,
                 onUpdateBarcode = onUpdateBarcode,
                 onRemoveItem = onRemoveItem,
@@ -728,6 +821,7 @@ private fun ReviewFlowScreen(
                 onMarkReviewed = onMarkReviewed,
                 onConfirm = onAddAll,
                 onBackToSummary = { stage = ReviewStage.SUMMARY },
+                onAddItem = { onAddBlankItem() },
                 modifier = modifier
             )
         }
@@ -736,13 +830,22 @@ private fun ReviewFlowScreen(
 
 // ── Stage 1: Summary Screen ─────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReviewSummaryScreen(
     items: List<EditableReceiptItem>,
+    storeName: String?,
+    purchaseDate: LocalDate?,
     currencySymbol: String,
     onConfirmAll: () -> Unit,
     onReviewItems: (Int) -> Unit,
+    onUpdateStoreName: (String) -> Unit,
+    onUpdatePurchaseDate: (LocalDate) -> Unit,
     onRetake: () -> Unit,
+    onScanAnotherPage: () -> Unit,
+    pageCount: Int,
+    onAddItem: () -> Unit,
+    receiptTotal: Double?,
     modifier: Modifier = Modifier
 ) {
     val activeItems = items.filter { it.matchType != ReceiptMatchType.SKIP }
@@ -750,6 +853,7 @@ private fun ReviewSummaryScreen(
     val updateCount = activeItems.count { it.matchType == ReceiptMatchType.UPDATE_EXISTING }
     val newCount = activeItems.count { it.matchType == ReceiptMatchType.CREATE_NEW }
     val shoppingCount = items.count { it.matchedShoppingId != null }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
         // Header
@@ -760,23 +864,105 @@ private fun ReviewSummaryScreen(
                 .padding(top = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Store name & date row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Store name — editable inline
+                ThemedTextField(
+                    value = storeName ?: "",
+                    onValueChange = onUpdateStoreName,
+                    label = { Text("Store") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium
+                )
+                // Purchase date — tap to pick
+                Box(modifier = Modifier.weight(1f)) {
+                    ThemedTextField(
+                        value = purchaseDate?.let { FormatUtils.formatDate(it) } ?: "",
+                        onValueChange = {},
+                        label = { Text("Date") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        readOnly = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        inkEndcaps = true,
+                        trailingIcon = {
+                            ThemedIcon(
+                                materialIcon = Icons.Filled.DateRange,
+                                inkIconRes = R.drawable.ic_ink_calendar,
+                                contentDescription = "Change date",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showDatePicker = true }
+                            .alpha(0f)
+                    )
+                }
+            }
+
             // Stats row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "${activeItems.size} items found",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        "${activeItems.size} items found",
+                        style = MaterialTheme.typography.sectionHeader
+                    )
+                    if (pageCount > 1) {
+                        Text(
+                            "Scanned $pageCount pages",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 if (totalPrice > 0) {
                     Text(
                         "Total: ${currencySymbol}${String.format("%.2f", totalPrice)}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.sectionHeader,
                         color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Receipt total validation
+            if (receiptTotal != null && totalPrice > 0) {
+                val diff = kotlin.math.abs(totalPrice - receiptTotal)
+                val matches = diff < (receiptTotal * 0.03).coerceAtLeast(0.50)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (matches) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                            MaterialTheme.shapes.small
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        if (matches) Icons.Filled.CheckCircle else Icons.Filled.Error,
+                        null,
+                        modifier = Modifier.size(14.dp),
+                        tint = if (matches) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        if (matches) "Matches receipt total"
+                        else "Receipt total: ${currencySymbol}${String.format("%.2f", receiptTotal)} (differs by ${currencySymbol}${String.format("%.2f", diff)})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (matches) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
             }
@@ -855,13 +1041,58 @@ private fun ReviewSummaryScreen(
                     Text("Review")
                 }
             }
-            TextButton(
-                onClick = onRetake,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(14.dp))
-                Text("Retake", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelMedium)
+                TextButton(
+                    onClick = onAddItem,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(14.dp))
+                    Text("Add item", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelMedium)
+                }
+                TextButton(
+                    onClick = onScanAnotherPage,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(14.dp))
+                    Text("Scan page", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelMedium)
+                }
+                TextButton(
+                    onClick = onRetake,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    ThemedIcon(materialIcon = Icons.Filled.CameraAlt, inkIconRes = R.drawable.ic_ink_camera, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Text("Retake", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelMedium)
+                }
             }
+        }
+    }
+
+    // Purchase date picker dialog
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = purchaseDate?.let {
+                it.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                        onUpdatePurchaseDate(date)
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }
@@ -902,11 +1133,24 @@ private fun SummaryItemRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (item.categoryName.isNotBlank()) {
+            if (item.categoryName.isNotBlank() || item.mergedCount > 1 || item.isNonFood) {
+                val subtitle = buildString {
+                    if (item.isNonFood) append("Non-food")
+                    if (item.categoryName.isNotBlank()) {
+                        if (isNotBlank()) append(" · ")
+                        append(item.categoryName)
+                    }
+                    if (item.mergedCount > 1) {
+                        if (isNotBlank()) append(" · ")
+                        append("×${item.mergedCount} merged")
+                    }
+                }
                 Text(
-                    item.categoryName,
+                    subtitle,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (item.isNonFood) Color(0xFF4DB6AC)
+                           else if (item.mergedCount > 1) MaterialTheme.colorScheme.tertiary
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -919,6 +1163,16 @@ private fun SummaryItemRow(
                 contentDescription = null,
                 modifier = Modifier.size(14.dp),
                 tint = MaterialTheme.colorScheme.secondary
+            )
+        }
+        // Shopping qty mismatch warning
+        val receiptQty = item.quantity.toDoubleOrNull()
+        if (item.shoppingQuantity != null && receiptQty != null && item.shoppingQuantity != receiptQty) {
+            Icon(
+                Icons.Filled.Error,
+                contentDescription = "Quantity mismatch",
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
             )
         }
         // Quantity + unit
@@ -934,8 +1188,7 @@ private fun SummaryItemRow(
         if (item.price.isNotBlank()) {
             Text(
                 "${currencySymbol}${item.price}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -950,6 +1203,7 @@ private fun ReviewPagerScreen(
     items: List<EditableReceiptItem>,
     units: List<UnitEntity>,
     categories: List<CategoryEntity>,
+    locations: List<StorageLocationEntity>,
     initialPage: Int,
     currencySymbol: String,
     onUpdateName: (Int, String) -> Unit,
@@ -957,6 +1211,7 @@ private fun ReviewPagerScreen(
     onUpdatePrice: (Int, String) -> Unit,
     onUpdateUnit: (Int, String) -> Unit,
     onUpdateCategory: (Int, String) -> Unit,
+    onUpdateLocation: (Int, String) -> Unit,
     onUpdateExpiryDate: (Int, LocalDate?) -> Unit,
     onUpdateBarcode: (Int, String) -> Unit,
     onRemoveItem: (Int) -> Unit,
@@ -964,6 +1219,7 @@ private fun ReviewPagerScreen(
     onMarkReviewed: (Int) -> Unit,
     onConfirm: () -> Unit,
     onBackToSummary: () -> Unit,
+    onAddItem: () -> Int,
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(
@@ -971,6 +1227,13 @@ private fun ReviewPagerScreen(
         pageCount = { items.size }
     )
     val scope = rememberCoroutineScope()
+
+    // Coerce page when items are removed (prevents IndexOutOfBounds)
+    LaunchedEffect(items.size) {
+        if (pagerState.currentPage >= items.size && items.isNotEmpty()) {
+            pagerState.scrollToPage((items.size - 1).coerceAtLeast(0))
+        }
+    }
 
     // Mark current page as reviewed
     LaunchedEffect(pagerState.currentPage) {
@@ -1033,6 +1296,7 @@ private fun ReviewPagerScreen(
                         item = items[page],
                         units = units,
                         categories = categories,
+                        locations = locations,
                         index = page,
                         currencySymbol = currencySymbol,
                         onNameChange = { onUpdateName(page, it) },
@@ -1040,6 +1304,7 @@ private fun ReviewPagerScreen(
                         onPriceChange = { onUpdatePrice(page, it) },
                         onUnitChange = { onUpdateUnit(page, it) },
                         onCategoryChange = { onUpdateCategory(page, it) },
+                        onLocationChange = { onUpdateLocation(page, it) },
                         onExpiryDateChange = { onUpdateExpiryDate(page, it) },
                         onBarcodeChange = { onUpdateBarcode(page, it) },
                         onRemove = { onRemoveItem(page) },
@@ -1108,11 +1373,29 @@ private fun ReviewPagerScreen(
             ) {
                 Text("Confirm (${activeItems.size} items)")
             }
-            TextButton(
-                onClick = onBackToSummary,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Back to summary")
+                val scope = rememberCoroutineScope()
+                TextButton(
+                    onClick = {
+                        val newIndex = onAddItem()
+                        if (newIndex >= 0) {
+                            scope.launch { pagerState.animateScrollToPage(newIndex) }
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(14.dp))
+                    Text("Add item", Modifier.padding(start = 4.dp))
+                }
+                TextButton(
+                    onClick = onBackToSummary,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Back to summary")
+                }
             }
         }
     }
@@ -1126,6 +1409,7 @@ private fun PagerItemCard(
     item: EditableReceiptItem,
     units: List<UnitEntity>,
     categories: List<CategoryEntity>,
+    locations: List<StorageLocationEntity>,
     index: Int,
     currencySymbol: String,
     onNameChange: (String) -> Unit,
@@ -1133,6 +1417,7 @@ private fun PagerItemCard(
     onPriceChange: (String) -> Unit,
     onUnitChange: (String) -> Unit,
     onCategoryChange: (String) -> Unit,
+    onLocationChange: (String) -> Unit,
     onExpiryDateChange: (LocalDate?) -> Unit,
     onBarcodeChange: (String) -> Unit,
     onRemove: () -> Unit,
@@ -1181,6 +1466,25 @@ private fun PagerItemCard(
                 )
             }
 
+            // Merged items indicator
+            if (item.mergedCount > 1) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f), MaterialTheme.shapes.small)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Filled.CallMerge, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                    Text(
+                        "Merged from ${item.mergedCount} receipt lines",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+            }
+
             if (!isSkipped) {
                 // Row 2: Product name + Category
                 ThemedTextField(
@@ -1198,6 +1502,19 @@ private fun PagerItemCard(
                     selectedOption = categories.find { it.name.equals(item.categoryName, ignoreCase = true) },
                     onOptionSelected = { cat ->
                         onCategoryChange(cat?.name ?: "")
+                    },
+                    optionLabel = { it.name },
+                    modifier = Modifier.fillMaxWidth(),
+                    allowNone = true
+                )
+
+                // Row 2c: Storage location dropdown
+                DropdownField(
+                    label = "Storage Location",
+                    options = locations,
+                    selectedOption = locations.find { it.name.equals(item.locationName, ignoreCase = true) },
+                    onOptionSelected = { loc ->
+                        onLocationChange(loc?.name ?: "")
                     },
                     optionLabel = { it.name },
                     modifier = Modifier.fillMaxWidth(),
@@ -1266,6 +1583,38 @@ private fun PagerItemCard(
                     }
                 }
 
+                // Shopping list qty mismatch warning
+                val pagerReceiptQty = item.quantity.toDoubleOrNull()
+                if (item.shoppingQuantity != null && pagerReceiptQty != null && item.shoppingQuantity != pagerReceiptQty) {
+                    val shoppingQtyStr = if (item.shoppingQuantity == item.shoppingQuantity.toLong().toDouble())
+                        item.shoppingQuantity.toLong().toString() else String.format("%.1f", item.shoppingQuantity)
+                    val receiptQtyStr = if (pagerReceiptQty == pagerReceiptQty.toLong().toDouble())
+                        pagerReceiptQty.toLong().toString() else String.format("%.1f", pagerReceiptQty)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                MaterialTheme.shapes.small
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.ShoppingCart,
+                            null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            "Shopping list: $shoppingQtyStr, receipt: $receiptQtyStr",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
+
                 // Row 4: Expiry date + Barcode
                 Row(
                     modifier = Modifier
@@ -1274,7 +1623,11 @@ private fun PagerItemCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Expiry date field
-                    val expiryLabel = if (item.isAiEstimatedExpiry && item.expiryDate != null) "Expected expiry" else "Expiry"
+                    val expiryLabel = when {
+                        item.isNonFood && item.expiryDate == null -> "No expiry (non-food)"
+                        item.isAiEstimatedExpiry && item.expiryDate != null -> "Expected expiry"
+                        else -> "Expiry"
+                    }
                     Box(modifier = Modifier.weight(1f)) {
                         ThemedTextField(
                             value = item.expiryDate?.let { FormatUtils.formatDate(it) } ?: "",
@@ -1283,6 +1636,7 @@ private fun PagerItemCard(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             readOnly = true,
+                            inkEndcaps = true,
                             trailingIcon = {
                                 if (item.expiryDate != null) {
                                     IconButton(onClick = { onExpiryDateChange(null) }, modifier = Modifier.size(24.dp)) {
@@ -1482,8 +1836,7 @@ private fun BarcodeScanBottomSheet(
         ) {
             Text(
                 "Scan Barcode",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.sectionHeader
             )
 
             if (cameraPermissionState.status.isGranted) {

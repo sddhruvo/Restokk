@@ -17,6 +17,8 @@ data class AppColors(
     val statusExpired: Color,
     val statusExpiring: Color,
     val statusLowStock: Color,
+    val statusMediumStock: Color,
+    val statusGoodStock: Color,
     val statusInStock: Color,
 
     // ── Tier 1: Score ──
@@ -37,6 +39,11 @@ data class AppColors(
     val reportUsage: Color,
     val reportInventory: Color,
 
+    // ── Tier 2: Save action (ink blot) ──
+    val saveActionIdle: Color = DefaultSaveIdle,
+    val saveActionSaved: Color = DefaultSaveSaved,
+    val saveActionCheck: Color = DefaultSaveCheck,
+
     // ── Tier 2: Feature accents (shared defaults, override if needed) ──
     val cookAccent: Color = DefaultCookAccent,
     val starRating: Color = DefaultStarRating,
@@ -49,6 +56,23 @@ data class AppColors(
     val swipeDeleteColor: Color = DefaultSwipeDeleteColor,
     val entityDefaultColor: Color = DefaultEntityDefaultColor,
 ) {
+    /**
+     * 4-tier stock-level → color mapping.
+     *
+     * The user's low-stock setting defines the "critical" cutoff.
+     * The remaining range (threshold → 100%) is split into 3 equal bands.
+     *
+     * Example with default 25%: 0%=expired, 1-25%=critical, 26-50%=medium, 51-75%=good, 76-100%=full.
+     */
+    fun stockColor(ratio: Float, lowThreshold: Float): Color {
+        if (ratio <= 0f) return statusExpired
+        if (ratio <= lowThreshold) return statusLowStock
+        val band = (1f - lowThreshold) / 3f
+        if (ratio <= lowThreshold + band) return statusMediumStock
+        if (ratio <= lowThreshold + band * 2f) return statusGoodStock
+        return statusInStock
+    }
+
     /** Map a 0-100 home score to its display color. */
     fun scoreToColor(score: Int): Color = when {
         score >= 70 -> statusInStock
@@ -71,10 +95,17 @@ data class AppColors(
         private val DefaultSwipeDeleteColor = Color(0xFFE53935)
         private val DefaultEntityDefaultColor = Color(0xFF6c757d)
 
+        // Save action defaults — warm dark ink for light themes
+        private val DefaultSaveIdle = Color(0xFF3C2F1E)     // Warm sepia-brown ink
+        private val DefaultSaveSaved = Color(0xFF4A5E30)    // Muted olive green (dried ink)
+        private val DefaultSaveCheck = Color(0xFFF5F0E6)    // Warm cream checkmark
+
         val ClassicGreen = AppColors(
             statusExpired = Color(0xFFD32F2F),
             statusExpiring = Color(0xFFFF9800),
             statusLowStock = Color(0xFFFFC107),
+            statusMediumStock = Color(0xFFFF9800),
+            statusGoodStock = Color(0xFF66BB6A),
             statusInStock = Color(0xFF4CAF50),
             scoreTeal = Color(0xFF26A69A),
             scoreBlue = Color(0xFF42A5F5),
@@ -94,6 +125,8 @@ data class AppColors(
             statusExpired = Color(0xFFD32F2F),
             statusExpiring = Color(0xFFFF9800),
             statusLowStock = Color(0xFFFFC107),
+            statusMediumStock = Color(0xFFFF9800),
+            statusGoodStock = Color(0xFF66BB6A),
             statusInStock = Color(0xFF4CAF50),
             scoreTeal = Color(0xFF26A69A),
             scoreBlue = Color(0xFF42A5F5),
@@ -107,12 +140,18 @@ data class AppColors(
             reportSpending = Color(0xFF1565C0),
             reportUsage = Color(0xFF6A1B9A),
             reportInventory = Color(0xFF2E7D32),
+            // Clean slate-blue for modern cream — not brown (no paper texture here)
+            saveActionIdle = Color(0xFF1C3A5E),      // Deep navy ink
+            saveActionSaved = Color(0xFF2D6A4F),      // Forest teal green
+            saveActionCheck = Color(0xFFFFFFFF),       // Pure white check
         )
 
         val AmoledDark = AppColors(
             statusExpired = Color(0xFFD32F2F),
             statusExpiring = Color(0xFFFF9800),
             statusLowStock = Color(0xFFFFC107),
+            statusMediumStock = Color(0xFFFF9800),
+            statusGoodStock = Color(0xFF66BB6A),
             statusInStock = Color(0xFF4CAF50),
             scoreTeal = Color(0xFF26A69A),
             scoreBlue = Color(0xFF42A5F5),
@@ -126,6 +165,10 @@ data class AppColors(
             reportSpending = Color(0xFF1565C0),
             reportUsage = Color(0xFF6A1B9A),
             reportInventory = Color(0xFF2E7D32),
+            // Luminous against pure black — glow-ink feel
+            saveActionIdle = Color(0xFFD4C5A9),      // Warm parchment/gold (light on dark)
+            saveActionSaved = Color(0xFF81C784),      // Soft green glow (matches dark primary)
+            saveActionCheck = Color(0xFF0A0A0A),       // Near-black check on light circle
         )
     }
 }

@@ -32,13 +32,12 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,15 +62,12 @@ import com.inventory.app.ui.navigation.Screen
 import com.inventory.app.ui.theme.Dimens
 import com.inventory.app.ui.theme.appColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(navController: NavController) {
     val aiGate = rememberAiSignInGate()
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(title = { Text("More") })
-        }
-    ) { padding ->
+    PageScaffold(
+        onBack = null
+    ) { contentPadding ->
         val context = LocalContext.current
         // Only animate on first entry; skip on back-navigation to preserve scroll
         var hasAnimated by rememberSaveable { mutableStateOf(false) }
@@ -85,12 +81,12 @@ fun MoreScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Dimens.spacingLg),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
-            Spacer(modifier = Modifier.height(Dimens.spacingXs))
+            PageHeader("More")
 
             // Search — standalone tappable row
             AnimateOnce(index = 0, hasAnimated = hasAnimated) {
@@ -111,8 +107,31 @@ fun MoreScreen(navController: NavController) {
                 )
             }
 
-            // AI & Kitchen section
+            // App section — Settings first for quick access
             AnimateOnce(index = 1, hasAnimated = hasAnimated) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
+                    MoreSectionHeader(title = "App")
+                    AdaptiveGrid(
+                        columns = 2,
+                        spacing = 12.dp,
+                        items = listOf<@Composable (Modifier) -> Unit>(
+                            { mod ->
+                                MoreActionCard(mod, "Settings", Icons.Filled.Settings, MaterialTheme.colorScheme.primary) {
+                                    navController.navigate(Screen.Settings.route)
+                                }
+                            },
+                            { mod ->
+                                MoreActionCard(mod, "Export / Import", Icons.Filled.ImportExport, MaterialTheme.colorScheme.primary) {
+                                    navController.navigate(Screen.ExportImport.route)
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+
+            // AI & Kitchen section
+            AnimateOnce(index = 2, hasAnimated = hasAnimated) {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(
                         title = "AI & Kitchen",
@@ -125,7 +144,7 @@ fun MoreScreen(navController: NavController) {
                         items = listOf<@Composable (Modifier) -> Unit>(
                             { mod ->
                                 MoreActionCard(mod, "Cook", Icons.Filled.Restaurant, MaterialTheme.appColors.accentOrange, "What Can I Cook?") {
-                                    navController.navigate(Screen.Cook.route)
+                                    navController.navigate(Screen.CookHub.route)
                                 }
                             },
                             { mod ->
@@ -158,7 +177,7 @@ fun MoreScreen(navController: NavController) {
             }
 
             // Analytics section
-            AnimateOnce(index = 2, hasAnimated = hasAnimated) {
+            AnimateOnce(index = 3, hasAnimated = hasAnimated) {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(title = "Analytics")
                     AdaptiveGrid(
@@ -181,7 +200,7 @@ fun MoreScreen(navController: NavController) {
             }
 
             // Organize section
-            AnimateOnce(index = 3, hasAnimated = hasAnimated) {
+            AnimateOnce(index = 4, hasAnimated = hasAnimated) {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
                     MoreSectionHeader(title = "Organize")
                     AdaptiveGrid(
@@ -196,29 +215,6 @@ fun MoreScreen(navController: NavController) {
                             { mod ->
                                 MoreActionCard(mod, "Locations", Icons.Filled.Place, MaterialTheme.appColors.accentGold, "Storage Locations") {
                                     navController.navigate(Screen.LocationList.route)
-                                }
-                            }
-                        )
-                    )
-                }
-            }
-
-            // App section
-            AnimateOnce(index = 4, hasAnimated = hasAnimated) {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
-                    MoreSectionHeader(title = "App")
-                    AdaptiveGrid(
-                        columns = 2,
-                        spacing = 12.dp,
-                        items = listOf<@Composable (Modifier) -> Unit>(
-                            { mod ->
-                                MoreActionCard(mod, "Settings", Icons.Filled.Settings, MaterialTheme.colorScheme.primary) {
-                                    navController.navigate(Screen.Settings.route)
-                                }
-                            },
-                            { mod ->
-                                MoreActionCard(mod, "Export / Import", Icons.Filled.ImportExport, MaterialTheme.colorScheme.primary) {
-                                    navController.navigate(Screen.ExportImport.route)
                                 }
                             }
                         )

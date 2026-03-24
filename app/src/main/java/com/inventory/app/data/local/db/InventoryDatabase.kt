@@ -8,6 +8,56 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.inventory.app.data.local.dao.*
 import com.inventory.app.data.local.entity.*
 
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add 5 new columns to saved_recipes (all additive with safe defaults)
+        db.execSQL("ALTER TABLE saved_recipes ADD COLUMN source TEXT NOT NULL DEFAULT 'ai'")
+        db.execSQL("ALTER TABLE saved_recipes ADD COLUMN meal_type TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE saved_recipes ADD COLUMN tags TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE saved_recipes ADD COLUMN is_draft INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE saved_recipes ADD COLUMN cover_photo_uri TEXT DEFAULT NULL")
+
+        // Create cooking_log table
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `cooking_log` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `recipe_id` INTEGER NOT NULL,
+                `cooked_date` INTEGER NOT NULL DEFAULT 0,
+                `servings` INTEGER NOT NULL DEFAULT 2,
+                `deducted_items_json` TEXT,
+                `notes` TEXT,
+                FOREIGN KEY(`recipe_id`) REFERENCES `saved_recipes`(`id`) ON DELETE CASCADE
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_cooking_log_recipe_id` ON `cooking_log` (`recipe_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_cooking_log_cooked_date` ON `cooking_log` (`cooked_date`)")
+    }
+}
+
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE shopping_list ADD COLUMN previous_purchase_date INTEGER DEFAULT NULL")
+    }
+}
+
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `smart_defaults_cache` (
+                `normalized_name` TEXT NOT NULL PRIMARY KEY,
+                `category` TEXT NOT NULL,
+                `subcategory` TEXT,
+                `unit` TEXT,
+                `location` TEXT,
+                `shelf_life_days` INTEGER,
+                `version` INTEGER NOT NULL DEFAULT 1,
+                `fetched_at` INTEGER NOT NULL DEFAULT 0,
+                `source` TEXT NOT NULL DEFAULT 'seed'
+            )
+        """.trimIndent())
+    }
+}
+
 val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `items` ADD COLUMN `is_paused` INTEGER NOT NULL DEFAULT 0")
@@ -166,9 +216,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         ShoppingListItemEntity::class,
         SettingsEntity::class,
         PantryHealthLogEntity::class,
-        SavedRecipeEntity::class
+        SavedRecipeEntity::class,
+        SmartDefaultCacheEntity::class,
+        CookingLogEntity::class
     ],
-    version = 7,
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -187,4 +239,6 @@ abstract class InventoryDatabase : RoomDatabase() {
     abstract fun settingsDao(): SettingsDao
     abstract fun pantryHealthLogDao(): PantryHealthLogDao
     abstract fun savedRecipeDao(): SavedRecipeDao
+    abstract fun smartDefaultCacheDao(): SmartDefaultCacheDao
+    abstract fun cookingLogDao(): CookingLogDao
 }

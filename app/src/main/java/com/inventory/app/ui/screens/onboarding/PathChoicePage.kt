@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.inventory.app.ui.theme.alertTitle
 import androidx.compose.ui.unit.dp
 import com.inventory.app.ui.components.RuledLinesBackground
 import com.inventory.app.ui.components.rememberAiSignInGate
@@ -238,8 +239,7 @@ private fun PathSelectionContent(
             // Prompt
             Text(
                 text = "Pick up anything from\nyour kitchen. Anything at all.",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.alertTitle,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.graphicsLayer {
@@ -484,8 +484,7 @@ internal fun AddMoreContent(
         if (count >= 3) {
             Text(
                 text = "Great start! Let's see your kitchen.",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.alertTitle,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface
             )

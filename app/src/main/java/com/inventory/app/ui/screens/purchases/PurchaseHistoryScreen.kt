@@ -13,7 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import com.inventory.app.ui.components.InkBackButton
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import com.inventory.app.ui.components.ThemedTextField
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
@@ -26,9 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import com.inventory.app.ui.components.ThemedScaffold
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,11 +37,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
+import com.inventory.app.ui.theme.statValue
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.LoadingState
 import com.inventory.app.ui.components.ThemedIcon
@@ -59,38 +58,32 @@ fun PurchaseHistoryScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showSearch by rememberSaveable { mutableStateOf(false) }
 
-    ThemedScaffold(
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text(uiState.itemName ?: "Purchase History") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                },
-                actions = {
-                    viewModel.itemId?.let { id ->
-                        IconButton(onClick = {
-                            navController.navigate(Screen.ItemDetail.createRoute(id))
-                        }) {
-                            ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add purchase")
-                        }
-                    }
-                    IconButton(onClick = { showSearch = !showSearch }) {
-                        ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search")
-                    }
+    PageScaffold(
+        onBack = { navController.popBackStack() },
+        actions = {
+            viewModel.itemId?.let { id ->
+                IconButton(onClick = {
+                    navController.navigate(Screen.ItemDetail.createRoute(id))
+                }) {
+                    ThemedIcon(materialIcon = Icons.Filled.Add, inkIconRes = R.drawable.ic_ink_add, contentDescription = "Add purchase")
                 }
-            )
+            }
+            IconButton(onClick = { showSearch = !showSearch }) {
+                ThemedIcon(materialIcon = Icons.Filled.Search, inkIconRes = R.drawable.ic_ink_search, contentDescription = "Search")
+            }
         }
-    ) { padding ->
+    ) { contentPadding ->
         if (uiState.isLoading) {
             LoadingState()
-            return@ThemedScaffold
+            return@PageScaffold
         }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(contentPadding)
         ) {
+            PageHeader(uiState.itemName ?: "Purchase History")
             // Search bar
             if (showSearch) {
                 ThemedTextField(
@@ -139,16 +132,14 @@ fun PurchaseHistoryScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "${uiState.purchaseCount}",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.statValue
                         )
                         Text("Purchases", style = MaterialTheme.typography.labelSmall)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "${uiState.currencySymbol}${String.format("%.2f", uiState.totalSpent)}",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.statValue
                         )
                         Text("Total Spent", style = MaterialTheme.typography.labelSmall)
                     }
@@ -179,7 +170,7 @@ fun PurchaseHistoryScreen(
                     }
                 }
             } else {
-                val grouped = uiState.filteredPurchases.groupBy { it.purchaseDate }
+                val grouped = remember(uiState.filteredPurchases) { uiState.filteredPurchases.groupBy { it.purchaseDate } }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),

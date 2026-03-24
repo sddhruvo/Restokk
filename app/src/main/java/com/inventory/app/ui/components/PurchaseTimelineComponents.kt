@@ -24,10 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.inventory.app.R
+import com.inventory.app.ui.theme.formSectionLabel
 import com.inventory.app.data.local.dao.PurchaseWithItemDetails
 import com.inventory.app.util.FormatUtils
 import java.time.LocalDate
@@ -59,8 +59,7 @@ internal fun TimelineDateHeader(date: LocalDate) {
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.formSectionLabel,
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -130,8 +129,7 @@ internal fun TimelinePurchaseItem(
                 ) {
                     Text(
                         text = purchase.itemName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.formSectionLabel,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -139,8 +137,7 @@ internal fun TimelinePurchaseItem(
                     purchase.totalPrice?.let { price ->
                         Text(
                             text = "${currencySymbol}${String.format(java.util.Locale.US, "%.2f", price)}",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.formSectionLabel,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }

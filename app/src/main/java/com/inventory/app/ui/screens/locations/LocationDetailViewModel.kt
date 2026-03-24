@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.dao.ItemDao
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
+import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.StorageLocationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,14 +20,16 @@ data class LocationDetailUiState(
     val temperatureZone: String? = null,
     val items: List<ItemWithDetails> = emptyList(),
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val lowStockThreshold: Float = 0.25f
 )
 
 @HiltViewModel
 class LocationDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val locationRepository: StorageLocationRepository,
-    private val itemDao: ItemDao
+    private val itemDao: ItemDao,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     val locationId: Long = savedStateHandle["locationId"] ?: 0L
@@ -34,6 +37,10 @@ class LocationDetailViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            val threshold = (settingsRepository.getString(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25").toDoubleOrNull() ?: 25.0) / 100.0
+            _uiState.update { it.copy(lowStockThreshold = threshold.toFloat()) }
+        }
         if (locationId == 0L) {
             _uiState.update { it.copy(isLoading = false, error = "Location not found") }
         } else {

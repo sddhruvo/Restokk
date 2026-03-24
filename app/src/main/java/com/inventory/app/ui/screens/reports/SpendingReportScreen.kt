@@ -26,11 +26,11 @@ import com.inventory.app.ui.components.ThemedFilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import com.inventory.app.ui.components.ThemedScaffold
+import com.inventory.app.ui.components.PageScaffold
+import com.inventory.app.ui.components.PageHeader
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import com.inventory.app.ui.components.ThemedTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,7 +50,6 @@ import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.drawInkHatchedBar
 import com.inventory.app.ui.theme.ProgressStyle
 import com.inventory.app.ui.theme.visuals
-import com.inventory.app.ui.components.InkBackButton
 import com.inventory.app.ui.components.ChartEntry
 import com.inventory.app.ui.components.DailyChartEntry
 import com.inventory.app.ui.components.HorizontalBarChart
@@ -59,6 +58,7 @@ import com.inventory.app.ui.components.TimelineDateHeader
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.TimelinePurchaseItem
 import com.inventory.app.ui.navigation.Screen
+import com.inventory.app.ui.theme.sectionHeader
 import java.time.LocalDate
 import com.inventory.app.util.FormatUtils
 
@@ -78,17 +78,10 @@ fun SpendingReportScreen(
         }
     }
 
-    ThemedScaffold(
-        snackbarHost = { ThemedSnackbarHost(snackbarHostState) },
-        topBar = {
-            ThemedTopAppBar(
-                title = { Text("Spending Report") },
-                navigationIcon = {
-                    InkBackButton(onClick = { navController.popBackStack() })
-                }
-            )
-        }
-    ) { padding ->
+    PageScaffold(
+        onBack = { navController.popBackStack() },
+        snackbarHost = { ThemedSnackbarHost(snackbarHostState) }
+    ) { contentPadding ->
         val purchasesGrouped = remember(uiState.allPurchasesForPeriod) {
             uiState.allPurchasesForPeriod.groupBy { it.purchaseDate }
         }
@@ -96,10 +89,11 @@ fun SpendingReportScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(horizontal = 16.dp),
+            contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { PageHeader("Spending Report") }
             // 1. Period chips
             item {
                 Row(
@@ -148,8 +142,7 @@ fun SpendingReportScreen(
                 item {
                     Text(
                         "Period Comparison",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.sectionHeader
                     )
                 }
                 item {
@@ -184,8 +177,7 @@ fun SpendingReportScreen(
                 item {
                     Text(
                         "Spending Trend",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.sectionHeader
                     )
                 }
                 item {
@@ -210,8 +202,7 @@ fun SpendingReportScreen(
                 item {
                     Text(
                         "By Category",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.sectionHeader
                     )
                 }
                 item {
@@ -232,8 +223,7 @@ fun SpendingReportScreen(
                 item {
                     Text(
                         "By Store",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.sectionHeader
                     )
                 }
                 item {
@@ -254,8 +244,7 @@ fun SpendingReportScreen(
                 item {
                     Text(
                         "Most Bought",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.sectionHeader
                     )
                 }
                 item {
@@ -291,8 +280,7 @@ fun SpendingReportScreen(
                                     Spacer(Modifier.width(12.dp))
                                     Text(
                                         item.itemName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.labelLarge,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f)
@@ -322,8 +310,7 @@ fun SpendingReportScreen(
                 item {
                     Text(
                         "Purchases",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.sectionHeader
                     )
                 }
 
@@ -398,11 +385,10 @@ private fun SummaryStatCard(
             )
             Text(
                 value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.sectionHeader
             )
             if (changePercent != null) {
-                val isNegative = changePercent <= 0
+                val isNegative = changePercent < 0
                 val changeText = "${if (changePercent >= 0) "+" else ""}${String.format("%.1f", changePercent)}%"
                 Surface(
                     shape = MaterialTheme.shapes.extraSmall,

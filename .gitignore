@@ -74,8 +74,16 @@ CLAUDE.md
 brainstorming.md
 Onboarding.md
 play-store-listing.md
-pre-launch-audit.md
-pre-launch-audit-2.md
+pre-launch-audit*.md
+MONETIZATION_PLAN.md
+PRODUCT_MATCHER_PLAN.md
+SMART_DEFAULTS_V2_PLAN.md
+receipt-scan-audit.md
+theme-color-audit.md
+my_cooking_planning.md
+bugreport-2.md
+ink-theme-bugs.md
+animation/
 
 # Play Store internal docs (session notes, listing drafts)
 play-store/

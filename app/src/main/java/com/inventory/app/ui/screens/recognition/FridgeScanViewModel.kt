@@ -18,7 +18,9 @@ import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.data.repository.ShoppingListRepository
 import com.inventory.app.data.repository.StorageLocationRepository
 import com.inventory.app.data.repository.UnitRepository
-import com.inventory.app.domain.model.SmartDefaults
+import com.inventory.app.data.repository.SmartDefaultRepository
+import com.inventory.app.domain.model.DefaultHints
+import com.inventory.app.domain.model.SuggestedAction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -152,7 +154,8 @@ class FridgeScanViewModel @Inject constructor(
     private val unitRepository: UnitRepository,
     private val settingsRepository: SettingsRepository,
     private val shoppingListRepository: ShoppingListRepository,
-    private val purchaseHistoryDao: PurchaseHistoryDao
+    private val purchaseHistoryDao: PurchaseHistoryDao,
+    private val smartDefaultRepository: SmartDefaultRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FridgeScanUiState())
@@ -307,40 +310,48 @@ class FridgeScanViewModel @Inject constructor(
             String.format(Locale.US, "%.1f", item.quantity)
         }
 
-        val defaults = SmartDefaults.lookup(item.name)
+        // Resolve via 5-layer cascade with AI suggestions + area location as hints
+        val regionCode = settingsRepository.getRegionCode()
+        val resolved = smartDefaultRepository.resolve(
+            itemName = item.name,
+            regionCode = regionCode,
+            hints = DefaultHints(
+                categoryName = item.category,
+                unitAbbreviation = item.unit,
+                locationId = resolvedLocationId,  // Area-based location from user's kitchen area selection
+                shelfLifeDays = item.estimatedExpiryDays
+            )
+        ).local
+        val resolvedUnit = resolved.unitAbbreviation ?: "pcs"
+        val resolvedCategory = resolved.categoryName ?: ""
 
-        // Unit: AI → SmartDefaults fallback
-        val resolvedUnit = if (!item.unit.isNullOrBlank()) {
-            item.unit
-        } else {
-            defaults?.unit ?: "pcs"
+        // Check for inventory match using ProductMatcher
+        val matchResult = try {
+            itemRepository.findMatchingItems(item.name)
+        } catch (_: Exception) { null }
+
+        val candidates = matchResult?.matches?.map { match ->
+            val entity = try { itemRepository.getById(match.itemId) } catch (_: Exception) { null }
+            val unitAbbr = entity?.unitId?.let { uid -> allUnits.find { u -> u.id == uid }?.abbreviation }
+            FridgeMatchCandidate(
+                id = match.itemId,
+                name = match.itemName,
+                currentQuantity = entity?.quantity ?: 0.0,
+                unitId = entity?.unitId,
+                unitAbbreviation = unitAbbr
+            )
+        } ?: emptyList()
+
+        val effectiveMatchType = when (matchResult?.suggestedAction) {
+            SuggestedAction.UPDATE_EXISTING -> FridgeMatchType.UPDATE_EXISTING
+            else -> FridgeMatchType.CREATE_NEW
         }
+        val effectiveMatchId = if (effectiveMatchType == FridgeMatchType.UPDATE_EXISTING) {
+            candidates.firstOrNull()?.id
+        } else null
 
-        // Category: AI → SmartDefaults fallback
-        val resolvedCategory = run {
-            val aiCat = item.category
-            if (!aiCat.isNullOrBlank()) {
-                val match = allCategories.find { it.name.equals(aiCat, ignoreCase = true) }
-                if (match != null) return@run match.name
-            }
-            val defaultCat = defaults?.category
-            if (!defaultCat.isNullOrBlank()) {
-                val match = allCategories.find { it.name.equals(defaultCat, ignoreCase = true) }
-                if (match != null) return@run match.name
-            }
-            ""
-        }
-
-        // Check for inventory match
-        val matchedEntity = itemRepository.findByName(item.name)
-        val candidate = matchedEntity?.let {
-            val unitAbbr = it.unitId?.let { uid -> allUnits.find { u -> u.id == uid }?.abbreviation }
-            FridgeMatchCandidate(it.id, it.name, it.quantity, it.unitId, unitAbbr)
-        }
-
-        // Expiry date: AI estimate → SmartDefaults fallback
-        val expiryDays = item.estimatedExpiryDays ?: defaults?.shelfLifeDays
-        val expiryDate = expiryDays?.let { LocalDate.now().plusDays(it.toLong()) }
+        // Expiry date: already resolved via cascade (AI hint → static dict → cache)
+        val expiryDate = resolved.shelfLifeDays?.let { LocalDate.now().plusDays(it.toLong()) }
 
         // Cross-area dedup: check if this item was already found in another area
         val previousItems = _uiState.value.allScannedItemNames
@@ -354,12 +365,12 @@ class FridgeScanViewModel @Inject constructor(
             unit = resolvedUnit,
             categoryName = resolvedCategory,
             confidence = item.confidence,
-            matchType = if (candidate != null) FridgeMatchType.UPDATE_EXISTING else FridgeMatchType.CREATE_NEW,
-            matchedInventoryItemId = candidate?.id,
-            inventoryCandidates = if (candidate != null) listOf(candidate) else emptyList(),
+            matchType = effectiveMatchType,
+            matchedInventoryItemId = effectiveMatchId,
+            inventoryCandidates = candidates,
             expiryDate = expiryDate,
             isAiEstimatedExpiry = expiryDate != null,
-            storageLocationId = resolvedLocationId,
+            storageLocationId = resolved.locationId,
             dupWarning = dupArea?.let { "Also found in $it" }
         )
     }
@@ -435,24 +446,33 @@ class FridgeScanViewModel @Inject constructor(
         if (index !in currentState.items.indices) return
 
         val currentItem = currentState.items[index]
-        val matchedEntity = itemRepository.findByName(name)
+        val matchResult = try {
+            itemRepository.findMatchingItems(name)
+        } catch (_: Exception) { null }
 
-        if (matchedEntity != null) {
+        if (matchResult != null && matchResult.matches.isNotEmpty()) {
             val allUnits = try { unitRepository.getAllActive().first() } catch (_: Exception) { emptyList<UnitEntity>() }
-            val unitAbbr = matchedEntity.unitId?.let { uid -> allUnits.find { it.id == uid }?.abbreviation }
-            val candidate = FridgeMatchCandidate(
-                id = matchedEntity.id,
-                name = matchedEntity.name,
-                currentQuantity = matchedEntity.quantity,
-                unitId = matchedEntity.unitId,
-                unitAbbreviation = unitAbbr
-            )
+            val candidates = matchResult.matches.map { match ->
+                val entity = try { itemRepository.getById(match.itemId) } catch (_: Exception) { null }
+                val unitAbbr = entity?.unitId?.let { uid -> allUnits.find { it.id == uid }?.abbreviation }
+                FridgeMatchCandidate(
+                    id = match.itemId,
+                    name = match.itemName,
+                    currentQuantity = entity?.quantity ?: 0.0,
+                    unitId = entity?.unitId,
+                    unitAbbreviation = unitAbbr
+                )
+            }
+            val matchType = when (matchResult.suggestedAction) {
+                SuggestedAction.UPDATE_EXISTING -> FridgeMatchType.UPDATE_EXISTING
+                else -> FridgeMatchType.CREATE_NEW
+            }
             val updated = (_uiState.value.state as? FridgeScanState.Review)?.items?.toMutableList() ?: return
             if (index !in updated.indices) return
             updated[index] = updated[index].copy(
-                matchType = FridgeMatchType.UPDATE_EXISTING,
-                matchedInventoryItemId = matchedEntity.id,
-                inventoryCandidates = listOf(candidate)
+                matchType = matchType,
+                matchedInventoryItemId = if (matchType == FridgeMatchType.UPDATE_EXISTING) candidates.firstOrNull()?.id else null,
+                inventoryCandidates = candidates
             )
             _uiState.update { it.copy(state = FridgeScanState.Review(updated)) }
         } else if (currentItem.matchType == FridgeMatchType.UPDATE_EXISTING) {
@@ -562,21 +582,20 @@ class FridgeScanViewModel @Inject constructor(
                         )
                     }
                     FridgeMatchType.CREATE_NEW -> {
-                        val defaults = SmartDefaults.lookup(item.name)
-                        val categoryId = if (item.categoryName.isNotBlank()) {
-                            categoryRepository.findCategoryByNameIgnoreCase(item.categoryName)?.id
-                        } else {
-                            defaults?.category?.let { categoryRepository.findCategoryByName(it)?.id }
-                        }
-                        val unitId = if (item.unit.isNotBlank()) {
-                            unitRepository.findByAbbreviation(item.unit)?.id
-                                ?: unitRepository.findByName(item.unit)?.id
-                        } else {
-                            defaults?.unit?.let { unitRepository.findByAbbreviation(it)?.id }
-                        }
-                        // Area-based location takes priority, then SmartDefaults fallback
-                        val locationId = item.storageLocationId
-                            ?: defaults?.location?.let { storageLocationRepository.findByName(it)?.id }
+                        // Resolve via 5-layer cascade with review-phase values as hints
+                        val regionCode = settingsRepository.getRegionCode()
+                        val resolved = smartDefaultRepository.resolve(
+                            itemName = item.name,
+                            regionCode = regionCode,
+                            hints = DefaultHints(
+                                categoryName = item.categoryName.ifBlank { null },
+                                unitAbbreviation = item.unit.ifBlank { null },
+                                locationId = item.storageLocationId
+                            )
+                        ).local
+                        val categoryId = resolved.categoryId
+                        val unitId = resolved.unitId
+                        val locationId = resolved.locationId
 
                         val entity = ItemEntity(
                             name = item.name,

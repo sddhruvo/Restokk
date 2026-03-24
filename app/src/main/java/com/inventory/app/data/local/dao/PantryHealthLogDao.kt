@@ -21,4 +21,7 @@ interface PantryHealthLogDao {
 
     @Query("SELECT * FROM pantry_health_log ORDER BY date DESC LIMIT 1")
     suspend fun getLatest(): PantryHealthLogEntity?
+
+    @Query("SELECT * FROM pantry_health_log WHERE date < :todayEpoch ORDER BY date DESC LIMIT 1")
+    suspend fun getPreviousSnapshot(todayEpoch: Long): PantryHealthLogEntity?
 }

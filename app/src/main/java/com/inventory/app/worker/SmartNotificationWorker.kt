@@ -22,6 +22,8 @@ import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.domain.model.PurchaseDataPoint
 import com.inventory.app.domain.model.PurchaseRhythmCalculator
+import com.inventory.app.domain.model.UrgencyScorer
+import com.inventory.app.domain.model.UrgencyTarget
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -60,24 +62,56 @@ class SmartNotificationWorker @AssistedInject constructor(
         val sentThisWeek = settingsRepository.getNotificationCountThisWeek()
         if (sentThisWeek >= MAX_NOTIFICATIONS_PER_WEEK) return Result.success()
 
-        // Try each notification type in priority order (only send one per run)
+        // Compute urgency to decide which notification to try first
         val expiryEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_EXPIRY_ENABLED, true)
-        if (expiryEnabled && tryExpiryNotification()) {
-            settingsRepository.recordNotificationSent()
-            return Result.success()
-        }
-
         val restockEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_RESTOCK_ENABLED, true)
-        if (restockEnabled && tryRestockNotification()) {
+        val shoppingEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_SHOPPING_ENABLED, true)
+
+        val warningDays = settingsRepository.getExpiryWarningDays()
+        val expiringItems = itemRepository.getExpiringSoon(warningDays, limit = 10).first()
+        val today = LocalDate.now()
+        val todayEpoch = today.toEpochDay()
+        val twoDayEpoch = today.plusDays(2).toEpochDay()
+        val fiveDayEpoch = today.plusDays(5).toEpochDay()
+        val sevenDayEpoch = today.plusDays(7).toEpochDay()
+
+        val expiringToday = expiringItems.count { it.item.expiryDate?.toEpochDay()?.let { e -> e <= todayEpoch } == true }
+        val expiring1to2 = expiringItems.count { it.item.expiryDate?.toEpochDay()?.let { e -> e > todayEpoch && e <= twoDayEpoch } == true }
+        val expiring3to5 = expiringItems.count { it.item.expiryDate?.toEpochDay()?.let { e -> e > twoDayEpoch && e <= fiveDayEpoch } == true }
+        val expiring6to7 = expiringItems.count { it.item.expiryDate?.toEpochDay()?.let { e -> e > fiveDayEpoch && e <= sevenDayEpoch } == true }
+
+        val activeCount = shoppingListDao.getActiveCount().first()
+        val lowStockRatio = (settingsRepository.getString(SettingsRepository.KEY_LOW_STOCK_THRESHOLD, "25").toDoubleOrNull() ?: 25.0) / 100.0
+        val lowStockCount = itemRepository.getLowStockCount(lowStockRatio).first()
+        val totalItems = itemRepository.getTotalItemCount().first()
+
+        val urgency = UrgencyScorer.computeFromCounts(
+            expiringTodayCount = expiringToday,
+            expiring1to2DaysCount = expiring1to2,
+            expiring3to5DaysCount = expiring3to5,
+            expiring6to7DaysCount = expiring6to7,
+            lowStockCount = lowStockCount,
+            shoppingActiveCount = activeCount,
+            totalItems = totalItems
+        )
+
+        // Try urgency-winner first, then fall back to cascade
+        val sent = when (urgency.target) {
+            UrgencyTarget.EXPIRING -> expiryEnabled && tryExpiryNotification()
+            UrgencyTarget.LOW_STOCK -> restockEnabled && tryRestockNotification()
+            UrgencyTarget.SHOPPING -> shoppingEnabled && tryShoppingReminder()
+            else -> false
+        }
+
+        if (sent) {
             settingsRepository.recordNotificationSent()
             return Result.success()
         }
 
-        val shoppingEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_SHOPPING_ENABLED, true)
-        if (shoppingEnabled && tryShoppingReminder()) {
-            settingsRepository.recordNotificationSent()
-            return Result.success()
-        }
+        // Fallback cascade if primary target's channel was disabled or had no data
+        if (expiryEnabled && tryExpiryNotification()) { settingsRepository.recordNotificationSent(); return Result.success() }
+        if (restockEnabled && tryRestockNotification()) { settingsRepository.recordNotificationSent(); return Result.success() }
+        if (shoppingEnabled && tryShoppingReminder()) { settingsRepository.recordNotificationSent(); return Result.success() }
 
         return Result.success()
     }

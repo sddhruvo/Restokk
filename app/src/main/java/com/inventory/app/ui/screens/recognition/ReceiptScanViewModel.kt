@@ -17,7 +17,12 @@ import com.inventory.app.data.repository.ShoppingListRepository
 import com.inventory.app.data.repository.StorageLocationRepository
 import com.inventory.app.data.local.entity.UnitEntity
 import com.inventory.app.data.repository.UnitRepository
-import com.inventory.app.domain.model.SmartDefaults
+import com.inventory.app.data.repository.SmartDefaultRepository
+import com.inventory.app.domain.model.DefaultHints
+import com.inventory.app.domain.model.ProductMatcher
+import com.inventory.app.domain.model.SuggestedAction
+import com.inventory.app.util.ItemNameNormalizer
+import com.inventory.app.util.NonFoodCategories
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,7 +63,15 @@ data class EditableReceiptItem(
     val isAiEstimatedExpiry: Boolean = false,
     val barcode: String = "",
     val isReviewed: Boolean = false,
-    val unitConflict: String? = null // e.g. "Inventory uses kg" when receipt says pcs
+    val unitConflict: String? = null, // e.g. "Inventory uses kg" when receipt says pcs
+    val locationName: String = "",
+    // Resolved IDs from first SmartDefaults resolve — used at save time to avoid double-resolve mismatch
+    val resolvedCategoryId: Long? = null,
+    val resolvedUnitId: Long? = null,
+    val resolvedLocationId: Long? = null,
+    val mergedCount: Int = 1, // How many AI receipt lines were merged into this item
+    val shoppingQuantity: Double? = null, // Quantity from shopping list for mismatch warning
+    val isNonFood: Boolean = false
 )
 
 sealed class ReceiptScanState {
@@ -68,8 +81,12 @@ sealed class ReceiptScanState {
     data object ParsingWithAI : ReceiptScanState()
     data class Review(val items: List<EditableReceiptItem>) : ReceiptScanState()
     data class Saving(val current: Int, val total: Int) : ReceiptScanState()
-    data class Success(val count: Int) : ReceiptScanState()
+    data class Success(val count: Int, val failedItems: List<String> = emptyList()) : ReceiptScanState()
     data class Error(val message: String) : ReceiptScanState()
+}
+
+enum class ProcessingPhase {
+    IDLE, COMPRESSING, SENDING_TO_AI, WAITING_FOR_RESPONSE, BUILDING_REVIEW, DONE
 }
 
 data class ReceiptScanUiState(
@@ -77,7 +94,14 @@ data class ReceiptScanUiState(
     val capturedBitmap: Bitmap? = null,
     val currencySymbol: String = "",
     val units: List<UnitEntity> = emptyList(),
-    val categories: List<CategoryEntity> = emptyList()
+    val categories: List<CategoryEntity> = emptyList(),
+    val locations: List<com.inventory.app.data.local.entity.StorageLocationEntity> = emptyList(),
+    val storeName: String? = null,
+    val purchaseDate: LocalDate? = null,
+    val receiptTotal: Double? = null,
+    val processingPhase: ProcessingPhase = ProcessingPhase.IDLE,
+    val previousPageItems: List<EditableReceiptItem> = emptyList(),
+    val pageCount: Int = 1
 )
 
 @HiltViewModel
@@ -89,13 +113,15 @@ class ReceiptScanViewModel @Inject constructor(
     private val unitRepository: UnitRepository,
     private val purchaseRepository: PurchaseRepository,
     private val settingsRepository: SettingsRepository,
-    private val shoppingListRepository: ShoppingListRepository
+    private val shoppingListRepository: ShoppingListRepository,
+    private val smartDefaultRepository: SmartDefaultRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReceiptScanUiState())
     val uiState = _uiState.asStateFlow()
 
     private var nameMatchJob: Job? = null
+    private var processingJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -112,32 +138,47 @@ class ReceiptScanViewModel @Inject constructor(
                 _uiState.update { it.copy(categories = categories) }
             }
         }
+        viewModelScope.launch {
+            storageLocationRepository.getAllActive().collect { locations ->
+                _uiState.update { it.copy(locations = locations) }
+            }
+        }
     }
 
     fun onImageCaptured(bitmap: Bitmap) {
         _uiState.value.capturedBitmap?.recycle()
-        _uiState.update { it.copy(state = ReceiptScanState.ParsingWithAI, capturedBitmap = bitmap) }
-        viewModelScope.launch {
+        _uiState.update { it.copy(state = ReceiptScanState.ParsingWithAI, capturedBitmap = bitmap, processingPhase = ProcessingPhase.COMPRESSING) }
+        processingJob = viewModelScope.launch {
             // Step 1: Compress and base64-encode the image
             val imageBase64 = compressAndEncode(bitmap, grokRepository.getImageConfig())
             if (imageBase64 == null) {
+                bitmap.recycle()
                 _uiState.update {
-                    it.copy(state = ReceiptScanState.Error("Failed to process the image. Please try again."))
+                    it.copy(
+                        state = ReceiptScanState.Error("Failed to process the image. Please try again."),
+                        processingPhase = ProcessingPhase.IDLE,
+                        capturedBitmap = null
+                    )
                 }
                 return@launch
             }
 
             // Step 2: Get active shopping list for matching (small payload)
-            val shoppingItems = try {
-                shoppingListRepository.getActiveItems().first().map { detail ->
-                    val name = detail.item?.name ?: detail.shoppingItem.customName ?: ""
-                    GrokRepository.ShoppingListContext(
-                        id = detail.shoppingItem.id,
-                        name = name
-                    )
-                }.filter { it.name.isNotBlank() }
+            val shoppingDetails = try {
+                shoppingListRepository.getActiveItems().first()
             } catch (_: Exception) {
                 emptyList()
+            }
+            val shoppingItems = shoppingDetails.map { detail ->
+                val name = detail.item?.name ?: detail.shoppingItem.customName ?: ""
+                GrokRepository.ShoppingListContext(
+                    id = detail.shoppingItem.id,
+                    name = name
+                )
+            }.filter { it.name.isNotBlank() }
+            // Build qty map for reconciliation warning (shopping list qty vs receipt qty)
+            val shoppingQtyMap: Map<Long, Double> = shoppingDetails.associate {
+                it.shoppingItem.id to it.shoppingItem.quantity
             }
 
             // Step 3: Get existing inventory names for AI matching
@@ -157,16 +198,54 @@ class ReceiptScanViewModel @Inject constructor(
             }
 
             // Step 5: Send image directly to Vision model — AI sees receipt + knows inventory + categories
+            _uiState.update { it.copy(processingPhase = ProcessingPhase.SENDING_TO_AI) }
             grokRepository.parseReceiptImage(imageBase64, shoppingItems, inventoryItems, categoryNames).fold(
-                onSuccess = { items ->
+                onSuccess = { result ->
+                    _uiState.update { it.copy(processingPhase = ProcessingPhase.WAITING_FOR_RESPONSE) }
+                    // Parse and build review list from AI response
+                    _uiState.update { it.copy(processingPhase = ProcessingPhase.BUILDING_REVIEW) }
+                    // Parse receipt-level metadata
+                    val receiptDate = result.purchaseDate?.let {
+                        try { LocalDate.parse(it) } catch (_: Exception) { null }
+                    }
+
                     // Fix Gson default: missing quantity field deserializes as 0.0 instead of 1.0
-                    val fixedItems = items.map { if (it.quantity == 0.0) it.copy(quantity = 1.0) else it }
+                    val fixedItems = result.items.map { if (it.quantity == 0.0) it.copy(quantity = 1.0) else it }
+
+                    // Filter out discount/refund lines the AI didn't merge into parent items
+                    val filteredItems = fixedItems.filter { item ->
+                        if (item.name.isBlank()) return@filter false
+                        val lowerName = item.name.lowercase()
+                        val isDiscount = listOf("saving", "discount", "off", "deal", "coupon", "refund", "promotion", "reward")
+                            .any { keyword -> lowerName.contains(keyword) }
+                        val hasNegativeOrZeroPrice = (item.price ?: 0.0) <= 0.0
+                        !(isDiscount && hasNegativeOrZeroPrice)
+                    }
+
+                    // Deduplicate: merge items with same normalized name + unit
+                    val deduped = filteredItems
+                        .groupBy { ItemNameNormalizer.normalize(it.name) + "|" + ItemNameNormalizer.normalizeUnit(it.unit) }
+                        .flatMap { (_, group) ->
+                            if (group.size <= 1) group.map { it to 1 }
+                            else {
+                                val merged = group.first().copy(
+                                    name = group.maxByOrNull { it.name.length }?.name ?: group.first().name,
+                                    quantity = group.sumOf { it.quantity },
+                                    price = if (group.any { it.price != null }) group.sumOf { it.price ?: 0.0 }.takeIf { it > 0 } else null,
+                                    matchedShoppingId = group.firstNotNullOfOrNull { it.matchedShoppingId },
+                                    matchedInventoryId = group.firstNotNullOfOrNull { it.matchedInventoryId }
+                                )
+                                listOf(merged to group.size)
+                            }
+                        }
+
                     // Build review list using AI-returned matches
                     // Pre-load all units for conflict detection
                     val allUnits = try { unitRepository.getAllActive().first() } catch (_: Exception) { emptyList() }
                     val allCategories = _uiState.value.categories
+                    val regionCode = settingsRepository.getRegionCode()
 
-                    val editable = fixedItems.map { item ->
+                    val editable = deduped.map { (item, mergedCount) ->
                         val qtyStr = if (item.quantity == item.quantity.toLong().toDouble()) {
                             item.quantity.toLong().toString()
                         } else {
@@ -184,31 +263,38 @@ class ReceiptScanViewModel @Inject constructor(
                             } else null
                         }
 
-                        // Unit: AI → SmartDefaults fallback
-                        val defaults = SmartDefaults.lookup(item.name)
-                        val receiptUnit = item.unit ?: ""
-                        val resolvedUnit = if (receiptUnit.isNotBlank()) {
-                            receiptUnit
-                        } else {
-                            defaults?.unit ?: ""
-                        }
+                        // If AI didn't match, fall back to ProductMatcher local matching
+                        val localMatchResult = if (aiMatchedItem == null && item.name.isNotBlank()) {
+                            try { itemRepository.findMatchingItems(item.name) } catch (_: Exception) { null }
+                        } else null
+                        val localCandidates = localMatchResult?.matches?.map { match ->
+                            val entity = itemRepository.getById(match.itemId)
+                            val unitAbbr = entity?.unitId?.let { uid ->
+                                allUnits.find { it.id == uid }?.abbreviation
+                            }
+                            ReceiptMatchCandidate(
+                                id = match.itemId,
+                                name = match.itemName,
+                                currentQuantity = entity?.quantity ?: 0.0,
+                                unitId = entity?.unitId,
+                                unitAbbreviation = unitAbbr
+                            )
+                        } ?: emptyList()
+                        val localBestAction = localMatchResult?.suggestedAction
 
-                        // Category: AI suggestion → SmartDefaults fallback
-                        val resolvedCategory = run {
-                            // 1. Try AI-suggested category (case-insensitive match against DB)
-                            val aiCat = item.category
-                            if (!aiCat.isNullOrBlank()) {
-                                val match = allCategories.find { it.name.equals(aiCat, ignoreCase = true) }
-                                if (match != null) return@run match.name
-                            }
-                            // 2. Fall back to SmartDefaults
-                            val defaultCat = defaults?.category
-                            if (!defaultCat.isNullOrBlank()) {
-                                val match = allCategories.find { it.name.equals(defaultCat, ignoreCase = true) }
-                                if (match != null) return@run match.name
-                            }
-                            "" // uncategorized
-                        }
+                        // Resolve via 5-layer cascade with AI suggestions as hints
+                        val resolved = smartDefaultRepository.resolve(
+                            itemName = item.name,
+                            regionCode = regionCode,
+                            hints = DefaultHints(
+                                categoryName = item.category,
+                                unitAbbreviation = item.unit,
+                                shelfLifeDays = item.estimatedExpiryDays
+                            )
+                        ).local
+                        val resolvedUnit = resolved.unitAbbreviation ?: ""
+                        val resolvedCategory = resolved.categoryName ?: ""
+                        val resolvedLocation = resolved.locationName ?: ""
 
                         // Detect unit conflict with matched inventory item
                         val unitConflict = when {
@@ -222,10 +308,26 @@ class ReceiptScanViewModel @Inject constructor(
                             else -> null
                         }
 
-                        // Expiry date: AI estimate → SmartDefaults fallback → null
-                        val expiryDays = item.estimatedExpiryDays
-                            ?: defaults?.shelfLifeDays
-                        val expiryDate = expiryDays?.let { LocalDate.now().plusDays(it.toLong()) }
+                        // Expiry date: already resolved via cascade (AI hint → static dict → cache)
+                        // Guard: must be 1–1095 days (3 years); outside range → no expiry
+                        val expiryDate = resolved.shelfLifeDays?.takeIf { it in 1..1095 }?.let { LocalDate.now().plusDays(it.toLong()) }
+
+                        // Determine match type and candidates from AI match or local ProductMatcher
+                        val effectiveMatchType = when {
+                            aiMatchedItem != null -> ReceiptMatchType.UPDATE_EXISTING
+                            localBestAction == SuggestedAction.UPDATE_EXISTING -> ReceiptMatchType.UPDATE_EXISTING
+                            else -> ReceiptMatchType.CREATE_NEW
+                        }
+                        val effectiveCandidates = when {
+                            aiMatchedItem != null -> listOf(aiMatchedItem)
+                            localCandidates.isNotEmpty() -> localCandidates
+                            else -> emptyList()
+                        }
+                        val effectiveMatchId = when {
+                            aiMatchedItem != null -> aiMatchedItem.id
+                            localBestAction == SuggestedAction.UPDATE_EXISTING -> localCandidates.firstOrNull()?.id
+                            else -> null
+                        }
 
                         EditableReceiptItem(
                             name = item.name,
@@ -233,22 +335,60 @@ class ReceiptScanViewModel @Inject constructor(
                             price = item.price?.let { String.format("%.2f", it) } ?: "",
                             unit = resolvedUnit,
                             categoryName = resolvedCategory,
-                            matchType = if (aiMatchedItem != null) ReceiptMatchType.UPDATE_EXISTING else ReceiptMatchType.CREATE_NEW,
-                            matchedInventoryItemId = aiMatchedItem?.id,
+                            matchType = effectiveMatchType,
+                            matchedInventoryItemId = effectiveMatchId,
                             matchedShoppingId = item.matchedShoppingId,
-                            inventoryCandidates = if (aiMatchedItem != null) listOf(aiMatchedItem) else emptyList(),
+                            inventoryCandidates = effectiveCandidates,
                             expiryDate = expiryDate,
                             isAiEstimatedExpiry = expiryDate != null,
-                            unitConflict = unitConflict
+                            unitConflict = unitConflict,
+                            locationName = resolvedLocation,
+                            resolvedCategoryId = resolved.categoryId,
+                            resolvedUnitId = resolved.unitId,
+                            resolvedLocationId = resolved.locationId,
+                            mergedCount = mergedCount,
+                            shoppingQuantity = item.matchedShoppingId?.let { shoppingQtyMap[it] },
+                            isNonFood = item.isNonFood || NonFoodCategories.isNonFood(resolvedCategory)
                         )
                     }
-                    _uiState.update { it.copy(state = ReceiptScanState.Review(editable)) }
+
+                    // Ensure each shopping list item is matched at most once (first match wins)
+                    val usedShoppingIds = mutableSetOf<Long>()
+                    val dedupedEditable = editable.map { item ->
+                        val shoppingId = item.matchedShoppingId
+                        if (shoppingId != null && !usedShoppingIds.add(shoppingId)) {
+                            item.copy(matchedShoppingId = null, shoppingQuantity = null)
+                        } else item
+                    }
+
+                    // Merge with items from previous pages (cross-page dedup)
+                    val previousItems = _uiState.value.previousPageItems
+                    val mergedItems = if (previousItems.isNotEmpty()) {
+                        mergeWithPreviousPages(previousItems, dedupedEditable)
+                    } else {
+                        dedupedEditable
+                    }
+
+                    val isSubsequentPage = previousItems.isNotEmpty()
+                    _uiState.update { it.copy(
+                        state = ReceiptScanState.Review(mergedItems),
+                        storeName = if (isSubsequentPage) it.storeName ?: result.storeName else result.storeName,
+                        purchaseDate = if (isSubsequentPage) it.purchaseDate else (receiptDate ?: LocalDate.now()),
+                        receiptTotal = result.receiptTotal ?: it.receiptTotal,
+                        processingPhase = ProcessingPhase.DONE,
+                        previousPageItems = emptyList()
+                    ) }
                 },
                 onFailure = { error ->
+                    _uiState.value.capturedBitmap?.recycle()
                     _uiState.update {
-                        it.copy(state = ReceiptScanState.Error(
-                            error.message ?: "Failed to parse receipt"
-                        ))
+                        it.copy(
+                            state = ReceiptScanState.Error(
+                                error.message ?: "Failed to parse receipt"
+                            ),
+                            processingPhase = ProcessingPhase.IDLE,
+                            capturedBitmap = null
+                        )
                     }
                 }
             )
@@ -301,174 +441,185 @@ class ReceiptScanViewModel @Inject constructor(
         }
     }
 
+    // ── Atomic review item helper ────────────────────────────────────
+    // All review-item mutations go through this to avoid race conditions
+    // between concurrent coroutines (e.g. category resolve vs unit resolve).
+    // MutableStateFlow.update uses CAS internally, so the transform always
+    // reads the latest state and retries on conflict.
+
+    private inline fun updateReviewItem(
+        index: Int,
+        transform: (EditableReceiptItem) -> EditableReceiptItem
+    ) {
+        _uiState.update { current ->
+            val review = current.state as? ReceiptScanState.Review ?: return@update current
+            if (index !in review.items.indices) return@update current
+            val updated = review.items.toMutableList()
+            updated[index] = transform(updated[index])
+            current.copy(state = ReceiptScanState.Review(updated))
+        }
+    }
+
     // ── Review screen actions ─────────────────────────────────────────
 
     fun updateItemName(index: Int, name: String) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(name = name)
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
+        updateReviewItem(index) { it.copy(name = name) }
 
-            // Debounced re-match against inventory
-            nameMatchJob?.cancel()
-            nameMatchJob = viewModelScope.launch {
-                delay(300)
-                reMatchItem(index, name)
-            }
+        // Debounced re-match against inventory
+        nameMatchJob?.cancel()
+        nameMatchJob = viewModelScope.launch {
+            delay(300)
+            reMatchItem(index, name)
         }
     }
 
     private suspend fun reMatchItem(index: Int, name: String) {
         if (name.isBlank()) return
 
-        // Re-read current state (may have changed during delay)
-        val currentState = _uiState.value.state
-        if (currentState !is ReceiptScanState.Review) return
-        if (index !in currentState.items.indices) return
-
-        val currentItem = currentState.items[index]
-
-        val matchedEntity = try {
-            itemRepository.findByName(name)
+        val matchResult = try {
+            itemRepository.findMatchingItems(name)
         } catch (e: Exception) {
-            Log.w("ReceiptScan", "Failed to find item by name: ${e.message}")
+            Log.w("ReceiptScan", "Failed to match item: ${e.message}")
             null
         }
-        if (matchedEntity != null) {
-            // Found a match — look up unit abbreviation
+
+        if (matchResult != null && matchResult.matches.isNotEmpty()) {
             val allUnits = try { unitRepository.getAllActive().first() } catch (_: Exception) { emptyList<UnitEntity>() }
-            val unitAbbr = matchedEntity.unitId?.let { uid ->
-                allUnits.find { it.id == uid }?.abbreviation
+
+            // Build candidates from all matches
+            val candidates = matchResult.matches.map { match ->
+                val entity = try { itemRepository.getById(match.itemId) } catch (_: Exception) { null }
+                val unitAbbr = entity?.unitId?.let { uid ->
+                    allUnits.find { it.id == uid }?.abbreviation
+                }
+                ReceiptMatchCandidate(
+                    id = match.itemId,
+                    name = match.itemName,
+                    currentQuantity = entity?.quantity ?: 0.0,
+                    unitId = entity?.unitId,
+                    unitAbbreviation = unitAbbr
+                )
             }
-            val candidate = ReceiptMatchCandidate(
-                id = matchedEntity.id,
-                name = matchedEntity.name,
-                currentQuantity = matchedEntity.quantity,
-                unitId = matchedEntity.unitId,
-                unitAbbreviation = unitAbbr
-            )
 
-            // Detect unit conflict
-            val resolvedUnit = currentItem.unit
-            val unitConflict = if (unitAbbr != null && resolvedUnit.isNotBlank()) {
-                if (!unitAbbr.equals(resolvedUnit, ignoreCase = true)) "Inventory uses $unitAbbr" else null
-            } else null
+            val bestCandidate = candidates.firstOrNull()
+            val matchType = when (matchResult.suggestedAction) {
+                SuggestedAction.UPDATE_EXISTING -> ReceiptMatchType.UPDATE_EXISTING
+                else -> ReceiptMatchType.CREATE_NEW
+            }
 
-            val updated = (_uiState.value.state as? ReceiptScanState.Review)?.items?.toMutableList() ?: return
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(
-                matchType = ReceiptMatchType.UPDATE_EXISTING,
-                matchedInventoryItemId = matchedEntity.id,
-                inventoryCandidates = listOf(candidate),
-                unitConflict = unitConflict
-            )
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
-        } else if (currentItem.matchType == ReceiptMatchType.UPDATE_EXISTING) {
-            // No match found but was previously UPDATE_EXISTING — switch to CREATE_NEW
-            val updated = (_uiState.value.state as? ReceiptScanState.Review)?.items?.toMutableList() ?: return
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(
-                matchType = ReceiptMatchType.CREATE_NEW,
-                matchedInventoryItemId = null,
-                inventoryCandidates = emptyList(),
-                unitConflict = null
-            )
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
+            updateReviewItem(index) { item ->
+                val unitConflict = if (matchType == ReceiptMatchType.UPDATE_EXISTING) {
+                    val unitAbbr = bestCandidate?.unitAbbreviation
+                    if (unitAbbr != null && item.unit.isNotBlank()) {
+                        if (!unitAbbr.equals(item.unit, ignoreCase = true)) "Inventory uses $unitAbbr" else null
+                    } else null
+                } else null
+
+                item.copy(
+                    matchType = matchType,
+                    matchedInventoryItemId = if (matchType == ReceiptMatchType.UPDATE_EXISTING) bestCandidate?.id else null,
+                    inventoryCandidates = candidates,
+                    unitConflict = unitConflict
+                )
+            }
+        } else {
+            // No match found — switch to CREATE_NEW only if currently UPDATE_EXISTING
+            updateReviewItem(index) { item ->
+                if (item.matchType == ReceiptMatchType.UPDATE_EXISTING) {
+                    item.copy(
+                        matchType = ReceiptMatchType.CREATE_NEW,
+                        matchedInventoryItemId = null,
+                        inventoryCandidates = emptyList(),
+                        unitConflict = null
+                    )
+                } else item
+            }
         }
     }
 
     fun updateItemQuantity(index: Int, quantity: String) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(quantity = quantity)
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
-        }
+        updateReviewItem(index) { it.copy(quantity = quantity) }
     }
 
     fun updateItemPrice(index: Int, price: String) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(price = price)
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
-        }
+        updateReviewItem(index) { it.copy(price = price) }
     }
 
     fun updateItemCategory(index: Int, categoryName: String) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(categoryName = categoryName)
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
+        updateReviewItem(index) { it.copy(categoryName = categoryName) }
+
+        // Resolve the new category name to its DB ID
+        viewModelScope.launch {
+            val catEntity = categoryRepository.findCategoryByNameIgnoreCase(categoryName)
+            updateReviewItem(index) { it.copy(resolvedCategoryId = catEntity?.id) }
         }
     }
 
     fun updateItemUnit(index: Int, unit: String) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(unit = unit, unitConflict = null)
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
+        updateReviewItem(index) { it.copy(unit = unit, unitConflict = null) }
+
+        // Resolve the new unit abbreviation to its DB ID
+        viewModelScope.launch {
+            val unitEntity = unitRepository.findByAbbreviation(unit) ?: unitRepository.findByName(unit)
+            updateReviewItem(index) { it.copy(resolvedUnitId = unitEntity?.id) }
+        }
+    }
+
+    fun updateItemLocation(index: Int, locationName: String) {
+        updateReviewItem(index) { it.copy(locationName = locationName) }
+
+        // Resolve the new location name to its DB ID
+        viewModelScope.launch {
+            val locEntity = storageLocationRepository.findByName(locationName)
+            updateReviewItem(index) { it.copy(resolvedLocationId = locEntity?.id) }
         }
     }
 
     fun removeItem(index: Int) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
+        _uiState.update { current ->
+            val review = current.state as? ReceiptScanState.Review ?: return@update current
+            if (index !in review.items.indices) return@update current
+            val updated = review.items.toMutableList()
             updated.removeAt(index)
             if (updated.isEmpty()) {
-                _uiState.update { it.copy(state = ReceiptScanState.Error("All items removed. Try scanning again.")) }
+                current.copy(state = ReceiptScanState.Error("All items removed. Try scanning again."))
             } else {
-                _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
+                current.copy(state = ReceiptScanState.Review(updated))
             }
         }
     }
 
     fun updateItemExpiryDate(index: Int, date: LocalDate?) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(expiryDate = date, isAiEstimatedExpiry = false)
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
-        }
+        updateReviewItem(index) { it.copy(expiryDate = date, isAiEstimatedExpiry = false) }
     }
 
     fun updateItemBarcode(index: Int, barcode: String) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.toMutableList()
-            if (index !in updated.indices) return
-            updated[index] = updated[index].copy(barcode = barcode)
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
+        updateReviewItem(index) { it.copy(barcode = barcode) }
+    }
+
+    fun addBlankItem(): Int {
+        var newIndex = -1
+        _uiState.update { current ->
+            val review = current.state as? ReceiptScanState.Review ?: return@update current
+            val blank = EditableReceiptItem(name = "", quantity = "1", matchType = ReceiptMatchType.CREATE_NEW)
+            val updated = review.items + blank
+            newIndex = updated.size - 1
+            current.copy(state = ReceiptScanState.Review(updated))
         }
+        return newIndex
     }
 
     fun markAsReviewed(index: Int) {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            if (index in state.items.indices && !state.items[index].isReviewed) {
-                val updated = state.items.toMutableList()
-                updated[index] = updated[index].copy(isReviewed = true)
-                _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
-            }
+        updateReviewItem(index) { item ->
+            if (!item.isReviewed) item.copy(isReviewed = true) else item
         }
     }
 
     fun markAllReviewed() {
-        val state = _uiState.value.state
-        if (state is ReceiptScanState.Review) {
-            val updated = state.items.map { it.copy(isReviewed = true) }
-            _uiState.update { it.copy(state = ReceiptScanState.Review(updated)) }
+        _uiState.update { current ->
+            val review = current.state as? ReceiptScanState.Review ?: return@update current
+            val updated = review.items.map { it.copy(isReviewed = true) }
+            current.copy(state = ReceiptScanState.Review(updated))
         }
     }
 
@@ -493,6 +644,10 @@ class ReceiptScanViewModel @Inject constructor(
         val items = state.items.filter { it.name.isNotBlank() && it.matchType != ReceiptMatchType.SKIP }
         if (items.isEmpty()) return
 
+        // Receipt-level metadata
+        val storeName = _uiState.value.storeName
+        val purchaseDate = _uiState.value.purchaseDate ?: LocalDate.now()
+
         // Set Saving state synchronously to prevent double-tap
         _uiState.update { it.copy(state = ReceiptScanState.Saving(0, items.size)) }
 
@@ -500,10 +655,15 @@ class ReceiptScanViewModel @Inject constructor(
             val total = items.size
 
             var addedCount = 0
+            val failedNames = mutableListOf<String>()
             for ((index, item) in items.withIndex()) {
                 _uiState.update { it.copy(state = ReceiptScanState.Saving(index + 1, total)) }
                 try {
-                val qty = item.quantity.toDoubleOrNull() ?: 1.0
+                val qty = item.quantity.toDoubleOrNull()
+                if (qty == null || qty <= 0) {
+                    failedNames.add("${item.name} (invalid quantity)")
+                    continue
+                }
                 val price = item.price.toDoubleOrNull()?.takeIf { it >= 0 }
 
                 when (item.matchType) {
@@ -526,33 +686,22 @@ class ReceiptScanViewModel @Inject constructor(
                                 itemId = existingId,
                                 quantity = qty,
                                 totalPrice = price,
-                                purchaseDate = LocalDate.now(),
+                                purchaseDate = purchaseDate,
                                 expiryDate = item.expiryDate,
-                                storeName = null,
+                                storeName = storeName,
                                 notes = "From receipt scan"
                             )
                         } else {
                             // No price — just adjust quantity (no purchase history)
                             itemRepository.adjustQuantity(existingId, qty)
-                            itemRepository.updatePurchaseDate(existingId, LocalDate.now())
+                            itemRepository.updatePurchaseDate(existingId, purchaseDate)
                         }
                     }
                     ReceiptMatchType.CREATE_NEW -> {
-                        val defaults = SmartDefaults.lookup(item.name)
-                        // Category: use the resolved category from review (AI → SmartDefaults → user override)
-                        val categoryId = if (item.categoryName.isNotBlank()) {
-                            categoryRepository.findCategoryByNameIgnoreCase(item.categoryName)?.id
-                        } else {
-                            // Final fallback to SmartDefaults if somehow empty
-                            defaults?.category?.let { categoryRepository.findCategoryByName(it)?.id }
-                        }
-                        val unitId = if (item.unit.isNotBlank()) {
-                            unitRepository.findByAbbreviation(item.unit)?.id
-                                ?: unitRepository.findByName(item.unit)?.id
-                        } else {
-                            defaults?.unit?.let { unitRepository.findByAbbreviation(it)?.id }
-                        }
-                        val locationId = defaults?.location?.let { storageLocationRepository.findByName(it)?.id }
+                        // Use IDs stored during first resolve — no second resolve needed
+                        val categoryId = item.resolvedCategoryId
+                        val unitId = item.resolvedUnitId
+                        val locationId = item.resolvedLocationId
 
                         val entity = ItemEntity(
                             name = item.name,
@@ -561,7 +710,7 @@ class ReceiptScanViewModel @Inject constructor(
                             unitId = unitId,
                             storageLocationId = locationId,
                             purchasePrice = price,
-                            purchaseDate = LocalDate.now(),
+                            purchaseDate = purchaseDate,
                             expiryDate = item.expiryDate,
                             barcode = item.barcode.ifBlank { null }
                         )
@@ -572,9 +721,9 @@ class ReceiptScanViewModel @Inject constructor(
                                 itemId = newItemId,
                                 quantity = qty,
                                 totalPrice = price,
-                                purchaseDate = LocalDate.now(),
+                                purchaseDate = purchaseDate,
                                 expiryDate = item.expiryDate,
-                                storeName = null,
+                                storeName = storeName,
                                 notes = "From receipt scan"
                             )
                         }
@@ -594,11 +743,20 @@ class ReceiptScanViewModel @Inject constructor(
                 addedCount++
                 } catch (e: Exception) {
                     Log.w("ReceiptScan", "Failed to save item: ${item.name}", e)
+                    failedNames.add(item.name)
                 }
             }
 
-            _uiState.update { it.copy(state = ReceiptScanState.Success(addedCount)) }
+            _uiState.update { it.copy(state = ReceiptScanState.Success(addedCount, failedNames)) }
         }
+    }
+
+    fun updateStoreName(name: String) {
+        _uiState.update { it.copy(storeName = name.ifBlank { null }) }
+    }
+
+    fun updatePurchaseDate(date: LocalDate) {
+        _uiState.update { it.copy(purchaseDate = date) }
     }
 
     fun reset() {
@@ -606,7 +764,78 @@ class ReceiptScanViewModel @Inject constructor(
         _uiState.update { ReceiptScanUiState(currencySymbol = it.currencySymbol) }
     }
 
+    fun scanAnotherPage() {
+        val state = _uiState.value.state as? ReceiptScanState.Review ?: return
+        _uiState.update {
+            it.copy(
+                previousPageItems = it.previousPageItems + state.items,
+                state = ReceiptScanState.Idle,
+                capturedBitmap = null,
+                processingPhase = ProcessingPhase.IDLE,
+                pageCount = it.pageCount + 1
+            )
+        }
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+        _uiState.value.capturedBitmap?.recycle()
+        val previousItems = _uiState.value.previousPageItems
+        _uiState.update {
+            if (previousItems.isNotEmpty()) {
+                it.copy(
+                    state = ReceiptScanState.Review(previousItems),
+                    capturedBitmap = null,
+                    processingPhase = ProcessingPhase.IDLE,
+                    previousPageItems = emptyList(),
+                    pageCount = it.pageCount - 1
+                )
+            } else {
+                it.copy(
+                    state = ReceiptScanState.Idle,
+                    capturedBitmap = null,
+                    processingPhase = ProcessingPhase.IDLE
+                )
+            }
+        }
+    }
+
+    private fun mergeWithPreviousPages(
+        previous: List<EditableReceiptItem>,
+        current: List<EditableReceiptItem>
+    ): List<EditableReceiptItem> {
+        val combined = previous + current
+        val grouped = combined.groupBy {
+            ItemNameNormalizer.normalize(it.name) + "|" + ItemNameNormalizer.normalizeUnit(it.unit)
+        }
+        return grouped.flatMap { (_, group) ->
+            if (group.size <= 1) group
+            else {
+                val base = group.first()
+                val totalQty = group.sumOf { it.quantity.toDoubleOrNull() ?: 1.0 }
+                val qtyStr = if (totalQty == totalQty.toLong().toDouble()) {
+                    totalQty.toLong().toString()
+                } else {
+                    String.format("%.3f", totalQty).trimEnd('0').trimEnd('.')
+                }
+                val totalPrice = group.mapNotNull { it.price.toDoubleOrNull() }
+                    .takeIf { it.isNotEmpty() }?.sum()
+                listOf(base.copy(
+                    name = group.maxByOrNull { it.name.length }?.name ?: base.name,
+                    quantity = qtyStr,
+                    price = totalPrice?.let { String.format("%.2f", it) } ?: "",
+                    matchedShoppingId = group.firstNotNullOfOrNull { it.matchedShoppingId },
+                    matchedInventoryItemId = group.firstNotNullOfOrNull { it.matchedInventoryItemId },
+                    inventoryCandidates = group.flatMap { it.inventoryCandidates }.distinctBy { it.id },
+                    mergedCount = group.sumOf { it.mergedCount }
+                ))
+            }
+        }
+    }
+
     override fun onCleared() {
+        processingJob?.cancel()
         _uiState.value.capturedBitmap?.recycle()
         super.onCleared()
     }

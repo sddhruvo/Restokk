@@ -236,4 +236,13 @@ object HomeScoreCalculator {
 
         return factors.sortedByDescending { it.points }
     }
+
+    /** Get label for a raw score (used by SI-3 to compare previous vs current). */
+    fun labelForScore(score: Int): String = when {
+        score >= 85 -> "Excellent"
+        score >= 70 -> "Great"
+        score >= 50 -> "Good"
+        score >= 30 -> "Getting There"
+        else -> "Just Starting"
+    }
 }

@@ -14,6 +14,17 @@ data class ItemDefaults(
     val shelfLifeDays: Int? = null
 )
 
+data class PersonalDefaults(
+    val categoryId: Long?,
+    val subcategoryId: Long?,
+    val locationId: Long?,
+    val unitId: Long?,
+    val shelfLifeDays: Int?,
+    val quantity: Double?,
+    val price: Double?,
+    val brand: String?
+)
+
 data class CategoryDefaults(
     val location: String? = null,
     val unit: String? = null
@@ -21,37 +32,36 @@ data class CategoryDefaults(
 
 object SmartDefaults {
 
-    // Regions that use imperial units (US, Liberia, Myanmar)
-    private val imperialRegions = setOf("US", "LR", "MM")
-
-    // Imperial → metric unit conversion
-    private val imperialToMetric = mapOf(
-        "gal" to "L",
-        "qt" to "L",
-        "lb" to "kg",
-        "oz" to "g",
-        "pt" to "mL"
+    // Metric base → imperial conversion (data is stored in metric, converted for imperial regions)
+    private val metricToImperial = mapOf(
+        "kg" to "lb",
+        "g" to "oz",
+        "L" to "gal",
+        "mL" to "fl oz"
     )
 
-    private fun ItemDefaults.toMetricUnits(): ItemDefaults {
-        val metricUnit = imperialToMetric[unit] ?: return this
-        return copy(unit = metricUnit)
+    private fun ItemDefaults.toImperialUnits(): ItemDefaults {
+        val imperialUnit = metricToImperial[unit] ?: return this
+        return copy(unit = imperialUnit)
     }
+
+    private fun isImperial(regionCode: String?): Boolean =
+        regionCode != null && regionCode in RegionRegistry.imperialCodes
 
     /**
      * Look up an item name and return smart defaults.
      * Uses case-insensitive matching. Tries exact match first,
      * then longest keyword match.
-     * If regionCode is provided and non-imperial, converts units to metric.
+     * Data is stored in metric; converted to imperial for imperial regions.
      */
     fun lookup(itemName: String, regionCode: String? = null): ItemDefaults? {
         val name = itemName.trim().lowercase()
         if (name.isBlank()) return null
 
-        val useMetric = regionCode != null && regionCode !in imperialRegions
+        val imperial = isImperial(regionCode)
 
         // Exact match first
-        itemMap[name]?.let { return if (useMetric) it.toMetricUnits() else it }
+        itemMap[name]?.let { return if (imperial) it.toImperialUnits() else it }
 
         // Try longest matching keyword (prefer more specific matches)
         var bestMatch: ItemDefaults? = null
@@ -62,12 +72,12 @@ object SmartDefaults {
                 bestLength = keyword.length
             }
         }
-        if (bestMatch != null) return if (useMetric) bestMatch.toMetricUnits() else bestMatch
+        if (bestMatch != null) return if (imperial) bestMatch.toImperialUnits() else bestMatch
 
         // Try if any keyword contains the input (for short names like "egg")
         for ((keyword, defaults) in itemMap) {
             if (keyword.contains(name) && name.length >= 3) {
-                return if (useMetric) defaults.toMetricUnits() else defaults
+                return if (imperial) defaults.toImperialUnits() else defaults
             }
         }
 
@@ -75,10 +85,10 @@ object SmartDefaults {
         // Handles barcode-scanned names like "Maggi Instant Noodles" → matches "noodles"
         val words = name.split(" ", "-", "_").filter { it.length >= 3 }
         for (word in words) {
-            itemMap[word]?.let { return if (useMetric) it.toMetricUnits() else it }
+            itemMap[word]?.let { return if (imperial) it.toImperialUnits() else it }
             // Also try without trailing 's' (plural → singular)
             if (word.endsWith("s") && word.length >= 4) {
-                itemMap[word.dropLast(1)]?.let { return if (useMetric) it.toMetricUnits() else it }
+                itemMap[word.dropLast(1)]?.let { return if (imperial) it.toImperialUnits() else it }
             }
         }
 
@@ -88,13 +98,13 @@ object SmartDefaults {
     /**
      * Get default location and unit for a category.
      * Used when user manually selects a category.
-     * If regionCode is provided and non-imperial, converts units to metric.
+     * Data is stored in metric; converted to imperial for imperial regions.
      */
     fun getCategoryDefaults(categoryName: String, regionCode: String? = null): CategoryDefaults? {
         val defaults = categoryDefaultsMap[categoryName] ?: return null
-        if (regionCode != null && regionCode !in imperialRegions && defaults.unit != null) {
-            val metricUnit = imperialToMetric[defaults.unit]
-            if (metricUnit != null) return defaults.copy(unit = metricUnit)
+        if (isImperial(regionCode) && defaults.unit != null) {
+            val imperialUnit = metricToImperial[defaults.unit]
+            if (imperialUnit != null) return defaults.copy(unit = imperialUnit)
         }
         return defaults
     }
@@ -117,12 +127,12 @@ object SmartDefaults {
 
     private val categoryDefaultsMap = mapOf(
         "Dairy & Eggs" to CategoryDefaults(location = "Refrigerator", unit = "pcs"),
-        "Meat & Poultry" to CategoryDefaults(location = "Refrigerator", unit = "lb"),
-        "Seafood" to CategoryDefaults(location = "Refrigerator", unit = "lb"),
+        "Meat & Poultry" to CategoryDefaults(location = "Refrigerator", unit = "kg"),
+        "Seafood" to CategoryDefaults(location = "Refrigerator", unit = "kg"),
         "Fruits" to CategoryDefaults(location = "Refrigerator", unit = "pcs"),
         "Vegetables" to CategoryDefaults(location = "Refrigerator", unit = "pcs"),
         "Bread & Bakery" to CategoryDefaults(location = "Pantry", unit = "pcs"),
-        "Grains & Pasta" to CategoryDefaults(location = "Pantry", unit = "lb"),
+        "Grains & Pasta" to CategoryDefaults(location = "Pantry", unit = "kg"),
         "Canned Goods" to CategoryDefaults(location = "Pantry", unit = "can"),
         "Condiments & Sauces" to CategoryDefaults(location = "Refrigerator", unit = "bottle"),
         "Spices & Seasonings" to CategoryDefaults(location = "Spice Rack", unit = "cont"),
@@ -134,7 +144,11 @@ object SmartDefaults {
         "International Foods" to CategoryDefaults(location = "Pantry", unit = "pcs"),
         "Baby Food" to CategoryDefaults(location = "Pantry", unit = "jar"),
         "Pet Food" to CategoryDefaults(location = "Pantry", unit = "bag"),
-        "Other" to CategoryDefaults(location = "Pantry", unit = "pcs")
+        "Other" to CategoryDefaults(location = "Pantry", unit = "pcs"),
+        "Household & Cleaning" to CategoryDefaults(location = "Kitchen Cabinet", unit = "bottle"),
+        "Personal Care" to CategoryDefaults(location = "Bathroom", unit = "bottle"),
+        "Health & Medicine" to CategoryDefaults(location = "Bathroom", unit = "box"),
+        "Paper & Wrap" to CategoryDefaults(location = "Pantry", unit = "pack")
     )
 
     // ----- Item keyword → defaults mapping -----
@@ -143,84 +157,84 @@ object SmartDefaults {
 
         // ========== DAIRY & EGGS ==========
         val dairy = "Dairy & Eggs"
-        put("whole milk", ItemDefaults(dairy, "Milk", "gal", "Refrigerator", 7))
-        put("2% milk", ItemDefaults(dairy, "Milk", "gal", "Refrigerator", 7))
-        put("skim milk", ItemDefaults(dairy, "Milk", "gal", "Refrigerator", 7))
-        put("milk", ItemDefaults(dairy, "Milk", "gal", "Refrigerator", 7))
-        put("half and half", ItemDefaults(dairy, "Cream", "pt", "Refrigerator", 10))
-        put("heavy cream", ItemDefaults(dairy, "Cream", "pt", "Refrigerator", 7))
-        put("whipping cream", ItemDefaults(dairy, "Cream", "pt", "Refrigerator", 7))
-        put("cream", ItemDefaults(dairy, "Cream", "pt", "Refrigerator", 7))
+        put("whole milk", ItemDefaults(dairy, "Milk", "L", "Refrigerator", 7))
+        put("2% milk", ItemDefaults(dairy, "Milk", "L", "Refrigerator", 7))
+        put("skim milk", ItemDefaults(dairy, "Milk", "L", "Refrigerator", 7))
+        put("milk", ItemDefaults(dairy, "Milk", "L", "Refrigerator", 7))
+        put("half and half", ItemDefaults(dairy, "Cream", "mL", "Refrigerator", 10))
+        put("heavy cream", ItemDefaults(dairy, "Cream", "mL", "Refrigerator", 7))
+        put("whipping cream", ItemDefaults(dairy, "Cream", "mL", "Refrigerator", 7))
+        put("cream", ItemDefaults(dairy, "Cream", "mL", "Refrigerator", 7))
         put("sour cream", ItemDefaults(dairy, "Other Dairy", "cont", "Refrigerator", 14))
-        put("cream cheese", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 14))
-        put("cheddar", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 30))
-        put("mozzarella", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 21))
-        put("parmesan", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 60))
-        put("swiss cheese", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 30))
+        put("cream cheese", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 14))
+        put("cheddar", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 30))
+        put("mozzarella", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 21))
+        put("parmesan", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 60))
+        put("swiss cheese", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 30))
         put("american cheese", ItemDefaults(dairy, "Cheese", "pcs", "Refrigerator", 30))
         put("cottage cheese", ItemDefaults(dairy, "Cheese", "cont", "Refrigerator", 10))
         put("ricotta", ItemDefaults(dairy, "Cheese", "cont", "Refrigerator", 7))
-        put("feta", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 30))
-        put("cheese", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 30))
+        put("feta", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 30))
+        put("cheese", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 30))
         put("yogurt", ItemDefaults(dairy, "Yogurt", "cont", "Refrigerator", 14))
         put("greek yogurt", ItemDefaults(dairy, "Yogurt", "cont", "Refrigerator", 14))
         put("eggs", ItemDefaults(dairy, "Eggs", "doz", "Refrigerator", 21))
         put("egg", ItemDefaults(dairy, "Eggs", "doz", "Refrigerator", 21))
-        put("butter", ItemDefaults(dairy, "Butter", "lb", "Refrigerator", 30))
+        put("butter", ItemDefaults(dairy, "Butter", "kg", "Refrigerator", 30))
         put("margarine", ItemDefaults(dairy, "Butter", "cont", "Refrigerator", 60))
         put("ghee", ItemDefaults(dairy, "Butter", "jar", "Pantry", 90))
-        put("buttermilk", ItemDefaults(dairy, "Other Dairy", "qt", "Refrigerator", 14))
+        put("buttermilk", ItemDefaults(dairy, "Other Dairy", "L", "Refrigerator", 14))
         put("condensed milk", ItemDefaults(dairy, "Other Dairy", "can", "Pantry", 365))
         put("evaporated milk", ItemDefaults(dairy, "Other Dairy", "can", "Pantry", 365))
         put("whey protein", ItemDefaults(dairy, "Other Dairy", "cont", "Pantry", 365))
-        put("paneer", ItemDefaults(dairy, "Cheese", "oz", "Refrigerator", 7))
+        put("paneer", ItemDefaults(dairy, "Cheese", "g", "Refrigerator", 7))
 
         // ========== MEAT & POULTRY ==========
         val meat = "Meat & Poultry"
-        put("chicken breast", ItemDefaults(meat, "Chicken", "lb", "Refrigerator", 3))
-        put("chicken thigh", ItemDefaults(meat, "Chicken", "lb", "Refrigerator", 3))
-        put("chicken wing", ItemDefaults(meat, "Chicken", "lb", "Refrigerator", 3))
-        put("chicken drumstick", ItemDefaults(meat, "Chicken", "lb", "Refrigerator", 3))
-        put("whole chicken", ItemDefaults(meat, "Chicken", "lb", "Refrigerator", 3))
-        put("chicken", ItemDefaults(meat, "Chicken", "lb", "Refrigerator", 3))
-        put("turkey", ItemDefaults(meat, "Turkey", "lb", "Refrigerator", 3))
-        put("turkey breast", ItemDefaults(meat, "Turkey", "lb", "Refrigerator", 3))
-        put("ground turkey", ItemDefaults(meat, "Turkey", "lb", "Refrigerator", 2))
-        put("ground beef", ItemDefaults(meat, "Ground Meat", "lb", "Refrigerator", 2))
-        put("ground meat", ItemDefaults(meat, "Ground Meat", "lb", "Refrigerator", 2))
-        put("minced meat", ItemDefaults(meat, "Ground Meat", "lb", "Refrigerator", 2))
-        put("beef steak", ItemDefaults(meat, "Beef", "lb", "Refrigerator", 5))
-        put("steak", ItemDefaults(meat, "Beef", "lb", "Refrigerator", 5))
-        put("beef", ItemDefaults(meat, "Beef", "lb", "Refrigerator", 5))
-        put("pork chop", ItemDefaults(meat, "Pork", "lb", "Refrigerator", 5))
-        put("pork tenderloin", ItemDefaults(meat, "Pork", "lb", "Refrigerator", 5))
-        put("pork belly", ItemDefaults(meat, "Pork", "lb", "Refrigerator", 5))
-        put("pork", ItemDefaults(meat, "Pork", "lb", "Refrigerator", 5))
+        put("chicken breast", ItemDefaults(meat, "Chicken", "kg", "Refrigerator", 3))
+        put("chicken thigh", ItemDefaults(meat, "Chicken", "kg", "Refrigerator", 3))
+        put("chicken wing", ItemDefaults(meat, "Chicken", "kg", "Refrigerator", 3))
+        put("chicken drumstick", ItemDefaults(meat, "Chicken", "kg", "Refrigerator", 3))
+        put("whole chicken", ItemDefaults(meat, "Chicken", "kg", "Refrigerator", 3))
+        put("chicken", ItemDefaults(meat, "Chicken", "kg", "Refrigerator", 3))
+        put("turkey", ItemDefaults(meat, "Turkey", "kg", "Refrigerator", 3))
+        put("turkey breast", ItemDefaults(meat, "Turkey", "kg", "Refrigerator", 3))
+        put("ground turkey", ItemDefaults(meat, "Turkey", "kg", "Refrigerator", 2))
+        put("ground beef", ItemDefaults(meat, "Ground Meat", "kg", "Refrigerator", 2))
+        put("ground meat", ItemDefaults(meat, "Ground Meat", "kg", "Refrigerator", 2))
+        put("minced meat", ItemDefaults(meat, "Ground Meat", "kg", "Refrigerator", 2))
+        put("beef steak", ItemDefaults(meat, "Beef", "kg", "Refrigerator", 5))
+        put("steak", ItemDefaults(meat, "Beef", "kg", "Refrigerator", 5))
+        put("beef", ItemDefaults(meat, "Beef", "kg", "Refrigerator", 5))
+        put("pork chop", ItemDefaults(meat, "Pork", "kg", "Refrigerator", 5))
+        put("pork tenderloin", ItemDefaults(meat, "Pork", "kg", "Refrigerator", 5))
+        put("pork belly", ItemDefaults(meat, "Pork", "kg", "Refrigerator", 5))
+        put("pork", ItemDefaults(meat, "Pork", "kg", "Refrigerator", 5))
         put("bacon", ItemDefaults(meat, "Pork", "pack", "Refrigerator", 7))
-        put("ham", ItemDefaults(meat, "Deli Meat", "lb", "Refrigerator", 7))
-        put("lamb", ItemDefaults(meat, "Lamb", "lb", "Refrigerator", 5))
-        put("lamb chop", ItemDefaults(meat, "Lamb", "lb", "Refrigerator", 5))
+        put("ham", ItemDefaults(meat, "Deli Meat", "kg", "Refrigerator", 7))
+        put("lamb", ItemDefaults(meat, "Lamb", "kg", "Refrigerator", 5))
+        put("lamb chop", ItemDefaults(meat, "Lamb", "kg", "Refrigerator", 5))
         put("sausage", ItemDefaults(meat, "Sausages", "pack", "Refrigerator", 5))
         put("hot dog", ItemDefaults(meat, "Sausages", "pack", "Refrigerator", 14))
-        put("salami", ItemDefaults(meat, "Deli Meat", "oz", "Refrigerator", 14))
-        put("pepperoni", ItemDefaults(meat, "Deli Meat", "oz", "Refrigerator", 21))
-        put("deli meat", ItemDefaults(meat, "Deli Meat", "oz", "Refrigerator", 7))
+        put("salami", ItemDefaults(meat, "Deli Meat", "g", "Refrigerator", 14))
+        put("pepperoni", ItemDefaults(meat, "Deli Meat", "g", "Refrigerator", 21))
+        put("deli meat", ItemDefaults(meat, "Deli Meat", "g", "Refrigerator", 7))
 
         // ========== SEAFOOD ==========
         val seafood = "Seafood"
-        put("salmon", ItemDefaults(seafood, "Fresh Fish", "lb", "Refrigerator", 2))
-        put("tuna", ItemDefaults(seafood, "Fresh Fish", "lb", "Refrigerator", 2))
-        put("tilapia", ItemDefaults(seafood, "Fresh Fish", "lb", "Refrigerator", 2))
-        put("cod", ItemDefaults(seafood, "Fresh Fish", "lb", "Refrigerator", 2))
-        put("fish", ItemDefaults(seafood, "Fresh Fish", "lb", "Refrigerator", 2))
-        put("shrimp", ItemDefaults(seafood, "Shrimp", "lb", "Freezer", 180))
-        put("prawns", ItemDefaults(seafood, "Shrimp", "lb", "Freezer", 180))
-        put("crab", ItemDefaults(seafood, "Shellfish", "lb", "Refrigerator", 2))
-        put("lobster", ItemDefaults(seafood, "Shellfish", "lb", "Refrigerator", 2))
-        put("clams", ItemDefaults(seafood, "Shellfish", "lb", "Refrigerator", 2))
-        put("mussels", ItemDefaults(seafood, "Shellfish", "lb", "Refrigerator", 2))
+        put("salmon", ItemDefaults(seafood, "Fresh Fish", "kg", "Refrigerator", 2))
+        put("tuna", ItemDefaults(seafood, "Fresh Fish", "kg", "Refrigerator", 2))
+        put("tilapia", ItemDefaults(seafood, "Fresh Fish", "kg", "Refrigerator", 2))
+        put("cod", ItemDefaults(seafood, "Fresh Fish", "kg", "Refrigerator", 2))
+        put("fish", ItemDefaults(seafood, "Fresh Fish", "kg", "Refrigerator", 2))
+        put("shrimp", ItemDefaults(seafood, "Shrimp", "kg", "Freezer", 180))
+        put("prawns", ItemDefaults(seafood, "Shrimp", "kg", "Freezer", 180))
+        put("crab", ItemDefaults(seafood, "Shellfish", "kg", "Refrigerator", 2))
+        put("lobster", ItemDefaults(seafood, "Shellfish", "kg", "Refrigerator", 2))
+        put("clams", ItemDefaults(seafood, "Shellfish", "kg", "Refrigerator", 2))
+        put("mussels", ItemDefaults(seafood, "Shellfish", "kg", "Refrigerator", 2))
         put("oysters", ItemDefaults(seafood, "Shellfish", "doz", "Refrigerator", 7))
-        put("frozen fish", ItemDefaults(seafood, "Frozen Fish", "lb", "Freezer", 180))
+        put("frozen fish", ItemDefaults(seafood, "Frozen Fish", "kg", "Freezer", 180))
         put("fish sticks", ItemDefaults(seafood, "Frozen Fish", "box", "Freezer", 180))
         put("canned tuna", ItemDefaults(seafood, "Canned Seafood", "can", "Pantry", 730))
         put("canned salmon", ItemDefaults(seafood, "Canned Seafood", "can", "Pantry", 730))
@@ -249,12 +263,12 @@ object SmartDefaults {
         put("blueberries", ItemDefaults(fruits, "Berries", "cont", "Refrigerator", 7))
         put("raspberries", ItemDefaults(fruits, "Berries", "cont", "Refrigerator", 3))
         put("blackberries", ItemDefaults(fruits, "Berries", "cont", "Refrigerator", 3))
-        put("grapes", ItemDefaults(fruits, "Berries", "lb", "Refrigerator", 10))
+        put("grapes", ItemDefaults(fruits, "Berries", "kg", "Refrigerator", 10))
         put("peach", ItemDefaults(fruits, "Stone Fruit", "pcs", "Counter", 5))
         put("peaches", ItemDefaults(fruits, "Stone Fruit", "pcs", "Counter", 5))
         put("plum", ItemDefaults(fruits, "Stone Fruit", "pcs", "Counter", 5))
-        put("cherry", ItemDefaults(fruits, "Stone Fruit", "lb", "Refrigerator", 7))
-        put("cherries", ItemDefaults(fruits, "Stone Fruit", "lb", "Refrigerator", 7))
+        put("cherry", ItemDefaults(fruits, "Stone Fruit", "kg", "Refrigerator", 7))
+        put("cherries", ItemDefaults(fruits, "Stone Fruit", "kg", "Refrigerator", 7))
         put("avocado", ItemDefaults(fruits, "Tropical", "pcs", "Counter", 5))
         put("watermelon", ItemDefaults(fruits, "Melons", "pcs", "Refrigerator", 7))
         put("cantaloupe", ItemDefaults(fruits, "Melons", "pcs", "Refrigerator", 7))
@@ -279,12 +293,12 @@ object SmartDefaults {
         put("shallot", ItemDefaults(vegs, "Onions & Garlic", "pcs", "Pantry", 30))
         put("garlic", ItemDefaults(vegs, "Onions & Garlic", "head", "Pantry", 60))
         put("ginger", ItemDefaults(vegs, "Onions & Garlic", "pcs", "Refrigerator", 21))
-        put("potato", ItemDefaults(vegs, "Root Vegetables", "lb", "Pantry", 30))
-        put("potatoes", ItemDefaults(vegs, "Root Vegetables", "lb", "Pantry", 30))
+        put("potato", ItemDefaults(vegs, "Root Vegetables", "kg", "Pantry", 30))
+        put("potatoes", ItemDefaults(vegs, "Root Vegetables", "kg", "Pantry", 30))
         put("sweet potato", ItemDefaults(vegs, "Root Vegetables", "pcs", "Pantry", 21))
-        put("carrot", ItemDefaults(vegs, "Root Vegetables", "lb", "Refrigerator", 21))
-        put("carrots", ItemDefaults(vegs, "Root Vegetables", "lb", "Refrigerator", 21))
-        put("beet", ItemDefaults(vegs, "Root Vegetables", "lb", "Refrigerator", 14))
+        put("carrot", ItemDefaults(vegs, "Root Vegetables", "kg", "Refrigerator", 21))
+        put("carrots", ItemDefaults(vegs, "Root Vegetables", "kg", "Refrigerator", 21))
+        put("beet", ItemDefaults(vegs, "Root Vegetables", "kg", "Refrigerator", 14))
         put("turnip", ItemDefaults(vegs, "Root Vegetables", "pcs", "Refrigerator", 14))
         put("radish", ItemDefaults(vegs, "Root Vegetables", "bunch", "Refrigerator", 10))
         put("tomato", ItemDefaults(vegs, "Tomatoes", "pcs", "Counter", 7))
@@ -297,7 +311,7 @@ object SmartDefaults {
         put("cabbage", ItemDefaults(vegs, "Cruciferous", "head", "Refrigerator", 14))
         put("broccoli", ItemDefaults(vegs, "Cruciferous", "head", "Refrigerator", 7))
         put("cauliflower", ItemDefaults(vegs, "Cruciferous", "head", "Refrigerator", 7))
-        put("brussels sprouts", ItemDefaults(vegs, "Cruciferous", "lb", "Refrigerator", 7))
+        put("brussels sprouts", ItemDefaults(vegs, "Cruciferous", "kg", "Refrigerator", 7))
         put("bell pepper", ItemDefaults(vegs, "Peppers", "pcs", "Refrigerator", 10))
         put("green pepper", ItemDefaults(vegs, "Peppers", "pcs", "Refrigerator", 10))
         put("red pepper", ItemDefaults(vegs, "Peppers", "pcs", "Refrigerator", 10))
@@ -312,12 +326,12 @@ object SmartDefaults {
         put("corn", ItemDefaults(vegs, "Other Vegetables", "pcs", "Refrigerator", 5))
         put("celery", ItemDefaults(vegs, "Other Vegetables", "bunch", "Refrigerator", 14))
         put("asparagus", ItemDefaults(vegs, "Other Vegetables", "bunch", "Refrigerator", 5))
-        put("green beans", ItemDefaults(vegs, "Other Vegetables", "lb", "Refrigerator", 7))
-        put("peas", ItemDefaults(vegs, "Other Vegetables", "lb", "Refrigerator", 5))
+        put("green beans", ItemDefaults(vegs, "Other Vegetables", "kg", "Refrigerator", 7))
+        put("peas", ItemDefaults(vegs, "Other Vegetables", "kg", "Refrigerator", 5))
         put("mushroom", ItemDefaults(vegs, "Other Vegetables", "cont", "Refrigerator", 7))
         put("mushrooms", ItemDefaults(vegs, "Other Vegetables", "cont", "Refrigerator", 7))
         put("eggplant", ItemDefaults(vegs, "Other Vegetables", "pcs", "Refrigerator", 7))
-        put("okra", ItemDefaults(vegs, "Other Vegetables", "lb", "Refrigerator", 5))
+        put("okra", ItemDefaults(vegs, "Other Vegetables", "kg", "Refrigerator", 5))
         put("artichoke", ItemDefaults(vegs, "Other Vegetables", "pcs", "Refrigerator", 7))
         put("frozen vegetables", ItemDefaults(vegs, "Frozen Vegetables", "bag", "Freezer", 365))
         put("frozen peas", ItemDefaults(vegs, "Frozen Vegetables", "bag", "Freezer", 365))
@@ -350,15 +364,15 @@ object SmartDefaults {
 
         // ========== GRAINS & PASTA ==========
         val grains = "Grains & Pasta"
-        put("rice", ItemDefaults(grains, "Rice", "lb", "Pantry", 730))
-        put("white rice", ItemDefaults(grains, "Rice", "lb", "Pantry", 730))
-        put("brown rice", ItemDefaults(grains, "Rice", "lb", "Pantry", 365))
-        put("basmati rice", ItemDefaults(grains, "Rice", "lb", "Pantry", 730))
-        put("jasmine rice", ItemDefaults(grains, "Rice", "lb", "Pantry", 730))
-        put("pasta", ItemDefaults(grains, "Pasta", "lb", "Pantry", 730))
-        put("spaghetti", ItemDefaults(grains, "Pasta", "lb", "Pantry", 730))
-        put("penne", ItemDefaults(grains, "Pasta", "lb", "Pantry", 730))
-        put("macaroni", ItemDefaults(grains, "Pasta", "lb", "Pantry", 730))
+        put("rice", ItemDefaults(grains, "Rice", "kg", "Pantry", 730))
+        put("white rice", ItemDefaults(grains, "Rice", "kg", "Pantry", 730))
+        put("brown rice", ItemDefaults(grains, "Rice", "kg", "Pantry", 365))
+        put("basmati rice", ItemDefaults(grains, "Rice", "kg", "Pantry", 730))
+        put("jasmine rice", ItemDefaults(grains, "Rice", "kg", "Pantry", 730))
+        put("pasta", ItemDefaults(grains, "Pasta", "kg", "Pantry", 730))
+        put("spaghetti", ItemDefaults(grains, "Pasta", "kg", "Pantry", 730))
+        put("penne", ItemDefaults(grains, "Pasta", "kg", "Pantry", 730))
+        put("macaroni", ItemDefaults(grains, "Pasta", "kg", "Pantry", 730))
         put("noodles", ItemDefaults(grains, "Pasta", "pack", "Pantry", 365))
         put("ramen", ItemDefaults(grains, "Pasta", "pack", "Pantry", 365))
         put("lasagna", ItemDefaults(grains, "Pasta", "box", "Pantry", 730))
@@ -366,14 +380,14 @@ object SmartDefaults {
         put("oatmeal", ItemDefaults(grains, "Oatmeal", "cont", "Pantry", 365))
         put("oats", ItemDefaults(grains, "Oatmeal", "cont", "Pantry", 365))
         put("granola", ItemDefaults(grains, "Cereal", "bag", "Pantry", 180))
-        put("flour", ItemDefaults(grains, "Flour", "lb", "Pantry", 365))
-        put("all purpose flour", ItemDefaults(grains, "Flour", "lb", "Pantry", 365))
-        put("whole wheat flour", ItemDefaults(grains, "Flour", "lb", "Pantry", 180))
-        put("quinoa", ItemDefaults(grains, "Quinoa", "lb", "Pantry", 730))
-        put("couscous", ItemDefaults(grains, "Other Grains", "lb", "Pantry", 365))
-        put("barley", ItemDefaults(grains, "Other Grains", "lb", "Pantry", 365))
+        put("flour", ItemDefaults(grains, "Flour", "kg", "Pantry", 365))
+        put("all purpose flour", ItemDefaults(grains, "Flour", "kg", "Pantry", 365))
+        put("whole wheat flour", ItemDefaults(grains, "Flour", "kg", "Pantry", 180))
+        put("quinoa", ItemDefaults(grains, "Quinoa", "kg", "Pantry", 730))
+        put("couscous", ItemDefaults(grains, "Other Grains", "kg", "Pantry", 365))
+        put("barley", ItemDefaults(grains, "Other Grains", "kg", "Pantry", 365))
         put("breadcrumbs", ItemDefaults(grains, "Other Grains", "cont", "Pantry", 180))
-        put("cornmeal", ItemDefaults(grains, "Other Grains", "lb", "Pantry", 365))
+        put("cornmeal", ItemDefaults(grains, "Other Grains", "kg", "Pantry", 365))
 
         // ========== CANNED GOODS ==========
         val canned = "Canned Goods"
@@ -442,7 +456,7 @@ object SmartDefaults {
         // ========== SPICES & SEASONINGS ==========
         val spices = "Spices & Seasonings"
         put("salt", ItemDefaults(spices, "Salt & Pepper", "cont", "Spice Rack", 1825))
-        put("pepper", ItemDefaults(spices, "Salt & Pepper", "cont", "Spice Rack", 730))
+        // "pepper" standalone stays as vegetable (line 306). Spice covered by "black pepper".
         put("black pepper", ItemDefaults(spices, "Salt & Pepper", "cont", "Spice Rack", 730))
         put("sea salt", ItemDefaults(spices, "Salt & Pepper", "cont", "Spice Rack", 1825))
         put("basil", ItemDefaults(spices, "Dried Herbs", "cont", "Spice Rack", 730))
@@ -551,9 +565,9 @@ object SmartDefaults {
 
         // ========== BAKING SUPPLIES ==========
         val baking = "Baking Supplies"
-        put("sugar", ItemDefaults(baking, "Sugar", "lb", "Pantry", 730))
-        put("brown sugar", ItemDefaults(baking, "Sugar", "lb", "Pantry", 365))
-        put("powdered sugar", ItemDefaults(baking, "Sugar", "lb", "Pantry", 730))
+        put("sugar", ItemDefaults(baking, "Sugar", "kg", "Pantry", 730))
+        put("brown sugar", ItemDefaults(baking, "Sugar", "kg", "Pantry", 365))
+        put("powdered sugar", ItemDefaults(baking, "Sugar", "kg", "Pantry", 730))
         put("baking powder", ItemDefaults(baking, "Baking Powder", "cont", "Pantry", 365))
         put("baking soda", ItemDefaults(baking, "Baking Powder", "box", "Pantry", 730))
         put("chocolate chips", ItemDefaults(baking, "Chocolate Chips", "bag", "Pantry", 365))
@@ -611,5 +625,93 @@ object SmartDefaults {
         put("dog treats", ItemDefaults(pet, "Pet Treats", "bag", "Pantry", 365))
         put("cat treats", ItemDefaults(pet, "Pet Treats", "bag", "Pantry", 365))
         put("pet food", ItemDefaults(pet, "Dog Food", "bag", "Pantry", 365))
+
+        // ========== HOUSEHOLD & CLEANING ==========
+        val household = "Household & Cleaning"
+        put("dish soap", ItemDefaults(household, "Dish Soap", "bottle", "Kitchen Cabinet", 730))
+        put("dishwashing liquid", ItemDefaults(household, "Dish Soap", "bottle", "Kitchen Cabinet", 730))
+        put("washing up liquid", ItemDefaults(household, "Dish Soap", "bottle", "Kitchen Cabinet", 730))
+        put("sponge", ItemDefaults(household, "Sponges", "pack", "Kitchen Cabinet", 180))
+        put("sponges", ItemDefaults(household, "Sponges", "pack", "Kitchen Cabinet", 180))
+        put("trash bags", ItemDefaults(household, "Trash Bags", "box", "Kitchen Cabinet", 1825))
+        put("bin bags", ItemDefaults(household, "Trash Bags", "box", "Kitchen Cabinet", 1825))
+        put("bin liners", ItemDefaults(household, "Trash Bags", "box", "Kitchen Cabinet", 1825))
+        put("garbage bags", ItemDefaults(household, "Trash Bags", "box", "Kitchen Cabinet", 1825))
+        put("laundry detergent", ItemDefaults(household, "Laundry", "bottle", "Laundry Room", 730))
+        put("washing powder", ItemDefaults(household, "Laundry", "box", "Laundry Room", 730))
+        put("fabric softener", ItemDefaults(household, "Laundry", "bottle", "Laundry Room", 730))
+        put("dryer sheets", ItemDefaults(household, "Laundry", "box", "Laundry Room", 730))
+        put("bleach", ItemDefaults(household, "Bleach", "bottle", "Kitchen Cabinet", 365))
+        put("all purpose cleaner", ItemDefaults(household, "All-Purpose Cleaner", "bottle", "Kitchen Cabinet", 730))
+        put("surface cleaner", ItemDefaults(household, "All-Purpose Cleaner", "bottle", "Kitchen Cabinet", 730))
+        put("glass cleaner", ItemDefaults(household, "Other Cleaning", "bottle", "Kitchen Cabinet", 730))
+        put("window cleaner", ItemDefaults(household, "Other Cleaning", "bottle", "Kitchen Cabinet", 730))
+        put("dishwasher tablets", ItemDefaults(household, "Other Cleaning", "box", "Kitchen Cabinet", 730))
+        put("hand soap", ItemDefaults(household, "Other Cleaning", "bottle", "Bathroom", 730))
+        put("kitchen roll", ItemDefaults(household, "Other Cleaning", "pack", "Kitchen Cabinet", 1825))
+        put("disinfectant", ItemDefaults(household, "Other Cleaning", "bottle", "Kitchen Cabinet", 730))
+        put("floor cleaner", ItemDefaults(household, "Other Cleaning", "bottle", "Kitchen Cabinet", 730))
+        put("toilet cleaner", ItemDefaults(household, "Other Cleaning", "bottle", "Bathroom", 730))
+        put("air freshener", ItemDefaults(household, "Other Cleaning", "pcs", "Bathroom", 365))
+
+        // ========== PERSONAL CARE ==========
+        val personalCare = "Personal Care"
+        put("shampoo", ItemDefaults(personalCare, "Shampoo & Conditioner", "bottle", "Bathroom", 365))
+        put("conditioner", ItemDefaults(personalCare, "Shampoo & Conditioner", "bottle", "Bathroom", 365))
+        put("body wash", ItemDefaults(personalCare, "Soap & Body Wash", "bottle", "Bathroom", 365))
+        put("shower gel", ItemDefaults(personalCare, "Soap & Body Wash", "bottle", "Bathroom", 365))
+        put("soap", ItemDefaults(personalCare, "Soap & Body Wash", "pcs", "Bathroom", 730))
+        put("bar soap", ItemDefaults(personalCare, "Soap & Body Wash", "pcs", "Bathroom", 730))
+        put("toothpaste", ItemDefaults(personalCare, "Oral Care", "pcs", "Bathroom", 365))
+        put("toothbrush", ItemDefaults(personalCare, "Oral Care", "pcs", "Bathroom", 90))
+        put("mouthwash", ItemDefaults(personalCare, "Oral Care", "bottle", "Bathroom", 365))
+        put("dental floss", ItemDefaults(personalCare, "Oral Care", "pcs", "Bathroom", 730))
+        put("deodorant", ItemDefaults(personalCare, "Deodorant", "pcs", "Bathroom", 365))
+        put("razor", ItemDefaults(personalCare, "Other Personal Care", "pack", "Bathroom", 365))
+        put("razors", ItemDefaults(personalCare, "Other Personal Care", "pack", "Bathroom", 365))
+        put("cotton pads", ItemDefaults(personalCare, "Other Personal Care", "pack", "Bathroom", 1825))
+        put("cotton buds", ItemDefaults(personalCare, "Other Personal Care", "pack", "Bathroom", 1825))
+        put("lotion", ItemDefaults(personalCare, "Skincare", "bottle", "Bathroom", 365))
+        put("moisturizer", ItemDefaults(personalCare, "Skincare", "pcs", "Bathroom", 365))
+        put("sunscreen", ItemDefaults(personalCare, "Skincare", "bottle", "Bathroom", 365))
+        put("tissues", ItemDefaults(personalCare, "Other Personal Care", "box", "Bathroom", 1825))
+
+        // ========== HEALTH & MEDICINE ==========
+        val health = "Health & Medicine"
+        put("vitamins", ItemDefaults(health, "Vitamins", "bottle", "Bathroom", 365))
+        put("multivitamins", ItemDefaults(health, "Vitamins", "bottle", "Bathroom", 365))
+        put("vitamin c", ItemDefaults(health, "Vitamins", "bottle", "Bathroom", 365))
+        put("vitamin d", ItemDefaults(health, "Vitamins", "bottle", "Bathroom", 365))
+        put("paracetamol", ItemDefaults(health, "Pain Relief", "box", "Bathroom", 730))
+        put("ibuprofen", ItemDefaults(health, "Pain Relief", "box", "Bathroom", 730))
+        put("aspirin", ItemDefaults(health, "Pain Relief", "box", "Bathroom", 730))
+        put("tylenol", ItemDefaults(health, "Pain Relief", "box", "Bathroom", 730))
+        put("band aids", ItemDefaults(health, "First Aid", "box", "Bathroom", 1825))
+        put("bandages", ItemDefaults(health, "First Aid", "box", "Bathroom", 1825))
+        put("antiseptic", ItemDefaults(health, "First Aid", "bottle", "Bathroom", 730))
+        put("allergy tablets", ItemDefaults(health, "Allergy", "box", "Bathroom", 365))
+        put("antihistamine", ItemDefaults(health, "Allergy", "box", "Bathroom", 365))
+        put("cough syrup", ItemDefaults(health, "Cold & Flu", "bottle", "Bathroom", 365))
+        put("cold medicine", ItemDefaults(health, "Cold & Flu", "box", "Bathroom", 365))
+
+        // ========== PAPER & WRAP ==========
+        val paper = "Paper & Wrap"
+        put("paper towels", ItemDefaults(paper, "Paper Towels", "pack", "Pantry", 1825))
+        put("kitchen paper", ItemDefaults(paper, "Paper Towels", "pack", "Pantry", 1825))
+        put("toilet paper", ItemDefaults(paper, "Toilet Paper", "pack", "Bathroom", 1825))
+        put("toilet roll", ItemDefaults(paper, "Toilet Paper", "pack", "Bathroom", 1825))
+        put("aluminum foil", ItemDefaults(paper, "Aluminum Foil", "box", "Kitchen Cabinet", 1825))
+        put("aluminium foil", ItemDefaults(paper, "Aluminum Foil", "box", "Kitchen Cabinet", 1825))
+        put("tin foil", ItemDefaults(paper, "Aluminum Foil", "box", "Kitchen Cabinet", 1825))
+        put("plastic wrap", ItemDefaults(paper, "Plastic Wrap", "box", "Kitchen Cabinet", 1825))
+        put("cling film", ItemDefaults(paper, "Plastic Wrap", "box", "Kitchen Cabinet", 1825))
+        put("parchment paper", ItemDefaults(paper, "Other Paper", "box", "Kitchen Cabinet", 1825))
+        put("baking paper", ItemDefaults(paper, "Other Paper", "box", "Kitchen Cabinet", 1825))
+        put("zip bags", ItemDefaults(paper, "Zip Bags", "box", "Kitchen Cabinet", 1825))
+        put("zip lock bags", ItemDefaults(paper, "Zip Bags", "box", "Kitchen Cabinet", 1825))
+        put("freezer bags", ItemDefaults(paper, "Zip Bags", "box", "Kitchen Cabinet", 1825))
+        put("sandwich bags", ItemDefaults(paper, "Zip Bags", "box", "Kitchen Cabinet", 1825))
+        put("napkins", ItemDefaults(paper, "Other Paper", "pack", "Kitchen Cabinet", 1825))
+        put("serviettes", ItemDefaults(paper, "Other Paper", "pack", "Kitchen Cabinet", 1825))
     }
 }

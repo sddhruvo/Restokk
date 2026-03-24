@@ -10,12 +10,17 @@ import com.inventory.app.data.local.dao.ItemImageDao
 import com.inventory.app.data.local.entity.ItemEntity
 import com.inventory.app.data.local.entity.ItemImageEntity
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
+import com.inventory.app.domain.model.PersonalDefaults
+import com.inventory.app.domain.model.ProductMatcher
+import com.inventory.app.domain.model.ProductMatchResult
+import com.inventory.app.domain.model.SuggestedAction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,7 +60,7 @@ class ItemRepository @Inject constructor(
 
     fun getExpiredCount(): Flow<Int> = itemDao.getExpiredCount(dateToEpoch(LocalDate.now()))
 
-    fun getLowStockCount(): Flow<Int> = itemDao.getLowStockCount()
+    fun getLowStockCount(thresholdRatio: Double = 0.25): Flow<Int> = itemDao.getLowStockCount(thresholdRatio)
 
     fun getOutOfStockCount(): Flow<Int> = itemDao.getOutOfStockCount()
 
@@ -68,8 +73,8 @@ class ItemRepository @Inject constructor(
     fun getExpiringSoon(warningDays: Int = 7, limit: Int = 5): Flow<List<ItemWithDetails>> =
         itemDao.getExpiringSoon(dateToEpoch(LocalDate.now()), dateToEpoch(LocalDate.now().plusDays(warningDays.toLong())), limit)
 
-    fun getLowStockItems(limit: Int = 5): Flow<List<ItemWithDetails>> =
-        itemDao.getLowStockItems(limit)
+    fun getLowStockItems(limit: Int = 5, thresholdRatio: Double = 0.25): Flow<List<ItemWithDetails>> =
+        itemDao.getLowStockItems(limit, thresholdRatio)
 
     fun getItemCountByCategory(limit: Int = 10): Flow<List<ChartDataRow>> =
         itemDao.getItemCountByCategory(limit)
@@ -95,10 +100,10 @@ class ItemRepository @Inject constructor(
         return itemDao.getExpiringItemsReport(today, future)
     }
 
-    fun getLowStockItemsReport(): Flow<List<ItemWithDetails>> = itemDao.getLowStockItemsReport()
+    fun getLowStockItemsReport(thresholdRatio: Double = 0.25): Flow<List<ItemWithDetails>> = itemDao.getLowStockItemsReport(thresholdRatio)
     fun getOutOfStockItemsReport(): Flow<List<ItemWithDetails>> = itemDao.getOutOfStockItemsReport()
 
-    suspend fun getLowStockItemsList(): List<ItemEntity> = itemDao.getLowStockItemsList()
+    suspend fun getLowStockItemsList(thresholdRatio: Double = 0.25): List<ItemEntity> = itemDao.getLowStockItemsList(thresholdRatio)
 
     fun getRecentItemCount(daysSince: Int = 7): Flow<Int> {
         val since = LocalDateTime.now().minusDays(daysSince.toLong())
@@ -120,6 +125,64 @@ class ItemRepository @Inject constructor(
 
     suspend fun suggestNames(query: String, limit: Int = 5): List<String> = itemDao.suggestNames(query, limit)
 
+    suspend fun lookupPersonalHistory(itemName: String): PersonalDefaults? {
+        val pastItem = itemDao.findMostRecentByName(itemName) ?: return null
+        val shelfLife = if (pastItem.expiryDate != null && pastItem.purchaseDate != null) {
+            val days = ChronoUnit.DAYS.between(pastItem.purchaseDate, pastItem.expiryDate).toInt()
+            if (days > 0) days else null
+        } else null
+        return PersonalDefaults(
+            categoryId = pastItem.categoryId,
+            subcategoryId = pastItem.subcategoryId,
+            locationId = pastItem.storageLocationId,
+            unitId = pastItem.unitId,
+            shelfLifeDays = shelfLife,
+            quantity = pastItem.quantity,
+            price = pastItem.purchasePrice,
+            brand = pastItem.brand
+        )
+    }
+
+    /**
+     * Find inventory items that potentially match the given name.
+     * Uses the ProductMatcher engine with tiered confidence scoring.
+     */
+    suspend fun findMatchingItems(
+        name: String,
+        barcode: String? = null
+    ): ProductMatchResult {
+        val allItems = getAllActiveNamesAndIds()
+        val candidates = allItems.map {
+            ProductMatcher.CandidateItem(it.id, it.name)
+        }
+        val corpus = allItems.map { it.name }
+
+        // Layer 1: barcode pre-check
+        val barcodeHit = barcode?.takeIf { it.isNotBlank() }?.let { bc ->
+            findByBarcode(bc)?.let { entity ->
+                ProductMatcher.CandidateItem(entity.id, entity.name, bc)
+            }
+        }
+
+        val matches = ProductMatcher.findMatches(
+            incomingName = name,
+            corpus = corpus,
+            candidates = candidates,
+            incomingBarcode = barcode,
+            barcodeMatch = barcodeHit
+        )
+
+        val best = matches.firstOrNull()
+        val action = when (best?.confidence) {
+            ProductMatcher.MatchConfidence.DEFINITE,
+            ProductMatcher.MatchConfidence.LIKELY -> SuggestedAction.UPDATE_EXISTING
+            ProductMatcher.MatchConfidence.POSSIBLE -> SuggestedAction.ASK_USER
+            null -> SuggestedAction.CREATE_NEW
+        }
+
+        return ProductMatchResult(matches, best, action)
+    }
+
     suspend fun insert(item: ItemEntity): Long = itemDao.insert(item)
 
     suspend fun update(item: ItemEntity) =
@@ -138,6 +201,13 @@ class ItemRepository @Inject constructor(
 
     suspend fun updateExpiryDate(id: Long, date: LocalDate) {
         itemDao.updateExpiryDateIfNull(id, date.toEpochDay(), now())
+    }
+
+    suspend fun extendExpiry(itemId: Long, days: Long) {
+        val item = itemDao.getById(itemId) ?: return
+        val currentExpiry = item.expiryDate ?: LocalDate.now()
+        val newExpiry = currentExpiry.plusDays(days)
+        itemDao.updateExpiryDateForce(itemId, newExpiry.toEpochDay(), now())
     }
 
     suspend fun updateBarcode(id: Long, barcode: String) {

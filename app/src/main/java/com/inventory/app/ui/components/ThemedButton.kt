@@ -46,6 +46,7 @@ fun ThemedButton(
     enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(50),
     colors: ButtonColors = ButtonDefaults.buttonColors(),
+    inkColor: Color = Color.Unspecified,
     content: @Composable RowScope.() -> Unit
 ) {
     val isInk = MaterialTheme.visuals.isInk
@@ -60,11 +61,12 @@ fun ThemedButton(
     val strokePx = with(density) { InkTokens.strokeMedium.toPx() }
     val wobblePx = with(density) { InkTokens.wobbleSmall.toPx() }
 
-    val borderColor = if (enabled) colorScheme.primary
+    val resolvedInkColor = if (inkColor == Color.Unspecified) colorScheme.primary else inkColor
+    val borderColor = if (enabled) resolvedInkColor
         else colorScheme.onSurface.copy(alpha = InkTokens.disabledBorder)
-    val fillColor = if (enabled) colorScheme.primary.copy(alpha = InkTokens.fillLight)
+    val fillColor = if (enabled) resolvedInkColor.copy(alpha = InkTokens.fillLight)
         else Color.Transparent
-    val contentColor = if (enabled) colorScheme.primary
+    val contentColor = if (enabled) resolvedInkColor
         else colorScheme.onSurface.copy(alpha = InkTokens.disabledContent)
 
     Box(

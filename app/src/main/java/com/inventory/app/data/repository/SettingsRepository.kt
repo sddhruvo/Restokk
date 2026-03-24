@@ -9,6 +9,8 @@ import com.inventory.app.data.local.entity.SettingsEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.inventory.app.domain.model.MeasurementSystem
+import com.inventory.app.domain.model.RegionRegistry
 import com.inventory.app.util.FormatUtils
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -33,11 +35,17 @@ class SettingsRepository @Inject constructor(
         const val KEY_OPENAI_API_KEY = "openai_api_key"
         const val KEY_SHOPPING_BUDGET = "shopping_budget"
         const val KEY_AUTO_CLEAR_DAYS = "auto_clear_purchased_days"
+        const val KEY_LOW_STOCK_THRESHOLD = "low_stock_threshold"
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_NOTIF_EXPIRY_ENABLED = "notif_expiry_enabled"
         const val KEY_NOTIF_RESTOCK_ENABLED = "notif_restock_enabled"
         const val KEY_NOTIF_SHOPPING_ENABLED = "notif_shopping_enabled"
         const val KEY_NOTIF_SENT_TIMESTAMPS = "notif_sent_timestamps"
+        const val KEY_LAST_UPDATE_CHECK = "last_update_check_ms"
+        const val KEY_CORRECTION_CONSENT = "correction_consent"
+        const val KEY_MEASUREMENT_SYSTEM = "measurement_system"
+        const val KEY_DATE_FORMAT = "date_format"
+        const val KEY_DASHBOARD_HIGHLIGHT_ENABLED = "dashboard_highlight_enabled"
 
         private val SECURE_KEYS = setOf(KEY_GROK_API_KEY, KEY_OPENAI_API_KEY)
     }
@@ -89,27 +97,34 @@ class SettingsRepository @Inject constructor(
     fun getAllSettings(): Flow<List<SettingsEntity>> = settingsDao.getAll()
 
     suspend fun set(key: String, value: String, valueType: String = "string", description: String? = null) {
+        // Use REPLACE strategy to handle concurrent inserts safely (last-writer-wins)
         val existing = settingsDao.get(key)
-        if (existing != null) {
-            settingsDao.updateValue(key, value, now())
-        } else {
-            settingsDao.insert(
-                SettingsEntity(
-                    key = key,
-                    value = value,
-                    valueType = valueType,
-                    description = description
-                )
+        settingsDao.insert(
+            SettingsEntity(
+                id = existing?.id ?: 0,
+                key = key,
+                value = value,
+                valueType = valueType,
+                description = description ?: existing?.description
             )
-        }
+        )
     }
 
     suspend fun setInt(key: String, value: Int) = set(key, value.toString(), "integer")
     suspend fun setBoolean(key: String, value: Boolean) = set(key, value.toString(), "boolean")
 
-    suspend fun getExpiryWarningDays(): Int = getInt(KEY_EXPIRY_WARNING_DAYS, 7)
+    suspend fun getExpiryWarningDays(): Int = getInt(KEY_EXPIRY_WARNING_DAYS, 3)
     suspend fun getCurrencySymbol(): String = getString(KEY_CURRENCY_SYMBOL, FormatUtils.getDefaultCurrencySymbol())
     suspend fun getRegionCode(): String = getString(KEY_REGION_CODE, "US")
+
+    suspend fun getMeasurementSystem(): MeasurementSystem {
+        val override = getString(KEY_MEASUREMENT_SYSTEM, "")
+        if (override.isNotBlank()) {
+            return try { MeasurementSystem.valueOf(override) } catch (_: Exception) { MeasurementSystem.METRIC }
+        }
+        val regionCode = getRegionCode()
+        return RegionRegistry.findByCode(regionCode)?.measurementSystem ?: MeasurementSystem.METRIC
+    }
 
     suspend fun getNotificationCountThisWeek(): Int {
         val raw = getString(KEY_NOTIF_SENT_TIMESTAMPS, "")

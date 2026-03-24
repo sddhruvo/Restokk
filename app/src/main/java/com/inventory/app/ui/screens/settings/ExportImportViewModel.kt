@@ -59,7 +59,7 @@ class ExportImportViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                         BufferedWriter(OutputStreamWriter(outputStream)).use { writer ->
-                            writer.write("Name,Barcode,Brand,Category,Location,Quantity,Min Quantity,Unit,Purchase Price,Expiry Date,Notes,Smart Min Quantity")
+                            writer.write("Name,Barcode,Brand,Description,Category,Subcategory,Location,Quantity,Min Quantity,Max Quantity,Unit,Purchase Price,Purchase Date,Expiry Date,Expiry Warning Days,Opened Date,Days After Opening,Notes,Is Favorite,Is Paused,Smart Min Quantity")
                             writer.newLine()
 
                             items.forEach { item ->
@@ -67,14 +67,23 @@ class ExportImportViewModel @Inject constructor(
                                     item.item.name,
                                     item.item.barcode ?: "",
                                     item.item.brand ?: "",
+                                    item.item.description ?: "",
                                     item.category?.name ?: "",
+                                    item.subcategory?.name ?: "",
                                     item.storageLocation?.name ?: "",
                                     item.item.quantity.toString(),
                                     item.item.minQuantity.toString(),
+                                    item.item.maxQuantity?.toString() ?: "",
                                     item.unit?.abbreviation ?: "",
                                     item.item.purchasePrice?.toString() ?: "",
+                                    item.item.purchaseDate?.toString() ?: "",
                                     item.item.expiryDate?.toString() ?: "",
+                                    item.item.expiryWarningDays.toString(),
+                                    item.item.openedDate?.toString() ?: "",
+                                    item.item.daysAfterOpening?.toString() ?: "",
                                     item.item.notes ?: "",
+                                    item.item.isFavorite.toString(),
+                                    item.item.isPaused.toString(),
                                     item.item.smartMinQuantity.toString()
                                 ))
                                 writer.newLine()
@@ -107,10 +116,11 @@ class ExportImportViewModel @Inject constructor(
                 val errors = mutableListOf<String>()
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
-                        reader.readLine() // skip header
+                        val headerLine = reader.readLine() // read header for format detection
                         val lines = reader.readLines()
 
                         database.withTransaction {
+
                             lines.forEachIndexed { index, line ->
                                 val lineNum = index + 2 // +2 for header + 0-index
                                 try {
@@ -131,45 +141,66 @@ class ExportImportViewModel @Inject constructor(
                                         return@forEachIndexed
                                     }
 
-                                    // Resolve category
-                                    val categoryName = fields.getOrNull(3)?.trim()
-                                    val category = if (!categoryName.isNullOrBlank()) {
-                                        categoryRepository.findCategoryByName(categoryName)
-                                    } else null
+                                    val item = if (fields.size >= 21) {
+                                        // New format: 21 columns
+                                        val categoryName = fields.getOrNull(4)?.trim()
+                                        val category = if (!categoryName.isNullOrBlank()) categoryRepository.findCategoryByName(categoryName) else null
+                                        val subcategoryName = fields.getOrNull(5)?.trim()
+                                        val subcategory = if (!subcategoryName.isNullOrBlank() && category != null) {
+                                            categoryRepository.findSubcategoryByNameAndCategory(subcategoryName, category.id)
+                                        } else null
+                                        val locationName = fields.getOrNull(6)?.trim()
+                                        val location = if (!locationName.isNullOrBlank()) locationRepository.findByName(locationName) else null
+                                        val unitAbbr = fields.getOrNull(10)?.trim()
+                                        val unit = if (!unitAbbr.isNullOrBlank()) unitRepository.findByAbbreviation(unitAbbr) ?: unitRepository.findByName(unitAbbr) else null
 
-                                    // Resolve location
-                                    val locationName = fields.getOrNull(4)?.trim()
-                                    val location = if (!locationName.isNullOrBlank()) {
-                                        locationRepository.findByName(locationName)
-                                    } else null
+                                        ItemEntity(
+                                            name = name,
+                                            barcode = fields.getOrNull(1)?.trim()?.ifBlank { null },
+                                            brand = fields.getOrNull(2)?.trim()?.ifBlank { null },
+                                            description = fields.getOrNull(3)?.trim()?.ifBlank { null },
+                                            categoryId = category?.id,
+                                            subcategoryId = subcategory?.id,
+                                            storageLocationId = location?.id,
+                                            quantity = fields.getOrNull(7)?.toDoubleOrNull() ?: 1.0,
+                                            minQuantity = fields.getOrNull(8)?.toDoubleOrNull() ?: 0.0,
+                                            maxQuantity = fields.getOrNull(9)?.toDoubleOrNull(),
+                                            unitId = unit?.id,
+                                            purchasePrice = fields.getOrNull(11)?.toDoubleOrNull(),
+                                            purchaseDate = fields.getOrNull(12)?.trim()?.ifBlank { null }?.let { try { LocalDate.parse(it) } catch (_: Exception) { null } },
+                                            expiryDate = fields.getOrNull(13)?.trim()?.ifBlank { null }?.let { try { LocalDate.parse(it) } catch (_: Exception) { null } },
+                                            expiryWarningDays = fields.getOrNull(14)?.toIntOrNull() ?: 3,
+                                            openedDate = fields.getOrNull(15)?.trim()?.ifBlank { null }?.let { try { LocalDate.parse(it) } catch (_: Exception) { null } },
+                                            daysAfterOpening = fields.getOrNull(16)?.toIntOrNull(),
+                                            notes = fields.getOrNull(17)?.trim()?.ifBlank { null },
+                                            isFavorite = fields.getOrNull(18)?.trim()?.toBooleanStrictOrNull() ?: false,
+                                            isPaused = fields.getOrNull(19)?.trim()?.toBooleanStrictOrNull() ?: false,
+                                            smartMinQuantity = fields.getOrNull(20)?.toDoubleOrNull() ?: 0.0
+                                        )
+                                    } else {
+                                        // Legacy format: 12 columns
+                                        val categoryName = fields.getOrNull(3)?.trim()
+                                        val category = if (!categoryName.isNullOrBlank()) categoryRepository.findCategoryByName(categoryName) else null
+                                        val locationName = fields.getOrNull(4)?.trim()
+                                        val location = if (!locationName.isNullOrBlank()) locationRepository.findByName(locationName) else null
+                                        val unitAbbr = fields.getOrNull(7)?.trim()
+                                        val unit = if (!unitAbbr.isNullOrBlank()) unitRepository.findByAbbreviation(unitAbbr) ?: unitRepository.findByName(unitAbbr) else null
 
-                                    // Resolve unit
-                                    val unitAbbr = fields.getOrNull(7)?.trim()
-                                    val unit = if (!unitAbbr.isNullOrBlank()) {
-                                        unitRepository.findByAbbreviation(unitAbbr)
-                                            ?: unitRepository.findByName(unitAbbr)
-                                    } else null
-
-                                    // Parse expiry date
-                                    val expiryStr = fields.getOrNull(9)?.trim()
-                                    val expiryDate = if (!expiryStr.isNullOrBlank()) {
-                                        try { LocalDate.parse(expiryStr) } catch (_: Exception) { null }
-                                    } else null
-
-                                    val item = ItemEntity(
-                                        name = name,
-                                        barcode = fields.getOrNull(1)?.trim()?.ifBlank { null },
-                                        brand = fields.getOrNull(2)?.trim()?.ifBlank { null },
-                                        categoryId = category?.id,
-                                        storageLocationId = location?.id,
-                                        quantity = fields.getOrNull(5)?.toDoubleOrNull() ?: 1.0,
-                                        minQuantity = fields.getOrNull(6)?.toDoubleOrNull() ?: 0.0,
-                                        unitId = unit?.id,
-                                        purchasePrice = fields.getOrNull(8)?.toDoubleOrNull(),
-                                        expiryDate = expiryDate,
-                                        notes = fields.getOrNull(10)?.trim()?.ifBlank { null },
-                                        smartMinQuantity = fields.getOrNull(11)?.toDoubleOrNull() ?: 0.0
-                                    )
+                                        ItemEntity(
+                                            name = name,
+                                            barcode = fields.getOrNull(1)?.trim()?.ifBlank { null },
+                                            brand = fields.getOrNull(2)?.trim()?.ifBlank { null },
+                                            categoryId = category?.id,
+                                            storageLocationId = location?.id,
+                                            quantity = fields.getOrNull(5)?.toDoubleOrNull() ?: 1.0,
+                                            minQuantity = fields.getOrNull(6)?.toDoubleOrNull() ?: 0.0,
+                                            unitId = unit?.id,
+                                            purchasePrice = fields.getOrNull(8)?.toDoubleOrNull(),
+                                            expiryDate = fields.getOrNull(9)?.trim()?.ifBlank { null }?.let { try { LocalDate.parse(it) } catch (_: Exception) { null } },
+                                            notes = fields.getOrNull(10)?.trim()?.ifBlank { null },
+                                            smartMinQuantity = fields.getOrNull(11)?.toDoubleOrNull() ?: 0.0
+                                        )
+                                    }
                                     itemRepository.insert(item)
                                     count++
                                 } catch (e: Exception) {
@@ -235,6 +266,11 @@ class ExportImportViewModel @Inject constructor(
                                         categoryRepository.findCategoryByName(categoryName)
                                     } else null
 
+                                    val subcategoryName = obj.optStringOrNull("subcategory")
+                                    val subcategory = if (!subcategoryName.isNullOrBlank() && category != null) {
+                                        categoryRepository.findSubcategoryByNameAndCategory(subcategoryName, category.id)
+                                    } else null
+
                                     val locationName = obj.optStringOrNull("location")
                                     val location = if (!locationName.isNullOrBlank()) {
                                         locationRepository.findByName(locationName)
@@ -246,23 +282,32 @@ class ExportImportViewModel @Inject constructor(
                                             ?: unitRepository.findByName(unitAbbr)
                                     } else null
 
-                                    val expiryStr = obj.optStringOrNull("expiry_date")
-                                    val expiryDate = if (!expiryStr.isNullOrBlank()) {
-                                        try { LocalDate.parse(expiryStr) } catch (_: Exception) { null }
-                                    } else null
+                                    fun parseDate(key: String): LocalDate? {
+                                        val s = obj.optStringOrNull(key) ?: return null
+                                        return try { LocalDate.parse(s) } catch (_: Exception) { null }
+                                    }
 
                                     val item = ItemEntity(
                                         name = name,
                                         barcode = obj.optStringOrNull("barcode"),
                                         brand = obj.optStringOrNull("brand"),
+                                        description = obj.optStringOrNull("description"),
                                         categoryId = category?.id,
+                                        subcategoryId = subcategory?.id,
                                         storageLocationId = location?.id,
                                         quantity = obj.optDouble("quantity", 1.0),
                                         minQuantity = obj.optDouble("min_quantity", 0.0),
+                                        maxQuantity = if (obj.has("max_quantity") && !obj.isNull("max_quantity")) obj.optDouble("max_quantity") else null,
                                         unitId = unit?.id,
                                         purchasePrice = if (obj.has("purchase_price") && !obj.isNull("purchase_price")) obj.optDouble("purchase_price") else null,
-                                        expiryDate = expiryDate,
+                                        purchaseDate = parseDate("purchase_date"),
+                                        expiryDate = parseDate("expiry_date"),
+                                        expiryWarningDays = if (obj.has("expiry_warning_days")) obj.optInt("expiry_warning_days", 3) else 3,
+                                        openedDate = parseDate("opened_date"),
+                                        daysAfterOpening = if (obj.has("days_after_opening") && !obj.isNull("days_after_opening")) obj.optInt("days_after_opening") else null,
                                         notes = obj.optStringOrNull("notes"),
+                                        isFavorite = obj.optBoolean("is_favorite", false),
+                                        isPaused = obj.optBoolean("is_paused", false),
                                         smartMinQuantity = obj.optDouble("smart_min_quantity", 0.0)
                                     )
                                     itemRepository.insert(item)
@@ -314,14 +359,23 @@ class ExportImportViewModel @Inject constructor(
                                 writer.write("    \"name\": ${jsonEscape(item.item.name)},\n")
                                 writer.write("    \"barcode\": ${jsonEscape(item.item.barcode)},\n")
                                 writer.write("    \"brand\": ${jsonEscape(item.item.brand)},\n")
+                                writer.write("    \"description\": ${jsonEscape(item.item.description)},\n")
                                 writer.write("    \"category\": ${jsonEscape(item.category?.name)},\n")
+                                writer.write("    \"subcategory\": ${jsonEscape(item.subcategory?.name)},\n")
                                 writer.write("    \"location\": ${jsonEscape(item.storageLocation?.name)},\n")
                                 writer.write("    \"quantity\": ${item.item.quantity},\n")
                                 writer.write("    \"min_quantity\": ${item.item.minQuantity},\n")
+                                writer.write("    \"max_quantity\": ${item.item.maxQuantity ?: "null"},\n")
                                 writer.write("    \"unit\": ${jsonEscape(item.unit?.abbreviation)},\n")
                                 writer.write("    \"purchase_price\": ${item.item.purchasePrice ?: "null"},\n")
+                                writer.write("    \"purchase_date\": ${jsonEscape(item.item.purchaseDate?.toString())},\n")
                                 writer.write("    \"expiry_date\": ${jsonEscape(item.item.expiryDate?.toString())},\n")
+                                writer.write("    \"expiry_warning_days\": ${item.item.expiryWarningDays},\n")
+                                writer.write("    \"opened_date\": ${jsonEscape(item.item.openedDate?.toString())},\n")
+                                writer.write("    \"days_after_opening\": ${item.item.daysAfterOpening ?: "null"},\n")
                                 writer.write("    \"notes\": ${jsonEscape(item.item.notes)},\n")
+                                writer.write("    \"is_favorite\": ${item.item.isFavorite},\n")
+                                writer.write("    \"is_paused\": ${item.item.isPaused},\n")
                                 writer.write("    \"smart_min_quantity\": ${item.item.smartMinQuantity}\n")
                                 writer.write("  }${if (index < items.size - 1) "," else ""}\n")
                             }
