@@ -8,6 +8,32 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.inventory.app.data.local.dao.*
 import com.inventory.app.data.local.entity.*
 
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `app_notifications` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `type` TEXT NOT NULL,
+                `title` TEXT NOT NULL,
+                `body` TEXT NOT NULL,
+                `deep_link_route` TEXT DEFAULT NULL,
+                `cta_text` TEXT DEFAULT NULL,
+                `cta_route` TEXT DEFAULT NULL,
+                `priority` INTEGER NOT NULL DEFAULT 1,
+                `created_at` INTEGER NOT NULL DEFAULT 0,
+                `read_at` INTEGER DEFAULT NULL,
+                `dismissed_at` INTEGER DEFAULT NULL,
+                `expires_at` INTEGER DEFAULT NULL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_app_notifications_type` ON `app_notifications` (`type`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_app_notifications_read_at` ON `app_notifications` (`read_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_app_notifications_dismissed_at` ON `app_notifications` (`dismissed_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_app_notifications_expires_at` ON `app_notifications` (`expires_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_app_notifications_priority_created_at` ON `app_notifications` (`priority`, `created_at`)")
+    }
+}
+
 val MIGRATION_9_10 = object : Migration(9, 10) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Add 5 new columns to saved_recipes (all additive with safe defaults)
@@ -218,9 +244,10 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         PantryHealthLogEntity::class,
         SavedRecipeEntity::class,
         SmartDefaultCacheEntity::class,
-        CookingLogEntity::class
+        CookingLogEntity::class,
+        AppNotificationEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -241,4 +268,5 @@ abstract class InventoryDatabase : RoomDatabase() {
     abstract fun savedRecipeDao(): SavedRecipeDao
     abstract fun smartDefaultCacheDao(): SmartDefaultCacheDao
     abstract fun cookingLogDao(): CookingLogDao
+    abstract fun appNotificationDao(): AppNotificationDao
 }

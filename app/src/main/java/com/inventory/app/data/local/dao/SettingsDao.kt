@@ -26,4 +26,8 @@ interface SettingsDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(settings: List<SettingsEntity>)
+
+    // One-shot snapshot for cloud backup
+    @Query("SELECT * FROM settings")
+    suspend fun getAllSnapshot(): List<SettingsEntity>
 }

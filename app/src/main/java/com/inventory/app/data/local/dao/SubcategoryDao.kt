@@ -33,4 +33,8 @@ interface SubcategoryDao {
 
     @Query("SELECT * FROM subcategories WHERE name = :name AND category_id = :categoryId AND is_active = 1 LIMIT 1")
     suspend fun findByNameAndCategory(name: String, categoryId: Long): SubcategoryEntity?
+
+    // One-shot snapshot for cloud backup
+    @Query("SELECT * FROM subcategories WHERE is_active = 1 ORDER BY name ASC")
+    suspend fun getAllActiveSnapshot(): List<SubcategoryEntity>
 }

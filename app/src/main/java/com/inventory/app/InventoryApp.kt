@@ -16,7 +16,11 @@ import com.inventory.app.data.local.entity.PurchaseHistoryEntity
 import com.inventory.app.data.local.entity.SettingsEntity
 import com.inventory.app.data.repository.SettingsRepository
 import com.inventory.app.domain.model.UnitSystem
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import com.inventory.app.widget.WidgetUpdateWorker
+import com.inventory.app.worker.AutoBackupWorker
+import com.inventory.app.worker.NotificationGeneratorWorker
 import com.inventory.app.worker.SmartNotificationWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -54,6 +58,8 @@ class InventoryApp : Application(), Configuration.Provider {
         createNotificationChannels()
         scheduleExpiryCheck()
         scheduleWidgetRefresh()
+        scheduleAutoBackup()
+        scheduleNotificationGenerator()
         backfillPurchaseHistory()
         initializeUnitSystem()
     }
@@ -94,6 +100,33 @@ class InventoryApp : Application(), Configuration.Provider {
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SmartNotificationWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.REPLACE,
+            workRequest
+        )
+    }
+
+    private fun scheduleAutoBackup() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val workRequest = PeriodicWorkRequestBuilder<AutoBackupWorker>(
+            24, TimeUnit.HOURS
+        ).setConstraints(constraints).build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            AutoBackupWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+    }
+
+    private fun scheduleNotificationGenerator() {
+        val workRequest = PeriodicWorkRequestBuilder<NotificationGeneratorWorker>(
+            24, TimeUnit.HOURS
+        ).setInitialDelay(1, TimeUnit.HOURS).build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            NotificationGeneratorWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
             workRequest
         )
     }

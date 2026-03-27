@@ -66,6 +66,10 @@ interface ShoppingListDao {
 
     @Query("UPDATE shopping_list SET previous_purchase_date = :date WHERE id = :id")
     suspend fun savePreviousPurchaseDate(id: Long, date: LocalDate?)
+
+    // One-shot snapshot for cloud backup (active items only)
+    @Query("SELECT * FROM shopping_list WHERE is_purchased = 0 ORDER BY created_at ASC")
+    suspend fun getAllActiveSnapshot(): List<ShoppingListItemEntity>
 }
 
 data class ShoppingListNameProjection(

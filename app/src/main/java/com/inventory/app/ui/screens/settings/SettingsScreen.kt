@@ -47,6 +47,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Notifications
 import com.inventory.app.ui.components.ThemedAlertDialog
@@ -55,6 +57,7 @@ import androidx.compose.material3.Button
 import com.inventory.app.ui.components.ThemedCircularProgress
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -89,9 +92,14 @@ import coil.compose.AsyncImage
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.inventory.app.data.sync.model.BackupEligibility
+import com.inventory.app.data.sync.model.BackupStatus
+import com.inventory.app.data.sync.model.RestoreResult
+import com.inventory.app.data.sync.model.SyncConstants
 import com.inventory.app.ui.components.SaveAction
 import com.inventory.app.ui.components.AppCard
 import com.inventory.app.ui.components.ThemedIcon
+import com.inventory.app.util.FormatUtils
 import com.inventory.app.BuildConfig
 import com.inventory.app.R
 import com.inventory.app.domain.model.MeasurementSystem
@@ -185,9 +193,100 @@ fun SettingsScreen(
 
     LaunchedEffect(uiState.authError) {
         uiState.authError?.let { error ->
-            snackbarHostState.showSnackbar("Sign-in failed: $error")
+            snackbarHostState.showSnackbar(error)
             viewModel.clearAuthError()
         }
+    }
+
+    // Restore success dialog
+    uiState.restoreResult?.let { result ->
+        ThemedAlertDialog(
+            onDismissRequest = { viewModel.clearRestoreResult() },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.CloudDone,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = { Text("Restore Complete") },
+            text = {
+                Column {
+                    if (result.itemsRestored > 0) {
+                        Text("• ${result.itemsRestored} items")
+                    }
+                    if (result.shoppingRestored > 0) {
+                        Text("• ${result.shoppingRestored} shopping list items")
+                    }
+                    if (result.recipesRestored > 0) {
+                        Text("• ${result.recipesRestored} recipes")
+                    }
+                    if (result.itemsRestored == 0 && result.shoppingRestored == 0 && result.recipesRestored == 0) {
+                        Text("Your data is already up to date.")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearRestoreResult() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    // Restore dialog — shown after Google sign-in if cloud backup exists
+    if (uiState.showRestoreDialog && uiState.restorePromptData != null) {
+        val metadata = uiState.restorePromptData!!
+        val backupDate = FormatUtils.formatRelativeTime(metadata.lastBackupAt)
+        ThemedAlertDialog(
+            onDismissRequest = { if (!uiState.restoreInProgress) viewModel.dismissRestoreDialog() },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.CloudDone,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = { Text("Restore Backup?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
+                    Text("We found a backup from $backupDate with ${metadata.itemCount} items and ${metadata.recipeCount} recipes.")
+                    if (uiState.restoreHasLocalData) {
+                        Text(
+                            "This will merge with your existing data. Duplicates keep the newer version.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (uiState.restoreInProgress) {
+                        ThemedCircularProgress(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .align(Alignment.CenterHorizontally),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                ThemedButton(
+                    onClick = { viewModel.performRestore() },
+                    enabled = !uiState.restoreInProgress
+                ) {
+                    Text("Restore")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.dismissRestoreDialog() },
+                    enabled = !uiState.restoreInProgress
+                ) {
+                    Text("Skip")
+                }
+            }
+        )
     }
 
     PageScaffold(
@@ -377,6 +476,132 @@ fun SettingsScreen(
                                 Text("Sign in with Google")
                             }
                         }
+                    }
+                }
+            }
+
+            // Backup & Sync
+            Text("Backup & Sync", style = MaterialTheme.typography.sectionHeader)
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(Dimens.spacingLg),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
+                ) {
+                    if (!uiState.isSignedIn || uiState.isAnonymous) {
+                        // Not signed in — prompt
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.CloudUpload,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Dimens.spacingMd))
+                            Text(
+                                "Sign in with Google to enable cloud backup",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        // Signed in — show backup status
+                        if (uiState.lastBackupDate != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.CloudDone,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Dimens.spacingSm))
+                                Text(
+                                    "Last backed up: ${uiState.lastBackupDate}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        } else {
+                            Text(
+                                "No backup yet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Item count progress
+                        val backedUp = uiState.lastBackupItemCount
+                        val total = uiState.totalItemCount
+                        Text(
+                            "$backedUp of ${SyncConstants.FREE_TIER_ITEM_LIMIT} items backed up" +
+                                if (total > SyncConstants.FREE_TIER_ITEM_LIMIT) " ($total total)" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        LinearProgressIndicator(
+                            progress = { backedUp.toFloat() / SyncConstants.FREE_TIER_ITEM_LIMIT.toFloat() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+
+                        // Backup button / status
+                        when (val status = uiState.backupStatus) {
+                            is BackupStatus.InProgress -> {
+                                ThemedCircularProgress(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .align(Alignment.CenterHorizontally),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                            is BackupStatus.Success -> {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(Dimens.spacingXs))
+                                    Text(
+                                        "Backup complete",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                            is BackupStatus.Failed -> {
+                                Text(
+                                    status.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            is BackupStatus.Idle -> {
+                                val eligibility = uiState.backupEligibility
+                                val isRateLimited = eligibility is BackupEligibility.RateLimited
+                                ThemedButton(
+                                    onClick = { viewModel.performBackup() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = eligibility is BackupEligibility.Eligible
+                                ) {
+                                    Text(
+                                        if (isRateLimited) "Available in ${(eligibility as BackupEligibility.RateLimited).minutesRemaining} min"
+                                        else "Back Up Now"
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            "Auto backup runs daily when connected to the internet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Dimens.spacingXs)
+                        )
                     }
                 }
             }

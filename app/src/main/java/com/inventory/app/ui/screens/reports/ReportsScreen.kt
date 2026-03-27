@@ -84,6 +84,7 @@ class ReportsViewModel @Inject constructor(
     fun markReportsViewed() {
         viewModelScope.launch {
             settingsRepository.setBoolean("reports_viewed", true)
+            settingsRepository.setBoolean(SettingsRepository.KEY_REPORTS_EVER_VIEWED, true)
         }
     }
 }

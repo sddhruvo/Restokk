@@ -70,6 +70,10 @@ interface CategoryDao {
 
     @Query("UPDATE categories SET icon = :icon WHERE LOWER(name) = LOWER(:name)")
     suspend fun updateIconByName(name: String, icon: String)
+
+    // One-shot snapshot for cloud backup
+    @Query("SELECT * FROM categories WHERE is_active = 1 ORDER BY sort_order ASC, name ASC")
+    suspend fun getAllActiveSnapshot(): List<CategoryEntity>
 }
 
 data class CategoryWithItemCountRow(

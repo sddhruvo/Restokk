@@ -16,12 +16,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.inventory.app.MainActivity
 import com.inventory.app.R
-import com.inventory.app.data.local.dao.PurchaseHistoryDao
 import com.inventory.app.data.local.dao.ShoppingListDao
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.SettingsRepository
-import com.inventory.app.domain.model.PurchaseDataPoint
-import com.inventory.app.domain.model.PurchaseRhythmCalculator
 import com.inventory.app.domain.model.UrgencyScorer
 import com.inventory.app.domain.model.UrgencyTarget
 import dagger.assisted.Assisted
@@ -35,7 +32,6 @@ class SmartNotificationWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val itemRepository: ItemRepository,
     private val settingsRepository: SettingsRepository,
-    private val purchaseHistoryDao: PurchaseHistoryDao,
     private val shoppingListDao: ShoppingListDao
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -43,12 +39,11 @@ class SmartNotificationWorker @AssistedInject constructor(
         const val WORK_NAME = "smart_notification_check"
         const val EXTRA_NAV_ROUTE = "extra_nav_route"
         const val CHANNEL_EXPIRY = "expiry_notifications"
-        const val CHANNEL_RESTOCK = "restock_predictions"
         const val CHANNEL_SHOPPING = "shopping_reminders"
         const val MAX_NOTIFICATIONS_PER_WEEK = 3
         private const val NOTIFICATION_ID_EXPIRY = 100
-        private const val NOTIFICATION_ID_RESTOCK = 200
         private const val NOTIFICATION_ID_SHOPPING = 300
+        private const val KEY_LAST_EXPIRY_NOTIF_DATE = "last_expiry_notif_date"
     }
 
     override suspend fun doWork(): Result {
@@ -64,7 +59,6 @@ class SmartNotificationWorker @AssistedInject constructor(
 
         // Compute urgency to decide which notification to try first
         val expiryEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_EXPIRY_ENABLED, true)
-        val restockEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_RESTOCK_ENABLED, true)
         val shoppingEnabled = settingsRepository.getBoolean(SettingsRepository.KEY_NOTIF_SHOPPING_ENABLED, true)
 
         val warningDays = settingsRepository.getExpiryWarningDays()
@@ -98,7 +92,6 @@ class SmartNotificationWorker @AssistedInject constructor(
         // Try urgency-winner first, then fall back to cascade
         val sent = when (urgency.target) {
             UrgencyTarget.EXPIRING -> expiryEnabled && tryExpiryNotification()
-            UrgencyTarget.LOW_STOCK -> restockEnabled && tryRestockNotification()
             UrgencyTarget.SHOPPING -> shoppingEnabled && tryShoppingReminder()
             else -> false
         }
@@ -110,13 +103,17 @@ class SmartNotificationWorker @AssistedInject constructor(
 
         // Fallback cascade if primary target's channel was disabled or had no data
         if (expiryEnabled && tryExpiryNotification()) { settingsRepository.recordNotificationSent(); return Result.success() }
-        if (restockEnabled && tryRestockNotification()) { settingsRepository.recordNotificationSent(); return Result.success() }
         if (shoppingEnabled && tryShoppingReminder()) { settingsRepository.recordNotificationSent(); return Result.success() }
 
         return Result.success()
     }
 
     private suspend fun tryExpiryNotification(): Boolean {
+        // Daily throttle: max 1 expiry notification per day
+        val lastDate = settingsRepository.getString(KEY_LAST_EXPIRY_NOTIF_DATE, "")
+        val todayStr = LocalDate.now().toString()
+        if (lastDate == todayStr) return false
+
         val warningDays = settingsRepository.getExpiryWarningDays()
         val expiringItems = itemRepository.getExpiringSoon(warningDays, limit = 10).first()
         if (expiringItems.isEmpty()) return false
@@ -160,56 +157,7 @@ class SmartNotificationWorker @AssistedInject constructor(
             text = text,
             targetRoute = "dashboard"
         )
-        return true
-    }
-
-    private suspend fun tryRestockNotification(): Boolean {
-        val velocityData = purchaseHistoryDao.getPurchaseDataForVelocity()
-        if (velocityData.isEmpty()) return false
-
-        // Build purchase map
-        val purchasesByItem = mutableMapOf<Long, MutableList<PurchaseDataPoint>>()
-        val itemNames = mutableMapOf<Long, String>()
-        for (row in velocityData) {
-            val date = LocalDate.ofEpochDay(row.purchaseDate)
-            purchasesByItem.getOrPut(row.itemId) { mutableListOf() }
-                .add(PurchaseDataPoint(date, row.quantity))
-            itemNames[row.itemId] = row.itemName
-        }
-
-        val today = LocalDate.now()
-        val predictions = PurchaseRhythmCalculator.calculatePredictions(purchasesByItem, itemNames, today)
-
-        // Find predictions due today or overdue, skip items already on shopping list
-        val activeShoppingItemIds = shoppingListDao.getActiveItemIds().toSet()
-        val duePredictions = predictions.filter { prediction ->
-            !prediction.predictedDate.isAfter(today) && prediction.itemId !in activeShoppingItemIds
-        }
-
-        if (duePredictions.isEmpty()) return false
-
-        val best = duePredictions.first() // highest confidence (list is sorted)
-
-        val intent = Intent(applicationContext, AddToShoppingListReceiver::class.java).apply {
-            putExtra(AddToShoppingListReceiver.EXTRA_ITEM_ID, best.itemId)
-            putExtra(AddToShoppingListReceiver.EXTRA_NOTIFICATION_ID, NOTIFICATION_ID_RESTOCK)
-        }
-        val addPendingIntent = PendingIntent.getBroadcast(
-            applicationContext,
-            best.itemId.toInt(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        sendNotification(
-            id = NOTIFICATION_ID_RESTOCK,
-            channelId = CHANNEL_RESTOCK,
-            title = "Time to Restock?",
-            text = "You usually buy ${best.itemName} around this time",
-            targetRoute = "shopping",
-            actionText = "Add to Shopping List",
-            actionPendingIntent = addPendingIntent
-        )
+        settingsRepository.set(KEY_LAST_EXPIRY_NOTIF_DATE, todayStr)
         return true
     }
 
@@ -263,7 +211,6 @@ class SmartNotificationWorker @AssistedInject constructor(
             .setPriority(
                 when (channelId) {
                     CHANNEL_EXPIRY -> NotificationCompat.PRIORITY_HIGH
-                    CHANNEL_RESTOCK -> NotificationCompat.PRIORITY_DEFAULT
                     else -> NotificationCompat.PRIORITY_LOW
                 }
             )
@@ -281,11 +228,6 @@ class SmartNotificationWorker @AssistedInject constructor(
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_EXPIRY, "Expiry Alerts", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Alerts when items are about to expire"
-            }
-        )
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_RESTOCK, "Smart Restock", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Suggestions to restock items based on your buying patterns"
             }
         )
         nm.createNotificationChannel(

@@ -78,6 +78,9 @@ class CookHubViewModel @Inject constructor(
     init {
         loadData()
         checkResumeSession()
+        viewModelScope.launch {
+            settingsRepository.setBoolean(SettingsRepository.KEY_COOK_FEATURE_USED, true)
+        }
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

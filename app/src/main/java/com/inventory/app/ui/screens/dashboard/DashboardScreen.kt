@@ -71,6 +71,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.inventory.app.R
 import com.inventory.app.ui.components.AppCard
+import com.inventory.app.ui.components.NotificationBadge
+import com.inventory.app.ui.components.NotificationDrawer
 import com.inventory.app.ui.components.EmpathyCartIcon
 import com.inventory.app.ui.components.ThemedIcon
 import com.inventory.app.ui.components.InkPersonality
@@ -94,6 +96,7 @@ fun DashboardScreen(
     val showShoppingSheet = com.inventory.app.ui.screens.shopping.LocalShowAddShoppingSheet.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showNotificationDrawer by remember { mutableStateOf(false) }
     val gridColumns = when (windowWidthSizeClass) {
         WindowWidthSizeClass.Expanded -> 4
         WindowWidthSizeClass.Medium -> 3
@@ -199,6 +202,10 @@ fun DashboardScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    NotificationBadge(
+                        unreadCount = uiState.unreadNotificationCount,
+                        onClick = { showNotificationDrawer = true }
+                    )
                     // Theme picker
                     var showThemePicker by remember { mutableStateOf(false) }
                     Box {
@@ -452,6 +459,33 @@ fun DashboardScreen(
             }
 
         }
+    }
+
+    // Notification Drawer
+    if (showNotificationDrawer) {
+        LaunchedEffect(Unit) { viewModel.onNotificationDrawerOpened() }
+        NotificationDrawer(
+            notifications = uiState.notifications,
+            onDismissSheet = { showNotificationDrawer = false },
+            onMarkAllRead = { viewModel.markAllNotificationsRead() },
+            onNotificationTap = { notification ->
+                viewModel.onNotificationTapped(notification.id, notification.type)
+                notification.deepLinkRoute?.let { route ->
+                    try { navController.navigate(route) } catch (_: Exception) { }
+                }
+                showNotificationDrawer = false
+            },
+            onNotificationCtaClick = { notification ->
+                viewModel.onNotificationCtaClicked(notification.id, notification.type)
+                notification.ctaRoute?.let { route ->
+                    try { navController.navigate(route) } catch (_: Exception) { }
+                }
+                showNotificationDrawer = false
+            },
+            onNotificationDismiss = { notification ->
+                viewModel.dismissNotification(notification.id, notification.type)
+            }
+        )
     }
 }
 

@@ -57,8 +57,10 @@ captures/
 # Firebase config (contains project IDs — not secret but best kept private)
 app/google-services.json
 
-# Firebase Cloud Functions (has own deploy pipeline)
+# Firebase Cloud Functions & rules (deployed separately via Firebase CLI)
 functions/
+firestore.rules
+firestore.indexes.json
 
 # Secrets / API keys
 *.keystore
@@ -67,26 +69,14 @@ signing.properties
 
 # Claude Code personal settings
 .claude/settings.local.json
-CLAUDE.local.md
-CLAUDE.md
 
-# Internal planning / brainstorming
-brainstorming.md
-Onboarding.md
-play-store-listing.md
-pre-launch-audit*.md
-MONETIZATION_PLAN.md
-PRODUCT_MATCHER_PLAN.md
-SMART_DEFAULTS_V2_PLAN.md
-receipt-scan-audit.md
-theme-color-audit.md
-my_cooking_planning.md
-bugreport-2.md
-ink-theme-bugs.md
+# All markdown files at root (planning, audits, tracking, Claude instructions)
+*.md
+
+# Internal folders (planning, memory, animation refs, Play Store docs)
 animation/
-
-# Play Store internal docs (session notes, listing drafts)
 play-store/
+memory/
 
 # Scripts (local dev tooling, not needed in repo)
 scripts/
@@ -98,21 +88,6 @@ ui_dump.xml
 screenshot*.png
 shop*.png
 uidump.xml
-
-# Icon style guide (internal design bible)
-icon-style-guide.md
-
-# Project planning / tracking files (not source code)
-FUTURE_IMPROVEMENTS.md
-COMPLETED_WORK.md
-Features.md
-bugreport.md
-themereview.md
-ThemeArchitecture.md
-ui-audit.md
-polish-audit.md
-ink-theme-audit.md
-memory/
 
 # Stray images / design files at root
 *.jpg

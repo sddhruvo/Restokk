@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.dao.ChartDataRow
 import com.inventory.app.data.local.entity.relations.ItemWithDetails
+import com.inventory.app.data.local.entity.AppNotificationEntity
+import com.inventory.app.data.repository.AnalyticsRepository
+import com.inventory.app.data.repository.AppNotificationRepository
 import com.inventory.app.data.repository.CookingLogRepository
 import com.inventory.app.data.repository.ItemRepository
 import com.inventory.app.data.repository.PantryHealthRepository
@@ -67,7 +70,9 @@ data class DashboardUiState(
     val expiredItems: List<ItemWithDetails> = emptyList(),
     val manualRecipeCount: Int = 0,
     val lastCookedName: String? = null,
-    val lastCookedDaysAgo: Int? = null
+    val lastCookedDaysAgo: Int? = null,
+    val unreadNotificationCount: Int = 0,
+    val notifications: List<AppNotificationEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -77,7 +82,9 @@ class DashboardViewModel @Inject constructor(
     private val shoppingListRepository: ShoppingListRepository,
     private val pantryHealthRepository: PantryHealthRepository,
     private val savedRecipeRepository: SavedRecipeRepository,
-    private val cookingLogRepository: CookingLogRepository
+    private val cookingLogRepository: CookingLogRepository,
+    private val appNotificationRepository: AppNotificationRepository,
+    private val analyticsRepository: AnalyticsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -179,6 +186,20 @@ class DashboardViewModel @Inject constructor(
     init {
         loadData()
         loadKitchenStory()
+        loadNotifications()
+    }
+
+    private fun loadNotifications() {
+        viewModelScope.launch {
+            appNotificationRepository.getUnreadCountFlow().collect { count ->
+                _uiState.update { it.copy(unreadNotificationCount = count) }
+            }
+        }
+        viewModelScope.launch {
+            appNotificationRepository.getAllActive().collect { notifications ->
+                _uiState.update { it.copy(notifications = notifications) }
+            }
+        }
     }
 
     private fun loadData() {
@@ -544,5 +565,32 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.set(SettingsRepository.KEY_VISUAL_STYLE, style.key)
         }
+    }
+
+    fun onNotificationDrawerOpened() {
+        analyticsRepository.logNotificationDrawerOpened()
+    }
+
+    fun markNotificationRead(id: Long) {
+        viewModelScope.launch { appNotificationRepository.markRead(id) }
+    }
+
+    fun onNotificationTapped(id: Long, type: String) {
+        viewModelScope.launch { appNotificationRepository.markRead(id) }
+        analyticsRepository.logNotificationTapped(type)
+    }
+
+    fun onNotificationCtaClicked(id: Long, type: String) {
+        viewModelScope.launch { appNotificationRepository.markRead(id) }
+        analyticsRepository.logNotificationCtaClicked(type)
+    }
+
+    fun markAllNotificationsRead() {
+        viewModelScope.launch { appNotificationRepository.markAllRead() }
+    }
+
+    fun dismissNotification(id: Long, type: String) {
+        viewModelScope.launch { appNotificationRepository.markDismissed(id) }
+        analyticsRepository.logNotificationDismissed(type)
     }
 }

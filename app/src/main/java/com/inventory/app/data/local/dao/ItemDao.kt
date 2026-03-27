@@ -339,6 +339,10 @@ interface ItemDao {
         FROM items WHERE is_active = 1 AND quantity > 0
     """)
     suspend fun getInStockItems(): List<WasteCheckItemRow>
+
+    // One-shot snapshot for cloud backup
+    @Query("SELECT * FROM items WHERE is_active = 1 ORDER BY updated_at DESC")
+    suspend fun getAllActiveSnapshot(): List<ItemEntity>
 }
 
 data class ChartDataRow(

@@ -55,6 +55,10 @@ interface StorageLocationDao {
 
     @Query("SELECT * FROM storage_locations WHERE is_active = 1 AND name LIKE '%' || :query || '%' LIMIT 10")
     suspend fun search(query: String): List<StorageLocationEntity>
+
+    // One-shot snapshot for cloud backup
+    @Query("SELECT * FROM storage_locations WHERE is_active = 1 ORDER BY sort_order ASC, name ASC")
+    suspend fun getAllActiveSnapshot(): List<StorageLocationEntity>
 }
 
 data class LocationWithItemCountRow(

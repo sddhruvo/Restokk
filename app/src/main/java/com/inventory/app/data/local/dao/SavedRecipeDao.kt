@@ -66,4 +66,8 @@ interface SavedRecipeDao {
 
     @Query("UPDATE saved_recipes SET is_active = 0, updated_at = :now WHERE name = :name AND is_active = 1")
     suspend fun deleteByName(name: String, now: Long = System.currentTimeMillis())
+
+    // One-shot snapshot for cloud backup (active, non-draft only)
+    @Query("SELECT * FROM saved_recipes WHERE is_active = 1 AND is_draft = 0 ORDER BY updated_at DESC")
+    suspend fun getAllActiveSnapshot(): List<SavedRecipeEntity>
 }

@@ -26,4 +26,8 @@ interface UnitDao {
 
     @Query("SELECT * FROM units WHERE abbreviation = :abbr AND is_active = 1 LIMIT 1")
     suspend fun findByAbbreviation(abbr: String): UnitEntity?
+
+    // One-shot snapshot for cloud backup
+    @Query("SELECT * FROM units WHERE is_active = 1 ORDER BY name ASC")
+    suspend fun getAllActiveSnapshot(): List<UnitEntity>
 }

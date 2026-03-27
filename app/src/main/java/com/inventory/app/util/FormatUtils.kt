@@ -80,4 +80,20 @@ object FormatUtils {
         days >= 30 -> "~${days / 30} month${if (days >= 60) "s" else ""}"
         else -> "~$days day${if (days != 1) "s" else ""}"
     }
+
+    fun formatRelativeTime(timestampMs: Long): String {
+        val now = System.currentTimeMillis()
+        val diff = now - timestampMs
+        val minutes = diff / 60_000
+        val hours = diff / 3_600_000
+        val days = diff / 86_400_000
+        return when {
+            minutes < 1 -> "Just now"
+            minutes < 60 -> "$minutes min ago"
+            hours < 24 -> "$hours hour${if (hours != 1L) "s" else ""} ago"
+            days < 30 -> "$days day${if (days != 1L) "s" else ""} ago"
+            else -> formatDate(java.time.Instant.ofEpochMilli(timestampMs)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalDate())
+        }
+    }
 }

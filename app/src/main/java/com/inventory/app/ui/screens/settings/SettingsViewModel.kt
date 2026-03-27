@@ -5,6 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.inventory.app.data.local.db.InventoryDatabase
 import com.inventory.app.data.repository.AuthRepository
 import com.inventory.app.data.repository.SettingsRepository
+import com.inventory.app.data.sync.BackupRepository
+import com.inventory.app.data.sync.RestorePromptManager
+import com.inventory.app.data.sync.model.BackupEligibility
+import com.inventory.app.data.sync.model.BackupMetadata
+import com.inventory.app.data.sync.model.BackupStatus
+import com.inventory.app.data.sync.model.RestoreResult
 import com.inventory.app.domain.model.RegionRegistry
 import com.inventory.app.ui.screens.onboarding.RegionInfo
 import com.inventory.app.ui.theme.AppTheme
@@ -58,14 +64,28 @@ data class SettingsUiState(
     val notifRestockEnabled: Boolean = true,
     val notifShoppingEnabled: Boolean = true,
     val userPreference: String = "INVENTORY",
-    val dashboardHighlightEnabled: Boolean = true
+    val dashboardHighlightEnabled: Boolean = true,
+    // Backup state
+    val backupStatus: BackupStatus = BackupStatus.Idle,
+    val lastBackupDate: String? = null,
+    val lastBackupItemCount: Int = 0,
+    val totalItemCount: Int = 0,
+    val backupEligibility: BackupEligibility = BackupEligibility.NotSignedIn,
+    // Restore state
+    val showRestoreDialog: Boolean = false,
+    val restorePromptData: BackupMetadata? = null,
+    val restoreHasLocalData: Boolean = false,
+    val restoreInProgress: Boolean = false,
+    val restoreResult: RestoreResult? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val authRepository: AuthRepository,
-    private val database: InventoryDatabase
+    private val database: InventoryDatabase,
+    private val backupRepository: BackupRepository,
+    private val restorePromptManager: RestorePromptManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -74,6 +94,7 @@ class SettingsViewModel @Inject constructor(
     init {
         loadSettings()
         observeAuthState()
+        observeTotalItemCount()
     }
 
     private fun observeAuthState() {
@@ -88,8 +109,142 @@ class SettingsViewModel @Inject constructor(
                         userPhotoUrl = user?.photoUrl?.toString()
                     )
                 }
+                refreshBackupStatus()
             }
         }
+    }
+
+    private fun observeTotalItemCount() {
+        viewModelScope.launch {
+            database.itemDao().getTotalItemCount().collect { count ->
+                _uiState.update { it.copy(totalItemCount = count) }
+            }
+        }
+    }
+
+    fun refreshBackupStatus() {
+        viewModelScope.launch {
+            val eligibility = backupRepository.canBackup()
+            val lastTimestamp = settingsRepository.getString(
+                SettingsRepository.KEY_LAST_BACKUP_TIMESTAMP, "0"
+            ).toLongOrNull() ?: 0L
+            val lastCount = settingsRepository.getInt(
+                SettingsRepository.KEY_LAST_BACKUP_ITEM_COUNT, 0
+            )
+
+            val lastDateStr = if (lastTimestamp > 0L) {
+                FormatUtils.formatRelativeTime(lastTimestamp)
+            } else null
+
+            _uiState.update {
+                it.copy(
+                    backupEligibility = eligibility,
+                    lastBackupDate = lastDateStr,
+                    lastBackupItemCount = lastCount
+                )
+            }
+        }
+    }
+
+    fun performBackup() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(backupStatus = BackupStatus.InProgress) }
+            val result = backupRepository.performBackup()
+            result.onSuccess { metadata ->
+                _uiState.update {
+                    it.copy(
+                        backupStatus = BackupStatus.Success(metadata),
+                        lastBackupDate = FormatUtils.formatRelativeTime(metadata.lastBackupAt),
+                        lastBackupItemCount = metadata.itemCount
+                    )
+                }
+                refreshBackupStatus()
+                // Auto-dismiss success after 3 seconds
+                delay(3000)
+                _uiState.update { state ->
+                    if (state.backupStatus is BackupStatus.Success) {
+                        state.copy(backupStatus = BackupStatus.Idle)
+                    } else state
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(backupStatus = BackupStatus.Failed(error.message ?: "Backup failed"))
+                }
+                // Auto-dismiss error after 5 seconds
+                delay(5000)
+                _uiState.update { state ->
+                    if (state.backupStatus is BackupStatus.Failed) {
+                        state.copy(backupStatus = BackupStatus.Idle)
+                    } else state
+                }
+            }
+        }
+    }
+
+    fun dismissBackupStatus() {
+        _uiState.update { it.copy(backupStatus = BackupStatus.Idle) }
+    }
+
+
+    // ─── Restore Flow ────────────────────────────────────────────
+
+    private fun checkForRestorePrompt() {
+        viewModelScope.launch {
+            try {
+                val metadata = restorePromptManager.checkForExistingBackup() ?: return@launch
+                val hasLocal = restorePromptManager.hasLocalData()
+                _uiState.update {
+                    it.copy(
+                        showRestoreDialog = true,
+                        restorePromptData = metadata,
+                        restoreHasLocalData = hasLocal
+                    )
+                }
+            } catch (_: Exception) {
+                // Silently fail — don't block sign-in flow
+            }
+        }
+    }
+
+    fun performRestore() {
+        val mergeWithLocal = _uiState.value.restoreHasLocalData
+        viewModelScope.launch {
+            _uiState.update { it.copy(restoreInProgress = true) }
+            val result = backupRepository.performRestore(mergeWithLocal)
+            result.onSuccess { restoreResult ->
+                _uiState.update {
+                    it.copy(
+                        showRestoreDialog = false,
+                        restoreInProgress = false,
+                        restoreResult = restoreResult,
+                        restorePromptData = null
+                    )
+                }
+                refreshBackupStatus()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        showRestoreDialog = false,
+                        restoreInProgress = false,
+                        restorePromptData = null,
+                        authError = "Restore failed: ${error.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun dismissRestoreDialog() {
+        _uiState.update {
+            it.copy(
+                showRestoreDialog = false,
+                restorePromptData = null
+            )
+        }
+    }
+
+    fun clearRestoreResult() {
+        _uiState.update { it.copy(restoreResult = null) }
     }
 
     fun signInWithGoogle(idToken: String) {
@@ -108,6 +263,8 @@ class SettingsViewModel @Inject constructor(
                         authError = null
                     )
                 }
+                // Check for existing cloud backup after successful sign-in
+                checkForRestorePrompt()
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(authLoading = false, authError = error.message)
@@ -131,6 +288,8 @@ class SettingsViewModel @Inject constructor(
     fun deleteAccount(onComplete: () -> Unit) {
         viewModelScope.launch {
             _uiState.update { it.copy(authLoading = true, authError = null) }
+            // Delete cloud data before account deletion (Cloud Function safety net handles failures)
+            try { backupRepository.deleteAllCloudData() } catch (_: Exception) { }
             val result = authRepository.deleteAccount()
             if (result.isSuccess) {
                 withContext(Dispatchers.IO) { database.clearAllTables() }

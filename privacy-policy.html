@@ -31,16 +31,16 @@
 <body>
 
 <h1>Privacy Policy</h1>
-<p class="subtitle">Restokk — AI Kitchen &amp; Grocery Tracker<br>Effective date: March 24, 2026</p>
+<p class="subtitle">Restokk — AI Kitchen &amp; Grocery Tracker<br>Effective date: March 26, 2026</p>
 
 <div class="highlight">
-    <strong>Summary:</strong> Restokk is a local-first app. Your inventory, shopping lists, and recipes stay on your device. We do not sell your data or show ads.
+    <strong>Summary:</strong> Restokk is a local-first app. Your data is stored on your device by default. If you sign in with Google, you can optionally back up your data to the cloud. We do not sell your data or show ads.
 </div>
 
 <h2>1. What Data We Collect</h2>
 
 <h3>1a. Data stored locally on your device</h3>
-<p>The following data is stored only in a local database on your phone and is never uploaded to our servers:</p>
+<p>The following data is stored in a local database on your phone:</p>
 <ul>
     <li>Inventory items (names, quantities, expiry dates, categories, locations)</li>
     <li>Shopping list items and purchase history</li>
@@ -49,7 +49,24 @@
     <li>Pantry health scores and analytics</li>
 </ul>
 
-<h3>1b. Data collected by third-party services</h3>
+<h3>1b. Cloud backup (optional)</h3>
+<p>If you sign in with Google, Restokk can back up your data to <strong>Firebase Cloud Firestore</strong> (hosted on Google Cloud, Europe region). This is opt-in and includes:</p>
+<ul>
+    <li>Inventory items (up to 75 items on the free tier, prioritized by expiry date and recency)</li>
+    <li>Shopping list items, categories, subcategories, storage locations, and units</li>
+    <li>Saved recipes</li>
+    <li>App settings</li>
+</ul>
+<p>Backups are:</p>
+<ul>
+    <li><strong>Isolated per user</strong> — enforced by Firestore security rules; no user can access another user's data</li>
+    <li><strong>Encrypted at rest</strong> — by Google Cloud's default encryption</li>
+    <li><strong>Encrypted in transit</strong> — all communication uses HTTPS</li>
+    <li><strong>Deletable</strong> — deleted automatically when you delete your account (see Section 6)</li>
+</ul>
+<p>An automatic daily backup runs if you are signed in with Google. You can also trigger a manual backup from Settings. If you are not signed in with Google, no data leaves your device.</p>
+
+<h3>1c. Data collected by third-party services</h3>
 <table>
     <tr>
         <th>Service</th>
@@ -70,6 +87,11 @@
         <td>Firebase Crashlytics (Google)</td>
         <td>Crash logs, device model, OS version, app state at time of crash</td>
         <td>Identify and fix app crashes</td>
+    </tr>
+    <tr>
+        <td>Firebase Cloud Firestore (Google)</td>
+        <td>Inventory items, shopping lists, recipes, categories, settings (only if signed in with Google)</td>
+        <td>Cloud backup and restore — lets you recover data on a new device</td>
     </tr>
 </table>
 <p>Firebase data is processed by Google under their <a href="https://firebase.google.com/support/privacy">Firebase Privacy Policy</a>.</p>
@@ -156,6 +178,7 @@
 <h2>4. Data Storage &amp; Security</h2>
 <ul>
     <li><strong>Local data</strong> is stored in an encrypted SQLite database on your device</li>
+    <li><strong>Cloud backups</strong> are stored in Firebase Cloud Firestore (Google Cloud, Europe region), encrypted at rest and isolated per user via security rules</li>
     <li><strong>API keys</strong> are stored server-side (never in the app) and encrypted at rest</li>
     <li><strong>Authentication tokens</strong> are managed by Firebase Auth with industry-standard encryption</li>
     <li><strong>AI requests</strong> use HTTPS encryption in transit</li>
@@ -166,7 +189,8 @@
 <p>Restokk may run a background service in the following situations:</p>
 <ul>
     <li><strong>Cooking Timers:</strong> When you start a cooking timer and minimize the app, a foreground service keeps the timer running and displays a notification with the remaining time. This service does not collect, store, or transmit any data. It stops automatically when all timers complete.</li>
-    <li><strong>Smart Notifications:</strong> A periodic background worker checks your inventory for expiring items and low-stock predictions. This runs entirely on-device using your local database — no data is sent to any server.</li>
+    <li><strong>Smart Notifications:</strong> A periodic background worker checks your inventory for expiring items and generates in-app notification cards. This runs entirely on-device using your local database — no data is sent to any server.</li>
+    <li><strong>Auto Backup:</strong> If you are signed in with Google, a daily background worker backs up your data to Cloud Firestore over Wi-Fi. No backup occurs if you are not signed in with Google.</li>
 </ul>
 
 <h2>6. Your Rights &amp; Choices</h2>
@@ -175,7 +199,16 @@
 <p>All your inventory, shopping, and recipe data is visible directly in the app. You can export it as CSV or JSON at any time from Settings.</p>
 
 <h3>Delete your account and data</h3>
-<p>You can delete your account directly from the app: go to <strong>Settings → Delete Account</strong>. This will permanently delete your Firebase account, revoke Google access, clear all local data, and remove encrypted preferences. You can also <a href="https://sddhruvo.github.io/Restokk/delete-account.html">request account deletion online</a>.</p>
+<p>You can delete your account directly from the app: go to <strong>Settings → Delete Account</strong>. This will permanently:</p>
+<ul>
+    <li>Delete your Firebase Authentication account</li>
+    <li>Delete all cloud backup data from Firestore (inventory, shopping, recipes, settings, metadata)</li>
+    <li>Delete rate limit and usage records</li>
+    <li>Revoke Google access</li>
+    <li>Clear all local data and encrypted preferences</li>
+</ul>
+<p>As a safety net, a server-side Cloud Function also runs when your account is deleted, ensuring all associated cloud data is removed even if the app-side cleanup is interrupted.</p>
+<p>You can also <a href="https://sddhruvo.github.io/Restokk/delete-account.html">request account deletion online</a>.</p>
 <p>To delete only local data without deleting your account, clear the app's storage in your phone's Settings, or uninstall the app.</p>
 
 <h3>Control AI features</h3>

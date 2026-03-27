@@ -46,6 +46,10 @@ class SettingsRepository @Inject constructor(
         const val KEY_MEASUREMENT_SYSTEM = "measurement_system"
         const val KEY_DATE_FORMAT = "date_format"
         const val KEY_DASHBOARD_HIGHLIGHT_ENABLED = "dashboard_highlight_enabled"
+        const val KEY_LAST_BACKUP_TIMESTAMP = "last_backup_timestamp"
+        const val KEY_LAST_BACKUP_ITEM_COUNT = "last_backup_item_count"
+        const val KEY_REPORTS_EVER_VIEWED = "reports_ever_viewed"
+        const val KEY_COOK_FEATURE_USED = "cook_feature_used"
 
         private val SECURE_KEYS = setOf(KEY_GROK_API_KEY, KEY_OPENAI_API_KEY)
     }

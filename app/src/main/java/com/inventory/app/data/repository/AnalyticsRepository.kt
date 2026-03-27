@@ -107,4 +107,46 @@ class AnalyticsRepository @Inject constructor(
     fun setUserId(uid: String?) {
         analytics.setUserId(uid)
     }
+
+    // ---- Cloud Backup ----
+    fun logCloudBackup(itemCount: Int, recipeCount: Int, shoppingCount: Int, totalItems: Int) {
+        analytics.logEvent("cloud_backup") {
+            param("item_count", itemCount.toLong())
+            param("recipe_count", recipeCount.toLong())
+            param("shopping_count", shoppingCount.toLong())
+            param("total_items", totalItems.toLong())
+        }
+    }
+
+    fun logCloudRestore(itemsRestored: Int, recipesRestored: Int, mergeMode: Boolean) {
+        analytics.logEvent("cloud_restore") {
+            param("items_restored", itemsRestored.toLong())
+            param("recipes_restored", recipesRestored.toLong())
+            param("merge_mode", if (mergeMode) "yes" else "no")
+        }
+    }
+
+    // ---- Notification Center ----
+    fun logNotificationDrawerOpened() {
+        analytics.logEvent("notification_drawer_opened") {}
+    }
+
+    fun logNotificationTapped(type: String) {
+        analytics.logEvent("notification_tapped") {
+            param("type", type)
+        }
+    }
+
+    fun logNotificationDismissed(type: String) {
+        analytics.logEvent("notification_dismissed") {
+            param("type", type)
+        }
+    }
+
+    fun logNotificationCtaClicked(type: String) {
+        analytics.logEvent("notification_cta_clicked") {
+            param("type", type)
+        }
+    }
 }
+
